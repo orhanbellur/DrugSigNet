@@ -28,6 +28,7 @@ Imports:
     parallel,
     purrr,
     reticulate,
+    rlang,
     RobustRankAggreg,
     scales,
     signatureSearch,

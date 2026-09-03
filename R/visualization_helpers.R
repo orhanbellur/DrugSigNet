@@ -263,7 +263,7 @@
   # ------------------------------------------------------------
   similarity_tbl <- .safe_exec(
     tryCatch(
-      calc_drug_similarity(drugs = plot_drugs, source = "All")@result,
+      get_drug_drug_similarity(drugs = plot_drugs, source = "All")@result,
       error = function(e) NULL
     )
   )

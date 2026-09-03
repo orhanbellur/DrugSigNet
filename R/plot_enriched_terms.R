@@ -168,7 +168,7 @@ setMethod(
         plot_df,
         ggplot2::aes(
           x = GeneRatio,
-          y = reorder(Term, GeneRatio),
+          y = stats::reorder(Term, GeneRatio),
           size = Overlap_count,
           color = Adjusted.P.value
         )
@@ -189,7 +189,7 @@ setMethod(
         plot_df,
         ggplot2::aes(
           x = Overlap_count,
-          y = reorder(Term, Overlap_count),
+          y = stats::reorder(Term, Overlap_count),
           fill = Adjusted.P.value
         )
       ) +

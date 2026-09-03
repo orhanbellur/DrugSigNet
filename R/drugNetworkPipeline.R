@@ -282,7 +282,7 @@ drugNetworkPipeline <- function(
   rank_numeric_cols <- function(df) {
     df %>%
       dplyr::mutate(
-        dplyr::across(where(is.numeric), rank_vector)
+        dplyr::across(tidyselect::where(is.numeric), rank_vector)
       )
   }
 

@@ -198,7 +198,7 @@ diagnoseNetworkInput <- function(
 
     if (!length(x)) {
       return(
-        setNames(
+        stats::setNames(
           rep(NA_real_, 6),
           c("min", "q1", "median", "mean", "q3", "max")
         )
@@ -220,7 +220,7 @@ diagnoseNetworkInput <- function(
 
     if (!length(x)) {
       return(
-        setNames(
+        stats::setNames(
           rep(NA_real_, 6),
           c("mean", "median", "cv", "p95", "p99", "max")
         )

@@ -151,7 +151,7 @@ To run R directly instead of RStudio Server:
 docker run --rm -it orhan1117/drugsignet:linux R
 ```
 
-See [`DOCKER.md`](../DOCKER.md) for platform-specific builds, configuration,
+See [`DOCKER.md`](https://github.com/compneurobio/DrugSigNet/blob/main/DOCKER.md) for platform-specific builds, configuration,
 volume mounting, authentication, and troubleshooting.
 
 # Optional resources

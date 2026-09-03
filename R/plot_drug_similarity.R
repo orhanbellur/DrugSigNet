@@ -47,8 +47,8 @@ setGeneric(
            width = 20, height = 15,
            label_size = 3, units = "in") {
 
-    if (missing(similarity_matrix) && !is.null(object) && !is(object, "PlotObject")) {
-      if (is(object, "DrugAnnotation")) {
+    if (missing(similarity_matrix) && !is.null(object) && !methods::is(object, "PlotObject")) {
+      if (methods::is(object, "DrugAnnotation")) {
         similarity_matrix <- object@result
       } else if (is.matrix(object) || is.data.frame(object)) {
         similarity_matrix <- object
@@ -198,7 +198,7 @@ setMethod(
     d <- stats::as.dist(1 - sim_mat)
     hc <- stats::hclust(d)
 
-    graphics::plot(as.dendrogram(hc), main = "Drug Similarity Dendrogram", ylab = "1 - Similarity")
+    graphics::plot(stats::as.dendrogram(hc), main = "Drug Similarity Dendrogram", ylab = "1 - Similarity")
 
     if (!isTRUE(params$auto_file_name) && !is.null(params$file_name) && nzchar(params$file_name)) {
       out_file <- paste0(params$file_name, ".", params$file_type)
@@ -235,7 +235,7 @@ setMethod(
 
       open_device()
       on.exit(grDevices::dev.off(), add = TRUE)
-      graphics::plot(as.dendrogram(hc), main = "Drug Similarity Dendrogram", ylab = "1 - Similarity")
+      graphics::plot(stats::as.dendrogram(hc), main = "Drug Similarity Dendrogram", ylab = "1 - Similarity")
     }
 
     invisible(hc)

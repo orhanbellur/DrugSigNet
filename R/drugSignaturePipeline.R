@@ -436,7 +436,7 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
       }
       df1 <- GESS_result$DrugSearching$Processed[[method_cmap]]
       df2 <- GESS_result$DrugSearching$Processed[[method_lincs]]
-      pairwise_rank_aggregation[[dataset]] <- setNames(lapply(methods_ra, function(m) {
+      pairwise_rank_aggregation[[dataset]] <- stats::setNames(lapply(methods_ra, function(m) {
         .calculate_rank_aggregation(m, df1, df2, prior, num_bin, ties_method)
       }), methods_ra)
     }
@@ -457,7 +457,7 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
     ## Harmonize results across methods
     ## --------------------------
     if (length(pairwise_rank_aggregation) > 0L) {
-      Harmonized_rank_aggregation <- setNames(
+      Harmonized_rank_aggregation <- stats::setNames(
         lapply(methods_ra, function(method) {
           score_col <- switch(method,
                               CRank = "CRank",
