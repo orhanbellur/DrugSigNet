@@ -1,0 +1,558 @@
+---
+title: "Network-based methods in DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{04. Network-based methods in DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+This vignette explains the network-based drug-prioritization methods implemented
+in DrugSigNet: TrustRank, harmonic centrality, degree centrality, network
+proximity, and diffusion-based scoring.
+
+The focus is on what each method measures, the network inputs it uses, the
+result columns it returns, and how the resulting scores should be interpreted.
+For an end-to-end executable workflow, see `network-workflow.Rmd`.
+
+# Biological rationale
+
+Network-based drug repurposing assumes that disease-associated genes and drug
+targets occupy informative positions in a biological interaction network. A
+drug may be relevant when its targets are strongly connected with, close to, or
+topologically similar to the disease module.
+
+DrugSigNet uses complementary network formulations because they capture
+different relationships:
+
+- **TrustRank** measures disease-seeded random-walk influence;
+- **harmonic centrality** measures weighted shortest-path accessibility from
+  disease seeds;
+- **degree centrality** uses a penalized multi-hop neighborhood score around
+  disease seeds;
+- **network proximity** measures drug-target distance to the disease module
+  relative to a degree-matched random background; and
+- **diffusion methods** compare propagated network representations using
+  diffusion-state distance and divergence measures.
+
+These methods should therefore be interpreted as complementary rather than as
+different numerical estimates of the same quantity.
+
+# Network inputs
+
+All network methods use disease-associated genes together with a
+protein-protein interaction network and a drug-target interaction network.
+
+| Input | Expected structure | Role |
+|---|---|---|
+| `disease_genes` | Data frame with a `gene` column | Defines disease seed genes |
+| `ppi_network` | Data frame with `gene1` and `gene2` columns | Defines protein-protein interactions |
+| `drug_target_network` | Data frame with `ID`, `Drug`, `Target`, and `Group` columns | Maps drugs to molecular targets |
+
+If `ppi_network` or `drug_target_network` is `NULL`, DrugSigNet can resolve the
+corresponding default network with `load_drugsignet_network()` from the local
+cache or Synapse.
+
+Gene identifiers in `disease_genes`, `ppi_network`, and `drug_target_network`
+must be compatible. Network results should not be interpreted before checking
+how many disease seeds and drug targets map to the selected interactome.
+
+# Inspecting results and parameters
+
+Each individual network method returns a `NetworkBased` object with two
+important slots:
+
+| Slot | Contents |
+|---|---|
+| `@result` | Method-specific drug prioritization results |
+| `@parameters` | Input networks, disease genes, method name, and retained method-specific settings |
+
+For example:
+
+```{r inspect-network-parameters}
+names(trust_rank_result@parameters)
+```
+
+For a TrustRank search, `@parameters` retains the resolved `ppi_network`,
+`drug_target_network`, and `disease_genes` together with settings such as
+`target`, drug-inclusion flags, `filter_paths`, `hub_penalty`,
+`damping_factor`, `max_deg`, and `result_size`.
+
+The exact parameter fields differ by method. DrugSigNet filters the parameter
+slot so that each method retains the inputs and settings relevant to that
+specific analysis.
+
+Important method-specific settings include:
+
+| Method | Examples of retained settings |
+|---|---|
+| TrustRank | `hub_penalty`, `damping_factor`, `max_deg`, `result_size` |
+| Harmonic centrality | `hub_penalty`, `max_deg`, `result_size` |
+| Degree centrality | `max_deg`, `result_size` |
+| Network proximity | `n_simulations`, worker/range settings, `random_seed` |
+| Diffusion | `ties_method`, `output_dir` |
+
+Because `@parameters` also retains the actual network and disease-gene inputs,
+it is useful for reproducing or auditing a particular network search. The
+individual examples below therefore focus on `@result`; the parameter slot only
+needs to be inspected once when the provenance or settings of a run are needed.
+
+# Centrality-based methods
+
+TrustRank, harmonic centrality, and degree centrality return a two-column result:
+
+```text
+Drug    Score
+```
+
+For all three methods, **higher `Score` values indicate stronger network-based
+prioritization**. Their scores should not, however, be compared numerically
+across methods because they are generated by different algorithms.
+
+## TrustRank
+
+### How the method works
+
+TrustRank is a disease-seeded PageRank-like propagation method. Disease genes
+define a personalized trust vector, and relevance is propagated over the
+integrated protein-protein/drug-target graph.
+
+DrugSigNet applies hub-aware edge weighting and uses a damping factor to control
+the balance between continued propagation through the network and return to the
+disease-seed distribution.
+
+A drug receives a high score when its node accumulates substantial
+disease-seeded random-walk relevance.
+
+### Main parameters
+
+| Parameter | Interpretation |
+|---|---|
+| `damping_factor` | Controls the persistence of the random walk; default `0.95` |
+| `hub_penalty` | Penalizes paths through highly connected hubs; default `0.01` |
+| `max_deg` | Excludes nodes above a maximum degree threshold when requested |
+| `result_size` | Number of top candidates returned |
+| `include_indirect_drugs` | Controls inclusion of drugs not directly connected to disease genes |
+| `include_non_approved_drugs` | Controls inclusion of non-approved/investigational drugs |
+
+### Result interpretation
+
+`TrustRank()` returns:
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug name |
+| `Score` | Disease-seeded TrustRank score |
+
+Higher `Score` values correspond to higher priority.
+
+### Main considerations
+
+TrustRank is disease-specific because the propagation starts from the supplied
+seed genes. Results therefore depend on seed quality, interactome coverage,
+hub handling, and the damping factor.
+
+## Harmonic centrality
+
+### How the method works
+
+Harmonic centrality summarizes accessibility from disease seeds through inverse
+shortest-path distance. In the current DrugSigNet implementation, weighted
+shortest-path distances are calculated from each mapped disease seed and their
+inverse contributions are accumulated for candidate nodes.
+
+Unlike classical closeness centrality, harmonic centrality remains well defined
+when parts of the network are disconnected because unreachable nodes contribute
+no useful inverse-distance signal rather than making the statistic undefined.
+
+### Main parameters
+
+The main method-specific setting is `hub_penalty`, which affects the edge
+weights used for shortest-path calculations. `max_deg` and `result_size` can
+also restrict the candidate search.
+
+### Result interpretation
+
+`Harmonic_centrality()` returns:
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug name |
+| `Score` | Accumulated harmonic accessibility from disease seeds |
+
+Higher `Score` values correspond to stronger accessibility from the disease
+seed set and therefore higher priority.
+
+### Main considerations
+
+The method is useful for distributed disease modules and disconnected
+interactomes, but shortest-path structure may not fully represent biological
+signal flow and broadly central nodes can still receive high scores.
+
+## Degree centrality
+
+### How the method works
+
+Despite the function name, the current DrugSigNet `Degree_centrality()`
+implementation is not simply the raw graph degree of each drug node.
+
+For every disease seed, non-seed nodes receive:
+
+- `1` for membership in the 1-hop neighborhood; and
+- `0.5` for membership in the 2-hop neighborhood, excluding nodes already
+  counted at 1 hop.
+
+These contributions are accumulated across disease seeds. The resulting score
+therefore represents a penalized local neighborhood relationship to the disease
+seed set.
+
+### Result interpretation
+
+`Degree_centrality()` returns:
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug name |
+| `Score` | Accumulated 1-hop/2-hop disease-neighborhood score |
+
+Higher `Score` values indicate stronger local connectivity with the disease
+seed neighborhood and therefore higher priority.
+
+### Main considerations
+
+This method is computationally simple and provides a useful local-topology
+baseline. Because it emphasizes short paths around disease seeds, results can
+still be influenced by dense network regions and should be interpreted
+alongside more global methods.
+
+# Network proximity
+
+## How the method works
+
+Network proximity quantifies how close a drug's mapped targets are to the
+disease module in the largest connected component of the interactome.
+
+For each drug target, the method identifies its shortest distance to the
+disease-gene set and averages these closest distances across the drug targets.
+The observed distance is compared with a degree-matched randomized background
+generated through repeated simulations.
+
+The standardized proximity score is:
+
+\[
+Z = \frac{D - \mathrm{Mean}}{\mathrm{SD}},
+\]
+
+where `D` is the observed drug-target/disease distance and `Mean` and `SD`
+describe the randomized null distribution.
+
+## Result columns
+
+`Network_proximity()` returns:
+
+```text
+Drug    Disease    D    Z    Mean    SD
+```
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug name |
+| `Disease` | Disease-set label used by the proximity backend |
+| `D` | Observed mean closest shortest-path distance between drug targets and disease genes |
+| `Z` | Standardized proximity relative to the randomized null |
+| `Mean` | Mean proximity from the degree-matched random simulations |
+| `SD` | Standard deviation of the randomized proximity distribution |
+
+For interpretation:
+
+- **smaller `D`** means the drug targets are closer to the disease genes in raw
+  network distance;
+- **more negative `Z`** means the observed drug-target proximity is closer than
+  expected under the degree-matched random background;
+- `Z` near zero indicates proximity similar to the null expectation; and
+- positive `Z` indicates greater separation than expected under the null.
+
+Because the standardized score accounts for network-degree structure, `Z` is
+generally more informative for proximity interpretation than `D` alone.
+
+## Main parameters
+
+| Parameter | Interpretation |
+|---|---|
+| `n_simulations` | Number of random simulations used to estimate the null distribution |
+| `n_workers` | Number of workers used for the simulation procedure |
+| `random_seed` | Seed for reproducible randomization |
+
+## Main considerations
+
+Network proximity is most informative when disease genes and drug targets map
+adequately to the interactome and the disease genes define a meaningful network
+module. Dense interactomes, very large seed sets, fragmented disease modules,
+or drugs with very few mapped targets can reduce discriminatory power.
+
+# Diffusion-based methods
+
+## How the method works
+
+DrugSigNet's diffusion workflow constructs network-based similarity/distance
+representations and summarizes the relationship between drug targets and disease
+seeds using:
+
+- **DSD**: diffusion-state distance;
+- **KL**: Kullback-Leibler divergence; and
+- **JS**: Jensen-Shannon divergence.
+
+The implementation generates or reuses cached diffusion matrices for the PPI
+network. For each drug, mapped drug targets are compared with the disease seeds,
+and distance/divergence summaries are converted to ranks.
+
+## Result columns
+
+The diffusion result contains:
+
+```text
+Drug
+APP-Drugs
+Degree
+Targets
+DSD-min-Rank
+KL-med-Rank
+KL-min-Rank
+JS-med-Rank
+JS-min-Rank
+DSD-min
+KL-med
+KL-min
+JS-med
+JS-min
+```
+
+The columns can be grouped as follows:
+
+| Column(s) | Meaning |
+|---|---|
+| `Drug` | Drug name |
+| `APP-Drugs` | Backend drug-status indicator retained in the diffusion output |
+| `Degree` | Number of mapped targets used for the drug |
+| `Targets` | Set of mapped drug targets represented in the network |
+| `DSD-min`, `KL-med`, `KL-min`, `JS-med`, `JS-min` | Raw diffusion distance/divergence summaries |
+| `DSD-min-Rank`, `KL-med-Rank`, `KL-min-Rank`, `JS-med-Rank`, `JS-min-Rank` | Ranks derived from the corresponding raw metrics |
+
+The suffixes describe how target-to-disease relationships are summarized:
+
+- `min` uses the minimum disease-seed distance/divergence for each target before
+  averaging across targets;
+- `med` uses the median disease-seed value for each target before averaging
+  across targets.
+
+The rank columns are calculated in ascending order from the corresponding
+non-zero raw distance/divergence values. Therefore:
+
+- **smaller raw DSD/KL/JS values indicate greater network similarity or
+  closeness**; and
+- **smaller rank values are better**, with rank `1` representing the strongest
+  value for that diffusion metric.
+
+Zero raw values are not assigned an ordinary rank in the current backend.
+
+## Main parameters
+
+| Parameter | Interpretation |
+|---|---|
+| `ties_method` | Method used to resolve ties in diffusion-derived ranks |
+| `output_dir` | Directory used to store/reuse diffusion matrices and related intermediate files |
+
+The diffusion matrices can be computationally expensive to generate. Reusing a
+stable `output_dir` allows compatible precomputed matrices to be reused in later
+runs.
+
+## Main considerations
+
+Diffusion methods capture distributed network similarity beyond immediate
+neighbors or shortest paths, but they are more computationally demanding and
+depend strongly on the topology of the selected PPI network.
+
+# Method comparison
+
+| Method | Network signal | Main result direction | Main consideration |
+|---|---|---|---|
+| TrustRank | Disease-seeded random-walk influence | Higher `Score` is better | Sensitive to seed quality and propagation settings |
+| Harmonic centrality | Weighted inverse shortest-path accessibility | Higher `Score` is better | Can favor broadly accessible nodes |
+| Degree centrality | Penalized 1-hop/2-hop seed-neighborhood connectivity | Higher `Score` is better | Local-topology emphasis |
+| Network proximity | Distance to disease module relative to randomized null | More negative `Z` is stronger proximity | Requires informative module/network geometry |
+| Diffusion | DSD/KL/JS network similarity | Lower raw metric and lower rank are better | Computationally intensive |
+
+Native values from these methods are not on a common numerical scale. DrugSigNet
+therefore converts method-specific outputs to rankings before downstream
+consensus analysis rather than directly averaging raw scores.
+
+# Individual method calls
+
+The examples below demonstrate the individual network methods. Full pipeline
+orchestration, rank aggregation, annotation, and visualization are covered in
+`network-workflow.Rmd`.
+
+## Prepare network inputs
+
+```{r network-example-input}
+data("disease_seeds", package = "DrugSigNet")
+disease_genes <- disease_seeds
+
+auth_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN")
+
+networks <- load_drugsignet_network(
+  network = "all",
+  auth_token = auth_token
+)
+
+ppi_network <- networks$gene_gene
+drug_target_network <- networks$drug_target
+```
+
+## TrustRank
+
+```{r run-trustrank}
+trust_rank_result <- TrustRank(
+  ppi_network = ppi_network,
+  drug_target_network = drug_target_network,
+  disease_genes = disease_genes,
+  hub_penalty = 0.01,
+  damping_factor = 0.95
+)
+
+head(trust_rank_result@result)
+```
+
+## Harmonic centrality
+
+```{r run-harmonic-centrality}
+harmonic_result <- Harmonic_centrality(
+  ppi_network = ppi_network,
+  drug_target_network = drug_target_network,
+  disease_genes = disease_genes,
+  hub_penalty = 0.01
+)
+
+head(harmonic_result@result)
+```
+
+## Degree centrality
+
+```{r run-degree-centrality}
+degree_result <- Degree_centrality(
+  ppi_network = ppi_network,
+  drug_target_network = drug_target_network,
+  disease_genes = disease_genes
+)
+
+head(degree_result@result)
+```
+
+## Network proximity
+
+```{r run-network-proximity}
+proximity_result <- Network_proximity(
+  ppi_network = ppi_network,
+  drug_target_network = drug_target_network,
+  disease_genes = disease_genes,
+  n_simulations = 1000,
+  n_workers = 1,
+  random_seed = 42
+)
+
+head(proximity_result@result)
+```
+
+## Diffusion
+
+```{r run-diffusion}
+diffusion_result <- Diffusion(
+  ppi_network = ppi_network,
+  drug_target_network = drug_target_network,
+  disease_genes = disease_genes,
+  ties_method = "max",
+  output_dir = tempdir()
+)
+
+head(diffusion_result@result)
+```
+
+# Network diagnostics
+
+Network quality can materially affect network-based drug rankings. Before
+relying heavily on proximity or diffusion results, inspect whether the disease
+and drug-target inputs are suitable for the selected interactome.
+
+Useful checks include:
+
+- the number and fraction of disease seeds mapped to the interactome;
+- the number and fraction of drug targets mapped to the interactome;
+- the size of the largest connected component;
+- the degree distribution of disease seeds;
+- disease-seed shortest-path structure and module compactness;
+- the number of mapped targets per drug; and
+- the extent to which shortest-path distances are compressed in a dense
+  interactome.
+
+When network diagnostics indicate weak module structure, poor target coverage,
+or limited proximity resolution, centrality-based rankings may be more
+informative than relying heavily on proximity or diffusion alone.
+
+# Practical recommendations
+
+- Record the PPI and drug-target networks used for each analysis.
+- Retain the `@parameters` slot when archiving a method result because it stores
+  the resolved inputs and method-specific settings.
+- Check disease-seed and drug-target mapping before interpreting missing or
+  weakly ranked candidates.
+- Interpret each method according to its own score direction; do not compare raw
+  values across different algorithms.
+- Compare complementary topology-, distance-, and diffusion-based rankings
+  before drawing biological conclusions.
+- Use rank aggregation to reduce dependence on any single network statistic.
+- Treat highly ranked drugs as computational prioritization hypotheses requiring
+  biological interpretation and validation.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
+| Run the complete network workflow | `network-workflow.Rmd` |
+| Understand rank aggregation | `rank-aggregation.Rmd` |
+| Annotate prioritized drugs | `drug-annotation.Rmd` |
+| Visualize network and consensus results | `visualization.Rmd` |
+| Run an integrated example | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

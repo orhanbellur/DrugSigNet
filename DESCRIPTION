@@ -1,0 +1,69 @@
+Type: Package
+Package: DrugSigNet
+Title: Drug Signature Network
+Version: 1.0.0
+Authors@R: c(
+    person("Orhan", "Bellur", , "orhan.bellur@helmholtz-muenchen.de", role = c("aut", "cre")),
+    person("Matthias", "Arnold", , "matthias.arnold@helmholtz-muenchen.de", role = "aut")
+  )
+Maintainer: Orhan Bellur <orhan.bellur@helmholtz-muenchen.de>
+Description: R package to conduct in silico drug repurposing analysis by
+    leveraging several algorithms for both signature-based and
+    network-based approaches.
+License: MIT + file LICENSE
+URL: https://github.com/compneurobio/DrugSigNet
+BugReports: https://github.com/compneurobio/DrugSigNet/issues
+Imports: 
+    BoutrosLab.plotting.general,
+    rcdk,
+    dplyr,
+    enrichR,
+    ggsci,
+    ggplot2,
+    ggraph,
+    igraph,
+    magrittr,
+    methods,
+    openxlsx,
+    parallel,
+    purrr,
+    reticulate,
+    RobustRankAggreg,
+    scales,
+    signatureSearch,
+    stats,
+    stringr,
+    tibble,
+    tidyr,
+    tidyselect,
+    utils
+Suggests: 
+    AnnotationDbi,
+    ExperimentHub,
+    HDF5Array,
+    ggalluvial,
+    httr,
+    kableExtra,
+    knitr,
+    plotly,
+    pkgload,
+    psych,
+    readr,
+    org.Hs.eg.db,
+    rhdf5,
+    remotes,
+    rmarkdown,
+    testthat,
+    tinytex,
+    webr,
+    wordcloud
+Additional_repositories:
+    http://ran.synapse.org
+VignetteBuilder: 
+    knitr
+Config/testthat/edition: 3
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 3.5)
+Config/roxygen2/version: 8.0.0

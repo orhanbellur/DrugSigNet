@@ -1,0 +1,314 @@
+---
+title: "Getting started with DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{01. Getting started with DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+DrugSigNet is an R package for *in silico* drug repurposing. It combines
+signature-based, network-based, and consensus ranking strategies to prioritize
+candidate drugs from disease molecular profiles. The package is designed for
+analyses in which users have one or both of the following inputs:
+
+- a disease expression signature, such as signed fold changes for differentially
+  expressed genes; and
+- disease-associated genes that can be mapped to a protein-protein interaction
+  network.
+
+DrugSigNet is organized around three analysis layers:
+
+1. **Generate rankings** using signature-based and/or network-based methods.
+2. **Harmonize rankings** using consensus methods such as CRank, Dowdall, and
+   Robust Rank Aggregation (RRA).
+3. **Interpret candidates** using annotation, enrichment, and visualization
+   tools.
+
+This vignette covers installation, the required input structure, a minimal first
+analysis, and how to inspect its main outputs. For guidance on choosing an
+analysis strategy or using individual methods, see the dedicated vignettes
+listed under [Where to go next](#where-to-go-next).
+
+## Workflow at a glance
+
+DrugSigNet provides separate entry points for signature-based and network-based
+prioritization, as well as an integrated workflow that combines both evidence
+types. The schematic below summarizes the required inputs, major analysis
+stages, and optional interpretation steps.
+
+![Overview of the DrugSigNet workflow. A signed disease expression signature is used by `drugSignaturePipeline()`, disease genes are used by `drugNetworkPipeline()`, and both evidence types can be integrated with `drugRepurposingPipeline(mode = "both")`.](images/DrugSigNet_workflow.png){width=100%}
+
+# Installation
+
+## Install package managers
+
+DrugSigNet can be installed directly from GitHub. Install the required package
+managers if they are not already available:
+
+```{r install-managers}
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager", repos = "https://cloud.r-project.org")
+}
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes", repos = "https://cloud.r-project.org")
+}
+```
+
+## Install DrugSigNet
+
+Install the development version from GitHub:
+
+```{r install-drugsignet}
+remotes::install_github(
+  "compneurobio/DrugSigNet",
+  dependencies = TRUE,
+  upgrade = "never"
+)
+```
+
+For local package development, install from a local checkout instead:
+
+```{r install-local}
+remotes::install_local(
+  "~/DrugSigNet",
+  dependencies = TRUE,
+  upgrade = "never"
+)
+```
+
+## Verify the installation
+
+Load DrugSigNet and check the installed version:
+
+```{r verify-installation}
+library(DrugSigNet)
+packageVersion("DrugSigNet")
+```
+
+## Alternative: use a pre-built Docker image
+
+For a fully configured and reproducible environment, DrugSigNet is also
+available as pre-built Docker images. Docker Engine or Docker Desktop must be
+installed before using these images.
+
+Images are available from the
+[DrugSigNet Docker Hub repository](https://hub.docker.com/r/orhan1117/drugsignet).
+Pull the image corresponding to your platform:
+
+**Linux**
+
+```bash
+docker pull orhan1117/drugsignet:linux
+```
+
+**macOS**
+
+```bash
+docker pull orhan1117/drugsignet:mac
+```
+
+**Windows**
+
+```powershell
+docker pull orhan1117/drugsignet:windows
+```
+
+After downloading the image, start RStudio Server. For example, on Linux:
+
+```bash
+docker run --rm -p 8787:8787 -e PASSWORD=drugsignet orhan1117/drugsignet:linux
+```
+
+For macOS or Windows, replace the `linux` tag with `mac` or `windows`,
+respectively. Then open <http://localhost:8787> and sign in with username
+`rstudio` and password `drugsignet`.
+
+To run R directly instead of RStudio Server:
+
+```bash
+docker run --rm -it orhan1117/drugsignet:linux R
+```
+
+See [`DOCKER.md`](../DOCKER.md) for platform-specific builds, configuration,
+volume mounting, authentication, and troubleshooting.
+
+# Optional resources
+
+Core DrugSigNet ranking workflows can be run without Synapse authentication.
+Some remotely hosted resources, particularly optional annotation data, may
+require a Synapse personal access token or a local cache.
+
+If your workflow requires Synapse authentication, make the token available as an
+environment variable and retrieve it in R as follows:
+
+```{r synapse-token}
+auth_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN")
+```
+
+See the annotation and workflow vignettes for resource-specific requirements.
+
+# Basic inputs
+
+## Expression signature
+
+`drugSignaturePipeline()` expects a data frame containing `Entrez` and `FC`
+columns. `Entrez` contains Entrez gene identifiers and `FC` contains signed
+fold-change values; positive and negative values represent the direction of the
+disease-associated expression change.
+
+DrugSigNet includes an example disease signature that can be used for a first
+run:
+
+```{r expression-input}
+data("disease_signature", package = "DrugSigNet")
+signature_input <- disease_signature
+
+head(signature_input)
+```
+
+## Disease genes
+
+Network-based workflows require disease-associated genes that can be mapped to
+the protein-protein interaction network used for the analysis. Gene identifiers
+should therefore be compatible with the identifiers used by the selected
+network and drug-target data.
+
+An example disease-gene set is included with DrugSigNet:
+
+```{r disease-genes}
+data("disease_seeds", package = "DrugSigNet")
+disease_genes <- disease_seeds
+```
+
+The disease-gene input is not required for the minimal signature-based example
+below. See `network-workflow.Rmd` for a complete network-based workflow.
+
+# Your first DrugSigNet analysis
+
+A signature-based analysis provides a compact first test because it requires
+only a signed disease expression signature. To verify the core workflow, start
+without optional annotation or visualization steps:
+
+```{r first-signature-run}
+sig_res <- drugSignaturePipeline(
+  signature_input = signature_input,
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+A successful run returns a DrugSigNet result object containing method-specific
+drug-search results and consensus rankings. Network-based and integrated
+analyses are covered separately in the workflow and case-study vignettes.
+
+# Inspect the results
+
+DrugSigNet stores the main analysis outputs in structured result sections. Start
+by inspecting the object and the available result components:
+
+```{r inspect-results}
+slotNames(sig_res)
+names(sig_res@result)
+```
+
+For a signature-based run, the two main sections are:
+
+| Result section | Contents |
+|---|---|
+| `DrugSearching` | Raw and processed method-specific drug rankings |
+| `RankAggregation` | Consensus rankings generated from the individual methods |
+
+Inspect them directly with:
+
+```{r inspect-main-results}
+sig_res@result$DrugSearching
+sig_res@result$RankAggregation
+```
+
+If annotation or visualization is enabled in a later analysis,
+`DrugAnnotation` and `Visualization` provide the corresponding downstream
+outputs.
+
+# Exporting and reporting results
+
+Completed DrugSigNet pipeline results can be exported to a multi-sheet Excel
+workbook with `write_pipeline_results()` or summarized in an HTML/PDF report
+with `write_report()`.
+
+See `complete-case-study.Rmd` for complete export and reporting examples.
+
+# Where to go next
+
+Use the following route through the documentation according to your analysis
+question:
+
+| Starting point | Recommended next vignette |
+|---|---|
+| Unsure which analysis to run | `choosing-analysis-strategy.Rmd` |
+| You have differential expression results | `signature-methods.Rmd`, then `signature-workflow.Rmd` |
+| You have disease genes | `network-methods.Rmd`, then `network-workflow.Rmd` |
+| You have both expression and disease-gene evidence | `complete-case-study.Rmd` |
+| You have several ranking outputs | `rank-aggregation.Rmd` |
+| You want to annotate prioritized drugs | `drug-annotation.Rmd` |
+| You need figures | `visualization.Rmd` |
+| You want to export results or generate a report | `complete-case-study.Rmd` |
+
+# Troubleshooting
+
+## Package installation fails
+
+Install Bioconductor dependencies first, then retry the package installation with
+`upgrade = "never"` to avoid unnecessary dependency upgrades.
+
+## Reference database download fails
+
+Check internet access, authentication, and local cache permissions. If the
+resource requires Synapse authentication, also confirm that a valid token is
+available in `SYNAPSE_AUTH_TOKEN`.
+
+## Network methods are slow
+
+Start with `run_all_network_methods = FALSE`. This runs the core topology-based
+methods before adding network proximity and diffusion-based methods. See the
+network workflow vignette for guidance on running the full network analysis.
+
+## Annotation is missing
+
+Check whether the annotation source requires authentication and whether drug
+names require synonym harmonization. See `drug-annotation.Rmd` for the
+annotation workflow and its resource requirements.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

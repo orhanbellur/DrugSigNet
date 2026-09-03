@@ -1,0 +1,497 @@
+---
+title: "Signature workflow with DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{08. Signature workflow with DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+This vignette shows how to run and inspect the complete signature-based
+DrugSigNet workflow.
+
+The emphasis is on how the pipeline converts method-specific signature-search
+results into standardized rank scores and then combines evidence across
+reference databases and signature-search methods. For algorithm-specific
+details, see `signature-methods.Rmd`; for the aggregation algorithms
+themselves, see `rank-aggregation.Rmd`.
+
+# Workflow overview
+
+`drugSignaturePipeline()` performs the following steps:
+
+1. prepares up-regulated, down-regulated, and quantitative representations of
+   the disease signature;
+2. runs CMAP, LINCS, gCMAP, and correlation searches against CMAP and LINCS2
+   reference databases;
+3. converts each raw search result to a standardized method-specific
+   `rank_score`;
+4. harmonizes perturbation names and the drug universe across methods;
+5. aggregates the CMAP- and LINCS2-reference results within each signature
+   method using CRank, Dowdall, and RRA;
+6. aggregates those method-family consensus rankings across CMAP, LINCS, gCMAP,
+   and correlation; and
+7. returns method-specific and harmonized signature rankings for downstream
+   annotation and visualization.
+
+The eight signature-search results are:
+
+```text
+CMAP_CMAP
+LINCS_CMAP
+gCMAP_CMAP
+Correlation_CMAP
+CMAP_LINCS2
+LINCS_LINCS2
+gCMAP_LINCS2
+Correlation_LINCS2
+```
+
+The first part of each name identifies the search method and the second part
+identifies the reference database.
+
+# Prepare the input signature
+
+The signature workflow requires a data frame with exactly two columns:
+
+- `Entrez`: Entrez gene identifiers;
+- `FC`: signed fold-change values, typically log2 fold changes.
+
+```{r prepare-signature}
+data("disease_signature", package = "DrugSigNet")
+
+signature_input <- disease_signature
+
+head(signature_input)
+```
+
+Positive and negative fold changes are used to construct the up- and
+down-regulated query sets required by CMAP and LINCS. The same signed profile is
+converted internally to a one-column numeric matrix for gCMAP and correlation.
+
+When the same Entrez identifier occurs more than once, the pipeline retains the
+largest positive fold change for the up-regulated set and the largest absolute
+negative fold change for the down-regulated set. Genes occurring in both sets
+are removed before the quantitative query matrix is constructed.
+
+# Run the signature pipeline
+
+For an initial analysis, annotation and visualization can be disabled so that
+the signature-search and ranking stages can be inspected directly.
+
+```{r signature-run}
+sig_res <- drugSignaturePipeline(
+  signature_input = signature_input,
+  ties_method = "max",
+  prior = 0.093,
+  num_bin = 200,
+  n_workers = 2,
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+The same signature workflow can also be called through:
+
+```{r signature-unified-run}
+sig_res_unified <- drugRepurposingPipeline(
+  signature_input = signature_input,
+  mode = "signature",
+  ties_method = "max",
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+# Important arguments
+
+| Argument | Meaning |
+|---|---|
+| `signature_input` | Disease signature containing `Entrez` and `FC` |
+| `trend` | Optional perturbation-direction filter, for example `"up"` or `"down"`; `NULL` retains both |
+| `drug_name_synonym` | Optional synonym table used to harmonize perturbation/drug names |
+| `ties_method` | Tie-handling rule used during method-specific scoring and rank aggregation |
+| `prior` | CRank prior; default `0.093` |
+| `num_bin` | Number of CRank rank intervals; default `200` |
+| `n_workers` | Number of workers used to run signature searches |
+| `chunk_size` | Number of reference signatures processed per chunk; default `5000` |
+| `signature_refdb_mode` | Use `"default"`, `"frozen"`, or `"frozen_force"` reference resources |
+| `padj` | Optional adjusted-p-value threshold passed to the gCMAP CMAP-reference search |
+| `top_k` | Top-rank threshold used for downstream annotation/visualization; it does not truncate the core ranking tables |
+| `run_drug_annotation` | Run downstream drug annotation and target enrichment |
+| `run_visualization` | Generate the visualization section |
+
+The `trend` option filters perturbation direction before method-specific rank
+scores are calculated. Direction should therefore be selected according to the
+biological question rather than assuming a single preferred direction.
+
+# Inspect the result structure
+
+`drugSignaturePipeline()` returns a `DrugSearchingPipeline` object.
+
+```{r inspect-signature-structure}
+slotNames(sig_res)
+
+names(sig_res@DrugSearching)
+names(sig_res@RankAggregation)
+```
+
+The two main signature-analysis sections are:
+
+| Section | Contents |
+|---|---|
+| `@DrugSearching[["Raw"]]` | Raw method/reference search objects |
+| `@DrugSearching[["Processed"]]` | Standardized method-specific drug rankings containing `rank_score` |
+| `@RankAggregation[["Pairwise"]]` | Consensus across CMAP and LINCS2 references within each method family |
+| `@RankAggregation[["Harmonized_methods"]]` | Consensus across the four signature-method families |
+| `@RankAggregation[["Signature_Harmonized"]]` | Final analysis-ready signature ranking table |
+
+# Raw signature-search results
+
+Inspect the available raw searches with:
+
+```{r inspect-raw-signature}
+names(sig_res@DrugSearching[["Raw"]])
+
+head(
+  sig_res@DrugSearching[["Raw"]][["CMAP_CMAP"]]@result
+)
+```
+
+Each raw entry is a `SignatureBased` object containing the native
+method-specific output. Its `@parameters` slot retains the query and search
+settings; see `signature-methods.Rmd` for details.
+
+Raw native scores differ by method:
+
+| Method | Main native quantity used for DrugSigNet ranking |
+|---|---|
+| CMAP | `raw_score` |
+| LINCS | `WTCS` |
+| gCMAP | `effect` |
+| Correlation | `cor_score` |
+
+Because these native values have different definitions and scales, they are not
+combined directly.
+
+# Method-specific rank scores
+
+DrugSigNet converts each raw result into a common processed representation.
+
+```{r inspect-processed-signature}
+names(sig_res@DrugSearching[["Processed"]])
+
+head(
+  sig_res@DrugSearching[["Processed"]][["CMAP_CMAP"]]
+)
+```
+
+The shared processed schema includes `perturbation`, `rank_score`, the
+method-specific native score, `trend`, `scaled_score`, and available
+perturbation metadata.
+
+## How `rank_score` is calculated
+
+For each method, DrugSigNet first retains the strongest absolute
+drug-signature association for each perturbagen. Cell information is collapsed
+when the same perturbagen is represented in multiple cells.
+
+Qualifying perturbagens are then ranked by the **absolute magnitude** of the
+method-specific score:
+
+\[
+\mathrm{rank\_score} = \frac{1}{\mathrm{rank}}.
+\]
+
+Thus, among qualifying perturbagens:
+
+```text
+rank 1  -> rank_score 1
+rank 2  -> rank_score 1/2
+rank 3  -> rank_score 1/3
+...
+```
+
+**Larger `rank_score` values indicate stronger method-specific priority.**
+Perturbagens that do not pass the method-specific criterion receive
+`rank_score = 0`.
+
+The sign/direction is retained separately in `trend`; ranking by absolute
+magnitude does not discard the original direction from the processed output.
+
+The significance or inclusion rule differs by method:
+
+| Method | Ranking quantity | Criterion for non-zero `rank_score` | `scaled_score` |
+|---|---|---|---|
+| CMAP | `abs(raw_score)` | Absolute raw score passes the 95% KS critical-value cutoff | CMAP scaled score returned by the search |
+| LINCS | `abs(WTCS)` | BY-adjusted `WTCS_Pval <= 0.05` | Min-max scaled `abs(WTCS)` |
+| gCMAP | `abs(effect)` | Effect exceeds the cutoff derived from the corresponding significant CMAP results | `effect` |
+| Correlation | `abs(cor_score)` | Correlation p-value `<= 0.05` | Min-max scaled `abs(cor_score)` |
+
+For gCMAP, the corresponding CMAP result is used to derive the effect cutoff.
+For correlation, the corresponding CMAP query size is used when calculating the
+correlation significance test.
+
+The `ties_method` argument controls ties during these reciprocal-rank
+calculations.
+
+# Harmonizing the processed drug universe
+
+The processed method tables do not necessarily contain exactly the same
+perturbagens. Before aggregation, DrugSigNet harmonizes available perturbation
+metadata across methods and adds missing method/drug combinations with
+`rank_score = 0`.
+
+This creates a common representation in which zero means that a drug has no
+qualifying evidence from that method, rather than forcing raw scores from
+different algorithms onto a common numerical scale.
+
+# Pairwise aggregation across reference databases
+
+The first aggregation stage combines the two reference-database results within
+each search-method family.
+
+| Pairwise family | Inputs |
+|---|---|
+| CMAP | `CMAP_CMAP` + `CMAP_LINCS2` |
+| LINCS | `LINCS_CMAP` + `LINCS_LINCS2` |
+| gCMAP | `gCMAP_CMAP` + `gCMAP_LINCS2` |
+| Correlation | `Correlation_CMAP` + `Correlation_LINCS2` |
+
+Each pair is aggregated independently with CRank, Dowdall, and RRA.
+
+```{r inspect-pairwise-aggregation}
+names(sig_res@RankAggregation[["Pairwise"]])
+
+names(
+  sig_res@RankAggregation[["Pairwise"]][["CMAP"]]
+)
+
+sig_res@RankAggregation[["Pairwise"]][["CMAP"]][["CRank"]]@result
+sig_res@RankAggregation[["Pairwise"]][["CMAP"]][["Dowdall"]]@result
+sig_res@RankAggregation[["Pairwise"]][["CMAP"]][["RRA"]]@result
+```
+
+At this stage the inputs are processed `rank_score` values, where **larger is
+better**. DrugSigNet therefore applies the aggregation direction appropriate to
+that input:
+
+```text
+CRank:   reverse = FALSE
+Dowdall: reverse = TRUE
+RRA:     reverse = TRUE
+```
+
+The resulting pairwise consensus columns are named by method family, for
+example `CMAP_CRank`, `CMAP_Dowdall`, and `CMAP_RRA`.
+
+# Harmonizing across signature methods
+
+The second aggregation stage combines the pairwise consensus ranks from CMAP,
+LINCS, gCMAP, and correlation.
+
+Importantly, this stage combines **ranks**, not the original native scores or
+processed reciprocal-rank scores. Smaller pairwise consensus ranks are better,
+so the aggregation direction changes accordingly:
+
+```text
+CRank:   reverse = TRUE
+Dowdall: reverse = FALSE
+RRA:     reverse = FALSE
+```
+
+The three harmonized aggregation objects are stored in:
+
+```{r inspect-harmonized-methods}
+names(
+  sig_res@RankAggregation[["Harmonized_methods"]]
+)
+
+sig_res@RankAggregation[["Harmonized_methods"]][["CRank"]]@result
+sig_res@RankAggregation[["Harmonized_methods"]][["Dowdall"]]@result
+sig_res@RankAggregation[["Harmonized_methods"]][["RRA"]]@result
+```
+
+This two-stage design separates two sources of variability:
+
+1. **reference-database variability** is handled within each signature method;
+2. **methodological variability** is handled across CMAP, LINCS, gCMAP, and
+   correlation.
+
+# Final signature ranking table
+
+The final table is:
+
+```{r inspect-signature-harmonized}
+signature_rankings <-
+  sig_res@RankAggregation[["Signature_Harmonized"]]
+
+head(signature_rankings)
+colnames(signature_rankings)
+```
+
+`Signature_Harmonized` contains:
+
+- one rank column for each processed method/reference combination; and
+- the final signature consensus ranks:
+  - `Signature_CRank`;
+  - `Signature_Dowdall`;
+  - `Signature_RRA`.
+
+Before these method-specific columns are added to the final table, the processed
+`rank_score` values are converted from larger-is-better scores to
+smaller-is-better ranks. The current implementation uses `"max"` tie handling
+for this final method-column conversion.
+
+The final consensus columns are already ranks, so **smaller values indicate
+higher signature-based priority**.
+
+For example:
+
+```{r top-signature-consensus}
+signature_rankings |>
+  dplyr::arrange(Signature_CRank) |>
+  dplyr::select(
+    Drug,
+    Signature_CRank,
+    Signature_Dowdall,
+    Signature_RRA
+  ) |>
+  head(20)
+```
+
+Agreement across the three consensus formulations can be inspected without
+assuming that one aggregation method is universally preferable.
+
+# Reference-database reproducibility
+
+By default, DrugSigNet uses the reference resources resolved through
+`signatureSearch`. Frozen Synapse-backed CMAP and LINCS2 HDF5 resources can be
+used when the analysis needs to be repeated against fixed reference files.
+
+```{r frozen-signature-reference}
+sig_frozen <- drugSignaturePipeline(
+  signature_input = signature_input,
+  signature_refdb_mode = "frozen",
+  auth_token = Sys.getenv("SYNAPSE_AUTH_TOKEN"),
+  ties_method = "max",
+  prior = 0.093,
+  num_bin = 200,
+  n_workers = 2,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+See `signature-methods.Rmd` for reference-database provenance and individual
+method parameters.
+
+# Downstream annotation and visualization
+
+Annotation and visualization can be enabled directly in the signature pipeline
+with:
+
+```text
+run_drug_annotation = TRUE
+run_visualization = TRUE
+```
+
+When annotation is enabled, DrugSigNet preferentially selects the union of the
+top `top_k` drugs across `Signature_CRank`, `Signature_Dowdall`, and
+`Signature_RRA` for downstream target-based summaries.
+
+Detailed annotation and plotting interfaces are documented in
+`drug-annotation.Rmd` and `visualization.Rmd`.
+
+# Exporting and reporting results
+
+Completed signature pipeline results can be exported with
+`write_pipeline_results()` or summarized in an HTML/PDF report with
+`write_report()`. See `complete-case-study.Rmd` for complete examples.
+
+# Interpretation checklist
+
+- Are the disease-signature identifiers compatible with the reference
+  databases?
+- Do the eight processed searches provide broadly consistent or complementary
+  evidence?
+- Are high-ranking drugs supported across both CMAP and LINCS2 references?
+- Do the pairwise CMAP, LINCS, gCMAP, and correlation consensus rankings agree?
+- Do `Signature_CRank`, `Signature_Dowdall`, and `Signature_RRA` identify a
+  stable set of high-priority candidates?
+- Is the retained connectivity direction biologically plausible for the disease
+  state and analysis objective?
+
+# Troubleshooting
+
+## All signature methods fail
+
+Check reference-database availability and Entrez identifier compatibility. If
+the error mentions ExperimentHub, Synapse, or a frozen HDF5 resource, check
+network access, authentication, and the local cache.
+
+## Too few drugs receive non-zero rank scores
+
+Inspect the method-specific filtering criteria, gene mapping, optional
+`trend`, and drug synonym mapping. A drug may be present in the common processed
+universe while receiving `rank_score = 0` for a method that does not provide
+qualifying evidence.
+
+## Pairwise aggregation is missing for one method family
+
+Pairwise aggregation requires both the CMAP- and LINCS2-reference processed
+results for that family. If either search is unavailable, that family is
+skipped during pairwise aggregation.
+
+## Results differ across reference databases
+
+This is expected because CMAP and LINCS2 differ in platform, scale, compounds,
+cells, and perturbation conditions. The pairwise aggregation stage is designed
+to summarize evidence across those reference resources before the
+method-family consensus is calculated.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Understand individual signature methods | `signature-methods.Rmd` |
+| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
+| Annotate prioritized drugs | `drug-annotation.Rmd` |
+| Visualize signature rankings | `visualization.Rmd` |
+| Run the network workflow | `network-workflow.Rmd` |
+| Integrate signature and network evidence | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

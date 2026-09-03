@@ -1,0 +1,70 @@
+name: rworkflows
+'on':
+  # Run checks when a feature branch is pushed, rather than waiting until a
+  # pull request targets one of the release branches below.
+  push: {}
+  pull_request:
+    branches:
+    - master
+    - main
+    - devel
+    - RELEASE_**
+  workflow_dispatch: {}
+jobs:
+  rworkflows:
+    permissions: write-all
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+    container: ${{ matrix.config.cont }}
+    env:
+      DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
+      # synapser is installed for normal source installs, but package checks
+      # skip this network-dependent integration and exercise guarded paths.
+      DRUGSIGNET_SKIP_SYNAPSER_INSTALL: 'true'
+    strategy:
+      fail-fast: ${{ false }}
+      matrix:
+        config:
+        - os: ubuntu-latest
+          bioc: devel
+          r: auto
+          cont: ghcr.io/bioconductor/bioconductor_docker:devel
+          rspm: ~
+        - os: macOS-latest
+          bioc: release
+          r: auto
+          cont: ~
+          rspm: ~
+        - os: windows-latest
+          bioc: release
+          r: auto
+          cont: ~
+          rspm: ~
+    steps:
+    - id: rworkflows-check
+      uses: neurogenomics/rworkflows@master
+      # rworkflows treats every R CMD check warning as fatal.  Let the step
+      # finish so the validator below can admit only the one immutable-data
+      # warning that is known for this package.
+      continue-on-error: true
+      with:
+        run_bioccheck: ${{ false }}
+        run_rcmdcheck: ${{ true }}
+        as_cran: ${{ true }}
+        run_vignettes: ${{ true }}
+        has_testthat: ${{ true }}
+        run_covr: ${{ true }}
+        run_pkgdown: ${{ true }}
+        has_runit: ${{ false }}
+        has_latex: ${{ false }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run_docker: ${{ false }}
+        DOCKER_TOKEN: ${{ secrets.DOCKER_PATH }}
+        runner_os: ${{ runner.os }}
+        cache_version: cache-v1
+        docker_registry: ghcr.io
+    - name: Validate R CMD check result
+      if: ${{ always() }}
+      env:
+        RWORKFLOWS_OUTCOME: ${{ steps.rworkflows-check.outcome }}
+      run: Rscript .github/scripts/validate-r-cmd-check.R

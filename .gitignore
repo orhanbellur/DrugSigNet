@@ -1,0 +1,14 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Rdata
+.httr-oauth
+.DS_Store
+inst/doc
+/doc/
+/Meta/
+data-raw/
+docs
+scrpt
+DrugSigNet.Rproj

@@ -1,0 +1,567 @@
+---
+title: "Drug annotation with DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{06. Drug annotation with DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+Drug annotation converts prioritized drug names into interpretable biological,
+chemical, safety, regulatory, and clinical information.
+
+DrugSigNet provides two complementary annotation interfaces:
+
+- `annotate_drugs()` retrieves and combines multiple annotation layers in one
+  data frame; and
+- individual `get_drug_*()` functions retrieve a specific annotation layer and
+  return a `DrugAnnotation` object containing both results and parameter
+  provenance.
+
+DrugSigNet also provides `TSEA()` for target set enrichment. Unlike the drug
+annotation functions, `TSEA()` operates on a **gene target list**, not directly
+on drug names.
+
+# What `annotate_drugs()` can retrieve
+
+`annotate_drugs()` combines available annotation layers for one or more drugs,
+including:
+
+- drug synonyms;
+- mechanisms of action;
+- canonical SMILES;
+- blood-brain barrier permeability;
+- Anatomical Therapeutic Chemical (ATC) classifications;
+- therapeutic indications;
+- regulatory approval or development status;
+- adverse-event, warning, or toxicity information; and
+- clinical trial information when a `condition` is supplied.
+
+The function returns a data frame with the available annotations merged by drug.
+Annotation layers that cannot be resolved for a requested source are handled
+internally so that one unavailable layer does not necessarily prevent retrieval
+of the remaining annotations.
+
+# Authentication and cached annotation resources
+
+Several DrugSigNet annotation resources are loaded from a local cache or
+Synapse. An authentication token can be supplied explicitly or through the
+`SYNAPSE_AUTH_TOKEN` environment variable.
+
+```{r annotation-authentication}
+auth_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN")
+```
+
+The `force = TRUE` argument can be used by annotation helpers to refresh
+supported cached resources instead of reusing an existing local copy.
+
+# Combined annotation with `annotate_drugs()`
+
+For broad annotation coverage, use `annotate_drugs()`:
+
+```{r annotate-drugs}
+drugs <- c(
+  "metformin",
+  "nifedipine",
+  "cyclosporine",
+  "niclosamide"
+)
+
+ann <- annotate_drugs(
+  drugs = drugs,
+  source = "All",
+  auth_token = auth_token
+)
+
+head(ann)
+```
+
+`drugs` can be supplied as a character vector, a one-column data frame, or a
+data frame containing a `Drug` column.
+
+The supported top-level sources are:
+
+```text
+"All"
+"CHEMBL"
+"OpenTargets"
+"TTD"
+```
+
+Use `source = "All"` when broad coverage across available annotation resources is
+preferred.
+
+## Include condition-specific clinical trials
+
+Clinical trial information is added by `annotate_drugs()` only when `condition`
+is supplied.
+
+```{r annotate-drugs-with-trials}
+ann_trials <- annotate_drugs(
+  drugs = c("Imatinib", "Gefitinib"),
+  source = "All",
+  condition = "cancer",
+  auth_token = auth_token
+)
+
+head(ann_trials)
+```
+
+When matching trials are available, the merged annotation can include clinical
+trial conditions, phases, and NCT identifiers.
+
+# Individual annotation functions
+
+Use the individual helpers when only one annotation layer is required or when
+the annotation source needs to be controlled more precisely.
+
+| Function | Annotation retrieved | Supported source choices |
+|---|---|---|
+| `get_drug_synonyms()` | Alternative drug names and synonyms | `"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"` |
+| `get_drug_status()` | Regulatory approval or development status | `"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"` |
+| `get_drug_indications()` | Therapeutic indications | `"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"` |
+| `get_drug_moa()` | Mechanisms of action | `"All"`, `"OpenTargets"`, `"CHEMBL"` |
+| `get_drug_bbb()` | Blood-brain barrier permeability | Curated DrugSigNet BBB annotation |
+| `get_drug_atc()` | ATC classifications | `"All"`, `"WHO"`, `"CHEMBL"` |
+| `get_drug_adverse_events()` | Adverse-event, warning, and toxicity information | `"All"`, `"OpenTargets"`, `"CHEMBL"` |
+| `get_drug_smiles()` | Canonical SMILES strings | `"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"`, `"B3DB_classification"` |
+| `get_drug_trials()` | Clinical trial records | DrugSigNet clinical-trial resource; optional condition filter |
+
+The source choices are layer-specific. A source accepted by one helper is not
+necessarily available for every annotation type.
+
+# Run individual annotation methods
+
+The examples below use the same small drug set to demonstrate the individual
+interfaces.
+
+```{r individual-drug-input}
+drug_query <- c("Imatinib", "Gefitinib")
+```
+
+## Drug synonyms
+
+```{r get-drug-synonyms}
+synonym_res <- get_drug_synonyms(
+  drugs = drug_query,
+  source = "CHEMBL",
+  auth_token = auth_token
+)
+
+synonym_res@result
+```
+
+## Drug status
+
+```{r get-drug-status}
+status_res <- get_drug_status(
+  drugs = drug_query,
+  source = "All",
+  auth_token = auth_token
+)
+
+status_res@result
+```
+
+## Drug indications
+
+```{r get-drug-indications}
+indication_res <- get_drug_indications(
+  drugs = drug_query,
+  source = "All",
+  auth_token = auth_token
+)
+
+indication_res@result
+```
+
+## Mechanism of action
+
+```{r get-drug-moa}
+moa_res <- get_drug_moa(
+  drugs = drug_query,
+  source = "CHEMBL",
+  auth_token = auth_token
+)
+
+moa_res@result
+```
+
+## Blood-brain barrier permeability
+
+```{r get-drug-bbb}
+bbb_res <- get_drug_bbb(
+  drugs = drug_query,
+  auth_token = auth_token
+)
+
+bbb_res@result
+```
+
+## ATC classification
+
+```{r get-drug-atc}
+atc_res <- get_drug_atc(
+  drugs = drug_query,
+  source = "CHEMBL",
+  auth_token = auth_token
+)
+
+atc_res@result
+```
+
+## Adverse events and toxicity
+
+```{r get-drug-adverse-events}
+adverse_res <- get_drug_adverse_events(
+  drugs = drug_query,
+  source = "All",
+  auth_token = auth_token
+)
+
+adverse_res@result
+```
+
+## SMILES
+
+```{r get-drug-smiles}
+smiles_res <- get_drug_smiles(
+  drugs = drug_query,
+  source = "CHEMBL",
+  auth_token = auth_token
+)
+
+smiles_res@result
+```
+
+The annotation helpers also accept a one-column data frame when supported by the
+individual function:
+
+```{r individual-drug-data-frame}
+drug_df <- data.frame(
+  drug = c("Cetirizine", "Pentazocine")
+)
+
+smiles_df <- get_drug_smiles(
+  drugs = drug_df,
+  source = "All",
+  auth_token = auth_token
+)
+
+smiles_df@result
+```
+
+## Clinical trials
+
+`get_drug_trials()` retrieves clinical trial records in which the supplied drug
+names match the intervention field.
+
+```{r get-drug-trials}
+trial_res <- get_drug_trials(
+  drugs = drug_query,
+  auth_token = auth_token
+)
+
+trial_res@result
+```
+
+An optional disease or condition can be used to restrict the clinical trial
+records before drug matching:
+
+```{r get-drug-trials-condition}
+trial_condition_res <- get_drug_trials(
+  drugs = drug_query,
+  condition = "cancer",
+  ignore_case = TRUE,
+  auth_token = auth_token
+)
+
+trial_condition_res@result
+```
+
+`ignore_case = TRUE` performs case-insensitive matching. The returned trial
+records include a `matched_drug` field indicating which supplied drug matched
+the intervention record.
+
+# Inspecting results and parameters
+
+The individual `get_drug_*()` functions return `DrugAnnotation` S4 objects.
+Their annotation table is stored in `@result`, while `@parameters` retains the
+input and settings used for the retrieval.
+
+For example:
+
+```{r inspect-annotation-parameters}
+moa_res@result
+names(moa_res@parameters)
+
+# Typical fields:
+#> [1] "input_data" "source" "force" "auth_token"
+```
+
+The exact parameter fields depend on the annotation function. For example,
+`get_drug_trials()` additionally stores the condition and case-matching option.
+
+```{r inspect-trial-parameters}
+names(trial_condition_res@parameters)
+
+# Includes:
+# input_data, condition, ignore_case, force, auth_token
+```
+
+Keeping `@parameters` with an individual annotation result makes it possible to
+recover which drugs, source, and retrieval settings were used.
+
+By contrast, `annotate_drugs()` is a convenience function that merges available
+layers and returns the combined annotation directly as a data frame.
+
+# Choosing annotation sources
+
+Different resources contribute different kinds of evidence.
+
+| Source | Typical role in DrugSigNet annotation |
+|---|---|
+| `"All"` | Broad annotation coverage across available sources |
+| `"OpenTargets"` | Drug, indication, mechanism, status, and supported safety information |
+| `"CHEMBL"` | Drug, mechanism, chemical structure, ATC, indication, status, and supported safety information |
+| `"TTD"` | Drug synonyms, indications, status, and supported SMILES information |
+| `"WHO"` | ATC classification through `get_drug_atc()` |
+| `"B3DB_classification"` | SMILES information available to `get_drug_smiles()` |
+| DrugSigNet BBB resource | Curated blood-brain barrier permeability annotations |
+| DrugSigNet clinical-trial resource | Clinical trial records, optionally filtered by condition |
+
+No single source is expected to contain every annotation for every compound.
+Missing annotation should therefore be treated as missing source coverage rather
+than evidence that a property is absent.
+
+# Target set enrichment with `TSEA()`
+
+Target set enrichment asks whether the molecular targets represented by a set of
+prioritized drugs converge on particular biological functions.
+
+Importantly, `TSEA()` receives **target genes**, not drug names.
+
+The current interface is:
+
+```r
+TSEA(
+  object = NULL,
+  targetList,
+  source = "GO",
+  ont = c("BP", "MF", "CC", "ALL"),
+  Adjusted.P.value = 0.05,
+  target_id_from = NULL
+)
+```
+
+## Gene Ontology enrichment
+
+By default, targets are treated as HGNC gene symbols unless another identifier
+type is supplied or Ensembl gene identifiers are detected automatically.
+
+```{r target-enrichment}
+target_genes <- c("TP53", "BRCA1", "EGFR")
+
+tsea <- TSEA(
+  targetList = target_genes,
+  source = "GO",
+  ont = "BP",
+  Adjusted.P.value = 0.05
+)
+
+tsea@result
+```
+
+For Gene Ontology enrichment, `ont` can be:
+
+- `"BP"`: Biological Process;
+- `"MF"`: Molecular Function;
+- `"CC"`: Cellular Component; or
+- `"ALL"`: all three GO namespaces.
+
+The current DrugSigNet enrichment backend uses the GO databases selected by
+`ont`; this vignette therefore documents `source = "GO"` for the implemented
+target-set enrichment workflow.
+
+## Non-symbol gene identifiers
+
+When targets are not HGNC symbols, `target_id_from` can specify the source
+identifier type. Supported aliases include Ensembl, Entrez, and symbol-based
+identifiers.
+
+```{r target-enrichment-ensembl}
+ensembl_targets <- c(
+  "ENSG00000141510",
+  "ENSG00000012048"
+)
+
+tsea_ensembl <- TSEA(
+  targetList = ensembl_targets,
+  source = "GO",
+  ont = "ALL",
+  target_id_from = "ENSEMBL",
+  Adjusted.P.value = 0.05
+)
+
+tsea_ensembl@result
+```
+
+When `target_id_from = NULL`, DrugSigNet attempts to detect Ensembl gene IDs;
+otherwise targets are treated as symbols.
+
+## Inspect enrichment provenance
+
+`TSEA()` also returns a `DrugAnnotation` object, so the enrichment input and
+settings can be retained with the result:
+
+```{r inspect-tsea}
+tsea@result
+tsea@parameters
+```
+
+The result is filtered using `Adjusted.P.value`.
+
+Drug annotation can also be performed automatically within the main DrugSigNet
+pipelines by setting `run_drug_annotation = TRUE`. Pipeline-generated annotation
+results are stored in the `DrugAnnotation` slot. See the signature, network, and
+integrated workflow vignettes for complete examples.
+
+This avoids rerunning a separate annotation workflow when annotation was already
+requested during the main analysis.
+
+# Interpreting annotation
+
+Annotation should be used to contextualize and prioritize computational
+candidates rather than to establish therapeutic efficacy.
+
+Useful evidence may include:
+
+- reproducible ranking support across methods;
+- a plausible mechanism of action;
+- relevant therapeutic indications;
+- regulatory or development status;
+- blood-brain barrier properties when relevant to the disease context;
+- interpretable safety or toxicity annotations;
+- disease-relevant clinical trial records;
+- chemical structure information; and
+- convergence of drug targets on relevant biological processes.
+
+Clinical trial presence alone does not imply efficacy. Trial condition, phase,
+status, intervention role, and available outcomes should be interpreted
+carefully.
+
+Likewise, absence of an annotation does not establish absence of the biological
+property; it may simply reflect incomplete source coverage.
+
+# Practical candidate table
+
+A practical candidate table can combine ranking evidence with annotation and
+manual interpretation.
+
+| Column | Description |
+|---|---|
+| `Drug` | Harmonized drug name |
+| Best rank | Best or selected consensus rank |
+| Consensus support | Support across CRank, Dowdall, RRA, or analysis families |
+| Mechanism of action | Retrieved mechanism annotation |
+| Indications | Known therapeutic indications |
+| Approval/development status | Regulatory or development annotation |
+| ATC | Therapeutic classification |
+| BBB | Blood-brain barrier annotation when available |
+| Safety | Adverse-event, warning, or toxicity annotation |
+| Clinical trials | Relevant trial condition, phase, or NCT identifiers |
+| Targets | Drug targets obtained from the drug-target network or other target source |
+| Target enrichment | Relevant TSEA terms for the selected target set |
+| Interpretation | Brief biological/manual rationale |
+
+The drug-target list used for `TSEA()` is conceptually separate from the
+drug-level annotation returned by `annotate_drugs()`.
+
+# Save annotation output
+
+The merged data frame or individual S4 annotation objects can be saved for
+reproducible downstream analysis.
+
+```{r save-annotation}
+saveRDS(ann, file = "inst/extdata/example_drug_annotation.rds")
+saveRDS(moa_res, file = "inst/extdata/example_moa_annotation.rds")
+saveRDS(tsea, file = "inst/extdata/example_tsea.rds")
+```
+
+# Common pitfalls
+
+## Passing drugs directly to `TSEA()`
+
+`TSEA()` expects gene targets in `targetList`. Obtain or construct the target
+set first, then run enrichment.
+
+## Drug names do not map
+
+Drug matching depends on the available annotation names and synonyms. Use
+`get_drug_synonyms()` to inspect alternative names when expected annotations are
+missing.
+
+## Assuming every source supports every annotation layer
+
+Annotation-source support differs by helper. Use the source choices documented
+for the individual function rather than assuming that all sources are
+interchangeable.
+
+## Annotation is incomplete
+
+No single resource covers every compound. Report missing annotation fields
+transparently and avoid treating missing values as negative biological evidence.
+
+## Clinical evidence is ambiguous
+
+A trial involving a drug is evidence that the drug has been investigated in that
+clinical context, not evidence that the intervention was effective.
+
+## Cached resources are stale or unavailable
+
+Use `force = TRUE` when a supported resource should be refreshed and ensure that
+the required Synapse authentication is available when the requested dataset is
+not already cached locally.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Understand how candidates were ranked | `rank-aggregation.Rmd` |
+| Visualize ranking and annotation results | `visualization.Rmd` |
+| Run a complete signature analysis | `signature-workflow.Rmd` |
+| Run a complete network analysis | `network-workflow.Rmd` |
+| Run integrated prioritization and interpretation | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

@@ -1,0 +1,623 @@
+---
+title: "Network workflow with DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{09. Network workflow with DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+This vignette shows how to run and inspect the complete network-based DrugSigNet
+workflow.
+
+The emphasis is on how method-specific network outputs are converted to ranks,
+how diffusion evidence is aggregated, and how topology, proximity, and
+diffusion evidence are combined into the final network consensus. For
+algorithm-specific details, see `network-methods.Rmd`; for CRank, Dowdall,
+and RRA, see `rank-aggregation.Rmd`.
+
+# Workflow overview
+
+`drugNetworkPipeline()` performs the following steps:
+
+1. validates disease genes and resolves the PPI and drug-target networks;
+2. runs TrustRank, harmonic centrality, and degree centrality;
+3. converts centrality scores to smaller-is-better ranks;
+4. optionally runs network proximity and diffusion when
+   `run_all_network_methods = TRUE`;
+5. converts network-proximity Z-scores to ranks;
+6. aggregates the five diffusion rank measures with CRank, Dowdall, and RRA;
+7. combines centrality, proximity, and diffusion evidence with CRank, Dowdall,
+   and RRA; and
+8. returns the final `Network_Harmonized` ranking table for downstream
+   annotation and visualization.
+
+The pipeline always runs:
+
+```text
+TrustRank
+Harmonic_centrality
+Degree_centrality
+```
+
+With `run_all_network_methods = TRUE`, it additionally runs:
+
+```text
+Network_proximity
+Diffusion
+```
+
+# Prepare disease genes
+
+Disease-associated genes can be supplied as a character vector or a data frame.
+When a data frame is used, DrugSigNet expects a `gene` column; otherwise the
+first column is converted internally to `gene`.
+
+```{r disease-genes}
+data("disease_seeds", package = "DrugSigNet")
+
+disease_genes <- disease_seeds
+
+head(disease_genes)
+```
+
+Missing and empty identifiers are removed and duplicated genes are collapsed
+before analysis.
+
+Gene identifiers should be compatible with the PPI network and drug-target
+network used for the analysis.
+
+# Minimal network run
+
+For an initial analysis, run the three centrality-based methods only.
+
+```{r network-minimal-run}
+net_res <- drugNetworkPipeline(
+  disease_genes = disease_genes,
+  run_all_network_methods = FALSE,
+  ties_method = "max",
+  prior = 0.093,
+  num_bin = 200,
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+When `run_all_network_methods = FALSE`, DrugSigNet runs only:
+
+```text
+TrustRank
+Harmonic_centrality
+Degree_centrality
+```
+
+`Network_proximity()` and `Diffusion()` are not run, no diffusion aggregation is
+created, and the final network consensus is calculated from the three
+centrality-derived ranks only.
+
+# Full network run
+
+Set `run_all_network_methods = TRUE` to add network proximity and diffusion.
+
+```{r network-full-run}
+net_res_full <- drugNetworkPipeline(
+  disease_genes = disease_genes,
+  run_all_network_methods = TRUE,
+  hub_penalty = 0.01,
+  damping_factor = 0.95,
+  n_simulations = 1000,
+  n_workers = 5,
+  ties_method = "max",
+  prior = 0.093,
+  num_bin = 200,
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+Centrality methods are run sequentially for Python/reticulate backend stability.
+`n_workers` is currently used by network proximity when parallel execution is
+supported.
+
+The same workflow can also be called through:
+
+```{r network-unified-run}
+net_res_unified <- drugRepurposingPipeline(
+  disease_genes = disease_genes,
+  mode = "network",
+  run_all_network_methods = TRUE,
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+# Network inputs
+
+If `ppi_network` or `drug_target_network` is `NULL`, DrugSigNet resolves the
+corresponding default network from its available cache or Synapse-backed
+resource.
+
+Custom networks can be supplied directly.
+
+The PPI network should contain:
+
+```text
+gene1
+gene2
+```
+
+The drug-target network should contain:
+
+```text
+ID
+Drug
+Target
+Group
+```
+
+For example:
+
+```{r custom-networks}
+ppi_network <- data.frame(
+  gene1 = c("APOE", "APOE", "CLU", "APP"),
+  gene2 = c("CLU", "APP", "BIN1", "PSEN1"),
+  stringsAsFactors = FALSE
+)
+
+drug_target_network <- data.frame(
+  ID = c("D1", "D2", "D3"),
+  Drug = c("drug_a", "drug_b", "drug_c"),
+  Target = c("APOE", "APP", "PSEN1"),
+  Group = c("approved", "approved", "approved"),
+  stringsAsFactors = FALSE
+)
+
+net_custom <- drugNetworkPipeline(
+  ppi_network = ppi_network,
+  drug_target_network = drug_target_network,
+  disease_genes = disease_genes,
+  run_all_network_methods = FALSE,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+The PPI endpoints, disease genes, and drug targets should use compatible gene
+identifiers.
+
+# Important arguments
+
+| Argument | Meaning |
+|---|---|
+| `disease_genes` | Disease-associated seed genes |
+| `ppi_network` | Optional custom PPI network with `gene1` and `gene2` |
+| `drug_target_network` | Optional custom drug-target table |
+| `run_all_network_methods` | Add network proximity and diffusion when `TRUE` |
+| `include_indirect_drugs` | Include indirectly connected drugs |
+| `include_non_approved_drugs` | Include non-approved or investigational drugs |
+| `hub_penalty` | Hub penalty for TrustRank and harmonic centrality |
+| `damping_factor` | TrustRank propagation parameter; default `0.95` |
+| `result_size` | Number of ranked drugs requested from network methods; when `NULL`, inferred from the resolved drug-target network |
+| `n_simulations` | Random simulations used by network proximity |
+| `n_workers` | Workers used by supported parallel network methods |
+| `prior` | CRank prior; default `0.093` |
+| `num_bin` | Number of CRank rank intervals; default `200` |
+| `ties_method` | Tie-handling rule used during rank conversion and aggregation |
+| `output_dir` | Optional directory for diffusion intermediate files |
+| `top_k` | Top-rank threshold used for downstream annotation/visualization |
+
+
+# Inspect the result structure
+
+`drugNetworkPipeline()` returns a `DrugSearchingPipeline` object.
+
+```{r inspect-network-structure}
+slotNames(net_res_full)
+
+names(net_res_full@DrugSearching)
+names(net_res_full@RankAggregation)
+```
+
+The principal network sections are:
+
+| Section | Contents |
+|---|---|
+| `@DrugSearching[["Raw"]]` | Native `NetworkBased` outputs |
+| `@DrugSearching[["Processed"]]` | Method outputs with pipeline-ready rank information |
+| `@RankAggregation[["Diffusion"]]` | CRank, Dowdall, and RRA consensus across diffusion rank measures; present only when `run_all_network_methods = TRUE` |
+| `@RankAggregation[["Harmonized"]]` | Final CRank, Dowdall, and RRA network aggregation objects |
+| `@RankAggregation[["Network_Harmonized"]]` | Final analysis-ready network ranking table |
+
+When `run_all_network_methods = FALSE`, the raw and processed sections contain
+only TrustRank, harmonic centrality, and degree centrality, and
+`@RankAggregation[["Diffusion"]]` is absent/`NULL`.
+
+# Raw network-method results
+
+Inspect the available raw methods with:
+
+```{r inspect-network-raw}
+names(net_res_full@DrugSearching[["Raw"]])
+
+head(
+  net_res_full@DrugSearching[["Raw"]][["TrustRank"]]@result
+)
+
+head(
+  net_res_full@DrugSearching[["Raw"]][["Network_proximity"]]@result
+)
+
+head(
+  net_res_full@DrugSearching[["Raw"]][["Diffusion"]]@result
+)
+```
+
+Each raw entry is a `NetworkBased` object with `@result` and method-specific
+`@parameters`.
+
+The important native score directions are:
+
+| Method | Native evidence | Better direction |
+|---|---|---|
+| TrustRank | `Score` | Higher |
+| Harmonic centrality | `Score` | Higher |
+| Degree centrality | `Score` | Higher |
+| Network proximity | `Z` | More negative / smaller |
+| Diffusion | DSD, KL, JS metrics and their ranks | Lower metric / lower rank |
+
+Detailed method definitions and raw result columns are documented in
+`network-methods.Rmd`.
+
+# Processed network rankings
+
+The pipeline creates a processed representation for each `NetworkBased` result.
+
+```{r inspect-network-processed}
+names(net_res_full@DrugSearching[["Processed"]])
+
+head(
+  net_res_full@DrugSearching[["Processed"]][["TrustRank"]]
+)
+
+head(
+  net_res_full@DrugSearching[["Processed"]][["Network_proximity"]]
+)
+```
+
+For centrality methods, the native larger-is-better `Score` is converted to a
+smaller-is-better `Rank`:
+
+```text
+highest Score -> Rank 1
+next Score    -> Rank 2
+...
+```
+
+For network proximity, smaller Z-scores are ranked first, so the most negative
+Z-score receives the strongest rank.
+
+Diffusion already contains method-specific rank columns and therefore does not
+require a single additional `Rank` column.
+
+# Centrality ranks used for aggregation
+
+The three centrality result tables are joined by drug, and their `Score`
+columns are converted to ranks before consensus aggregation.
+
+The resulting aggregation inputs are conceptually:
+
+```text
+Drug
+TrustRank
+Harmonic_centrality
+Degree_centrality
+```
+
+At this stage these columns contain **ranks**, not the original centrality
+scores, and smaller values indicate stronger priority.
+
+This distinction is important when interpreting the final
+`Network_Harmonized` table, where the centrality columns retain their method
+names but contain rank values.
+
+# Network-proximity rank
+
+When the full network workflow is enabled, the proximity result is converted
+from its native Z-score to a single rank column:
+
+```text
+Network_proximity
+```
+
+The rank is calculated with smaller Z-scores first. Therefore:
+
+- more negative `Z` = stronger native proximity evidence;
+- smaller `Network_proximity` rank = stronger priority.
+
+The raw `D`, `Z`, `Mean`, and `SD` values remain available in
+`@DrugSearching[["Raw"]][["Network_proximity"]]@result`.
+
+# Diffusion rank aggregation
+
+The diffusion output contributes five rank measures:
+
+```text
+DSD-min-Rank
+KL-med-Rank
+KL-min-Rank
+JS-med-Rank
+JS-min-Rank
+```
+
+Lower values indicate stronger diffusion-based similarity.
+
+Before diffusion is combined with the other network methods, these five rank
+columns are aggregated independently with CRank, Dowdall, and RRA.
+
+```{r inspect-diffusion-aggregation}
+names(
+  net_res_full@RankAggregation[["Diffusion"]]
+)
+
+net_res_full@RankAggregation[["Diffusion"]][["CRank"]]@result
+net_res_full@RankAggregation[["Diffusion"]][["Dowdall"]]@result
+net_res_full@RankAggregation[["Diffusion"]][["RRA"]]@result
+```
+
+The resulting columns are:
+
+```text
+Diffusion_CRank
+Diffusion_Dowdall
+Diffusion_RRA
+```
+
+Only complete rows across the available diffusion rank columns are passed to
+this diffusion-aggregation stage.
+
+Because the diffusion inputs are already smaller-is-better ranks, the pipeline
+uses:
+
+```text
+CRank:   reverse = TRUE
+Dowdall: reverse = FALSE
+RRA:     reverse = FALSE
+```
+
+# Harmonizing network evidence
+
+The final aggregation stage combines the available network evidence.
+
+## Centrality-only workflow
+
+With:
+
+```r
+run_all_network_methods = FALSE
+```
+
+the pipeline stops after the three centrality methods have been converted to
+ranks. No network-proximity or diffusion result is added.
+
+Each final aggregation method therefore combines only:
+
+```text
+TrustRank
+Harmonic_centrality
+Degree_centrality
+```
+
+These columns are smaller-is-better ranks. The resulting consensus columns are
+still:
+
+```text
+Network_CRank
+Network_Dowdall
+Network_RRA
+```
+
+## Full network workflow
+
+With:
+
+```r
+run_all_network_methods = TRUE
+```
+
+the three centrality ranks are combined with:
+
+```text
+Network_proximity
+```
+
+and the diffusion consensus corresponding to the same aggregation method.
+
+Therefore the three final aggregation inputs are conceptually:
+
+| Final consensus | Inputs |
+|---|---|
+| `Network_CRank` | Three centrality ranks + `Network_proximity` + `Diffusion_CRank` |
+| `Network_Dowdall` | Three centrality ranks + `Network_proximity` + `Diffusion_Dowdall` |
+| `Network_RRA` | Three centrality ranks + `Network_proximity` + `Diffusion_RRA` |
+
+This preserves the aggregation framework used to summarize the diffusion
+metrics before combining diffusion with the other network evidence.
+
+All harmonized inputs are smaller-is-better ranks, so the pipeline again uses:
+
+```text
+CRank:   reverse = TRUE
+Dowdall: reverse = FALSE
+RRA:     reverse = FALSE
+```
+
+Inspect the aggregation objects with:
+
+```{r inspect-network-harmonized}
+names(
+  net_res_full@RankAggregation[["Harmonized"]]
+)
+
+net_res_full@RankAggregation[["Harmonized"]][["CRank"]]@result
+net_res_full@RankAggregation[["Harmonized"]][["Dowdall"]]@result
+net_res_full@RankAggregation[["Harmonized"]][["RRA"]]@result
+```
+
+# Final network ranking table
+
+The final analysis-ready table is:
+
+```{r inspect-network-harmonized-table}
+network_rankings <-
+  net_res_full@RankAggregation[["Network_Harmonized"]]
+
+head(network_rankings)
+colnames(network_rankings)
+```
+
+When `run_all_network_methods = FALSE`, `Network_Harmonized` contains the
+three centrality ranks together with:
+
+```text
+Network_CRank
+Network_Dowdall
+Network_RRA
+```
+
+These final consensus ranks are calculated only from TrustRank, harmonic
+centrality, and degree centrality.
+
+When `run_all_network_methods = TRUE`, the table additionally retains the
+network-proximity rank, the five diffusion rank columns, and the three
+diffusion consensus ranks. In that case, proximity and the corresponding
+diffusion consensus are also included in each final network aggregation.
+
+The final network consensus columns are ranks, so **smaller values indicate
+higher network-based priority**.
+
+For example:
+
+```{r top-network-consensus}
+network_rankings |>
+  dplyr::arrange(Network_CRank) |>
+  dplyr::select(
+    Drug,
+    Network_CRank,
+    Network_Dowdall,
+    Network_RRA
+  ) |>
+  head(20)
+```
+
+Agreement across the three consensus formulations can be used to assess the
+robustness of candidate prioritization without assuming that one aggregation
+method is universally preferable.
+
+# Downstream annotation and visualization
+
+Annotation and visualization can be enabled directly in the network pipeline
+with:
+
+```text
+run_drug_annotation = TRUE
+run_visualization = TRUE
+```
+
+For downstream annotation, DrugSigNet selects the union of drugs ranked within
+the top `top_k` by `Network_CRank`, `Network_Dowdall`, or `Network_RRA`.
+
+When annotation is enabled and drug targets are available, targets of those
+top-ranked drugs are also used for GO target-set enrichment with `TSEA()`.
+
+See `drug-annotation.Rmd` and `visualization.Rmd` for the standalone
+annotation and plotting interfaces.
+
+# Exporting and reporting results
+
+Completed network pipeline results can be exported with
+`write_pipeline_results()` or summarized in an HTML/PDF report with
+`write_report()`. See `complete-case-study.Rmd` for complete examples.
+
+# Interpretation checklist
+
+- What fraction of disease genes map to the PPI network?
+- Are drug targets sufficiently represented in the network?
+- Are the centrality rankings broadly consistent or complementary?
+- Does network proximity support the same drugs as topology-based methods?
+- Are diffusion results stable and computationally feasible for the network?
+- Do `Network_CRank`, `Network_Dowdall`, and `Network_RRA` identify a stable
+  high-priority candidate set?
+- Are the prioritized drugs supported by biologically plausible targets?
+
+# Troubleshooting
+
+## Few disease genes map to the network
+
+Check the identifier system used by the disease genes and both network inputs.
+The PPI endpoints, disease seeds, and drug targets must be mutually compatible.
+
+## Network proximity has limited coverage
+
+Inspect drug-target mapping and the number of mapped targets per drug. Small
+target sets or incomplete network coverage can reduce the information available
+to randomization-based proximity analysis.
+
+## Diffusion requires substantial memory
+
+Diffusion can require substantial memory because the current implementation
+uses large network-derived matrices and intermediate files. If computational
+resources are limited, validate the centrality-only workflow first and enable
+diffusion only for the full analysis.
+
+## Full workflow is slow
+
+Start with `run_all_network_methods = FALSE` to validate the disease genes,
+network mapping, and centrality results. Add proximity and diffusion only when
+those inputs and computational requirements are appropriate.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Understand individual network methods | `network-methods.Rmd` |
+| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
+| Annotate prioritized drugs | `drug-annotation.Rmd` |
+| Visualize network rankings | `visualization.Rmd` |
+| Compare with the signature workflow | `signature-workflow.Rmd` |
+| Integrate signature and network evidence | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

@@ -1,0 +1,80 @@
+template:
+  bootstrap: 5
+
+home:
+  title: DrugSigNet
+  description: In silico drug repurposing with signature-based and network-based workflows.
+
+navbar:
+  structure:
+    left: [intro, articles, reference, news]
+    right: [github]
+  components:
+    intro:
+      text: Get started
+      href: index.html
+    articles:
+      text: Articles
+      menu:
+        - text: Getting started
+          href: articles/getting-started.html
+        - text: Method selection guide
+          href: articles/method-selection-guide.html
+        - text: Troubleshooting
+          href: articles/troubleshooting.html
+    reference:
+      text: Reference
+      href: reference/index.html
+    news:
+      text: News
+      href: news/index.html
+    github:
+      icon: fab fa-github
+      href: https://github.com/compneurobio/DrugSigNet
+
+reference:
+  - title: Pipelines
+    contents:
+      - drugSignaturePipeline
+      - drugNetworkPipeline
+      - run_repurposing
+
+  - title: Signature-based methods
+    contents:
+      - cmap_method
+      - lincs_method
+      - gcmap_method
+      - correlation_method
+
+  - title: Network-based methods
+    contents:
+      - TrustRank
+      - Harmonic_centrality
+      - Degree_centrality
+      - Network_proximity
+      - Diffusion
+
+  - title: Integration and ranking
+    contents:
+      - integrateSignatureNetwork
+      - Dowdall
+      - CRank
+      - RRA
+
+  - title: Annotation
+    contents:
+      - starts_with("get_drug_")
+
+  - title: Visualization
+    contents:
+      - starts_with("plot_")
+      - contains("plot")
+
+  - title: Example datasets
+    contents:
+      - drug_target_network
+      - integrated_gene_network
+      - repurposing_hub_drugs
+      - WHO
+      - OpenTargets
+      - ctg_studies

@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# Install Synapse support during source installation so Synapse-backed
+# DrugSigNet workflows work immediately. Set DRUGSIGNET_SKIP_SYNAPSER_INSTALL
+# to true/1/yes/y for offline builds and package checks.
+case "$(printf '%s' "${DRUGSIGNET_SKIP_SYNAPSER_INSTALL}" | tr '[:upper:]' '[:lower:]')" in
+  1|true|yes|y)
+    echo "Skipping synapser setup because DRUGSIGNET_SKIP_SYNAPSER_INSTALL is set."
+    exit 0
+    ;;
+esac
+
+"${R_HOME}/bin/Rscript" --vanilla - <<'RS'
+repos <- c(
+  synapse = "http://ran.synapse.org",
+  CRAN = "https://cloud.r-project.org"
+)
+options(repos = repos, timeout = max(1000, getOption("timeout", 60)))
+
+# During staged R package installation, .libPaths()[1] can point inside the
+# temporary 00LOCK package directory. Install Synapser dependencies into the
+# first real user/site library instead, otherwise remove.packages() can look in
+# the wrong library and fail even when rjson exists elsewhere.
+target_lib <- .libPaths()[!grepl("00LOCK", .libPaths(), fixed = TRUE)][1]
+if (is.na(target_lib) || !nzchar(target_lib)) {
+  target_lib <- .libPaths()[1]
+}
+dir.create(target_lib, recursive = TRUE, showWarnings = FALSE)
+
+remove_installed_rjson <- function() {
+  rjson_paths <- find.package("rjson", quiet = TRUE)
+  if (length(rjson_paths) == 0L) {
+    return(invisible(FALSE))
+  }
+  for (lib in unique(dirname(rjson_paths))) {
+    remove.packages("rjson", lib = lib)
+  }
+  invisible(TRUE)
+}
+
+if (!requireNamespace("synapser", quietly = TRUE)) {
+  if (!requireNamespace("remotes", quietly = TRUE)) {
+    install.packages("remotes", repos = repos, lib = target_lib)
+  }
+
+  if ("rjson" %in% loadedNamespaces()) {
+    try(unloadNamespace("rjson"), silent = TRUE)
+  }
+  remove_installed_rjson()
+
+  remotes::install_version(
+    "rjson",
+    version = "0.2.21",
+    repos = "https://cloud.r-project.org",
+    upgrade = "never",
+    lib = target_lib
+  )
+  install.packages("synapser", repos = repos, lib = target_lib)
+
+  if (!requireNamespace("synapser", quietly = TRUE)) {
+    stop("Package synapser could not be installed from Synapse RAN.", call. = FALSE)
+  }
+}
+RS

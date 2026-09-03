@@ -1,0 +1,591 @@
+---
+title: "Rank aggregation with DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{05. Rank aggregation with DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+DrugSigNet uses rank aggregation to combine evidence from complementary
+signature-based, network-based, and integrated drug-prioritization methods.
+
+This vignette explains the three aggregation methods implemented in DrugSigNet:
+CRank, Dowdall aggregation, and Robust Rank Aggregation (RRA). The focus is on
+input direction, method-specific outputs, interpretation, parameter provenance,
+and reproducible standalone use. For complete signature, network, and integrated
+workflows, see the corresponding workflow vignettes.
+
+# Why aggregate rankings?
+
+Different drug-prioritization methods can disagree because they encode different
+biological and statistical assumptions. Signature methods may emphasize
+gene-set enrichment or quantitative expression similarity, while network
+methods may emphasize local topology, shortest-path distance, propagation, or
+diffusion.
+
+Rank aggregation combines these complementary signals into consensus
+prioritizations and reduces dependence on any single method.
+
+Consensus should not be interpreted as experimental validation. A high
+consensus rank indicates convergence of computational evidence and should be
+followed by biological interpretation and, where appropriate, experimental or
+clinical validation.
+
+# Input requirements
+
+All three DrugSigNet aggregation functions expect a data frame in which the
+first column identifies the item, typically a drug, and at least two additional
+columns are numeric ranking variables.
+
+For example:
+
+```{r rank-aggregation-worked-input}
+rank_input <- data.frame(
+  Drug = paste0("drug_", letters[1:10]),
+  Method1 = c(1, 3, 2, 7, 5, 4, 10, 6, 8, 9),
+  Method2 = c(2, 1, 4, 3, 6, 8, 5, 10, 7, 9),
+  Method3 = c(3, 2, 1, 5, 4, 7, 6, 8, 10, 9),
+  stringsAsFactors = FALSE
+)
+```
+
+In this example, the numeric columns already contain ranks, so smaller values
+are better.
+
+# Input direction and `reverse`
+
+Correct direction handling is essential because the three aggregation functions
+do not use the same `reverse` convention.
+
+| Meaning of the numeric input columns | `CRank()` | `Dowdall()` | `RRA()` |
+|---|---:|---:|---:|
+| Smaller values are better, for example ranks `1, 2, 3, ...` | `reverse = TRUE` | `reverse = FALSE` | `reverse = FALSE` |
+| Larger values are better, for example DrugSigNet `rank_score` values | `reverse = FALSE` | `reverse = TRUE` | `reverse = TRUE` |
+
+Therefore, do not copy the same `reverse` value across the three methods without
+first checking what the input columns mean.
+
+For the rank-based example above, the correct calls are:
+
+```{r direction-example}
+crank_result <- CRank(
+  input_data = rank_input,
+  reverse = TRUE
+)
+
+dowdall_result <- Dowdall(
+  input_data = rank_input,
+  reverse = FALSE
+)
+
+rra_result <- RRA(
+  input_data = rank_input,
+  reverse = FALSE
+)
+```
+
+By contrast, when aggregating larger-is-better DrugSigNet `rank_score` columns,
+the corresponding settings are:
+
+```text
+CRank:   reverse = FALSE
+Dowdall: reverse = TRUE
+RRA:     reverse = TRUE
+```
+
+# Inspecting results and parameters
+
+Each aggregation method returns a `RankAggregation` S4 object containing both the
+method-specific consensus result and the input/settings used to generate it.
+
+| Slot | Contents |
+|---|---|
+| `@result` | Method-specific consensus results |
+| `@parameters` | Original aggregation input and retained method settings |
+
+The parameter slot is useful for reproducibility because it preserves the exact
+input table supplied to the aggregation function.
+
+For example, an aggregation stored inside a DrugSigNet pipeline can be inspected
+with:
+
+```{r inspect-rank-aggregation-parameters}
+agg <- covid_rep@RankAggregation[["signature"]][["Pairwise"]][["CMAP"]][["CRank"]]
+
+names(agg@parameters)
+agg@parameters[["input_data"]]
+```
+
+For CRank, retained provenance can include `input_data`, `rank_aggregation`,
+`ties_method`, `prior`, `num_bin`, `num_iter`, `reverse`, `converged`, and
+`correlation`. The exact fields differ by aggregation method. In particular,
+CRank additionally records convergence information from the iterative
+procedure.
+
+# CRank
+
+## How the method works
+
+CRank is an iterative Bayesian consensus-ranking framework. The numeric input
+columns are first converted to ranks according to the selected direction and
+tie-handling rule.
+
+CRank then normalizes the ranks, partitions them into rank intervals, and
+iteratively estimates which rank regions provide evidence for membership in a
+temporary high-confidence set. Rank intervals that agree more strongly with the
+current high-confidence set receive greater influence in the next consensus
+iteration.
+
+The procedure continues until convergence or until the maximum number of
+iterations is reached.
+
+## Main parameters
+
+| Parameter | Meaning |
+|---|---|
+| `prior` | Fraction of items used to define the temporary high-confidence group |
+| `num_bin` | Number of rank intervals used for Bayesian evidence estimation |
+| `num_iter` | Maximum number of CRank iterations |
+| `ties_method` | Method used to resolve ties during ranking |
+| `reverse` | Defines whether smaller or larger input values represent stronger evidence |
+
+DrugSigNet commonly uses:
+
+```text
+prior = 0.093
+num_bin = 200
+num_iter = 1000
+ties_method = "max"
+```
+
+The temporary high-confidence group size is determined internally from the
+number of input items and `prior`.
+
+## Result columns
+
+A CRank result contains:
+
+```text
+Drug    CRank
+```
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug or item identifier |
+| `CRank` | Final CRank consensus rank |
+
+**Smaller `CRank` values indicate higher consensus priority.**
+
+For example, an output can look like:
+
+```text
+Drug              CRank
+sulindac             764
+fludrocortisone     1800
+latamoxef             162
+colchicine            727
+amitriptyline         336
+mesalazine            980
+```
+
+The returned rows are not guaranteed to be sorted by the final `CRank` value.
+Therefore, `head()` should not automatically be interpreted as the top-ranked
+CRank candidates.
+
+To inspect the highest-priority drugs, explicitly sort the result:
+
+```{r sort-crank}
+crank_result@result |>
+  dplyr::arrange(CRank) |>
+  head()
+```
+
+## Convergence
+
+CRank stores convergence information in `@parameters`. It is useful to inspect
+these fields when documenting or auditing an analysis:
+
+```{r inspect-crank-convergence}
+crank_result@parameters[["converged"]]
+crank_result@parameters[["correlation"]]
+```
+
+For publication-oriented analyses, retain the CRank parameter object together
+with the result so that the input, parameterization, and convergence status can
+be recovered.
+
+## Missing values and zero entries
+
+CRank replaces missing numeric values with zero before its internal rank
+conversion. Zero values are treated as unranked or zero-evidence entries rather
+than as ordinary positive ranking values.
+
+This convention is particularly relevant when DrugSigNet constructs a common
+drug universe across multiple methods and some drugs are unavailable or
+unsupported in one of the input lists.
+
+# Dowdall aggregation
+
+## How the method works
+
+DrugSigNet's Dowdall implementation is based on reciprocal-rank voting.
+
+For each numeric input column, the method:
+
+1. converts non-zero input values to ranks using the selected direction;
+2. converts each non-zero rank to `1 / rank`;
+3. min-max scales the reciprocal-rank contributions within that column to the
+   range `[0, 1]`; and
+4. sums the scaled contributions across methods.
+
+Drugs receiving strong support near the top of several lists therefore obtain
+larger consensus scores.
+
+## Result columns
+
+A typical DrugSigNet Dowdall result contains the item identifier, transformed
+input columns, `Dowdall_score`, and `Dowdall_rank`.
+
+For example:
+
+```text
+Drug             rank_score_1  rank_score_2  Dowdall_score  Dowdall_rank
+sulindac               1          0.00108          1.00             1
+fludrocortisone        0.5        0                0.5              4
+latamoxef              0.333      0.000618         0.334            6
+colchicine             0.25       0.00104          0.251            8
+amitriptyline          0.2        0.000756         0.201            9
+mesalazine             0.167      0.00138          0.168           11
+```
+
+The result columns should be interpreted as follows:
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug or item identifier |
+| numeric input columns | Scaled reciprocal-rank contributions after Dowdall transformation |
+| `Dowdall_score` | Sum of the transformed contributions across methods |
+| `Dowdall_rank` | Final rank derived from `Dowdall_score` |
+
+For interpretation, **higher `Dowdall_score` is better**, whereas **smaller
+`Dowdall_rank` is better**.
+
+As with CRank, explicitly sorting by the final rank is the safest way to inspect
+the highest-priority drugs:
+
+```{r sort-dowdall}
+dowdall_result@result |>
+  dplyr::arrange(Dowdall_rank) |>
+  head()
+```
+
+## Missing values and zero entries
+
+Missing numeric values are replaced with zero. Zero entries are treated as
+unranked and contribute zero to the final consensus score.
+
+# Robust Rank Aggregation
+
+## How the method works
+
+Robust Rank Aggregation (RRA) evaluates whether an item appears consistently
+near the top of multiple ranked lists more often than expected under a null
+model of random ordering.
+
+DrugSigNet first converts the numeric input columns to ranks using the requested
+direction and tie-handling rule, normalizes the rank matrix, and then calculates
+a rho score for each item using `RobustRankAggreg::rhoScores()`.
+
+The resulting score is reported as `RRA_pval`.
+
+## Result columns
+
+A typical RRA result contains:
+
+```text
+Drug          RRA_pval    RRA_rank
+letrozole     0.001669136        1
+sulindac      0.002221605        3
+oxypurinol    0.002221605        3
+mephenytoin   0.002688889        4
+ozagrel       0.003200000        5
+chlorfenson   0.003472222        6
+```
+
+| Column | Meaning |
+|---|---|
+| `Drug` | Drug or item identifier |
+| `RRA_pval` | RRA rho/significance score |
+| `RRA_rank` | Rank derived from `RRA_pval` |
+
+For interpretation, **smaller `RRA_pval` is better** and **smaller `RRA_rank`
+is better**.
+
+Ties in `RRA_pval` can therefore produce tied final ranks, depending on
+`ties_method`.
+
+## Missing values
+
+Unlike CRank and Dowdall, RRA preserves missing values during rank conversion.
+Missing values are not converted to zero before RRA scoring.
+
+This distinction is important when the input ranking lists are incomplete.
+
+# Method comparison
+
+| Method | Consensus principle | Main output | Better direction | Missing-value handling |
+|---|---|---|---|---|
+| CRank | Iterative Bayesian weighting of rank regions | `CRank` | Lower | Numeric `NA` replaced by `0`; zero treated as unranked |
+| Dowdall | Scaled reciprocal-rank voting | `Dowdall_score`, `Dowdall_rank` | Higher score; lower rank | Numeric `NA` replaced by `0`; zero contributes no evidence |
+| RRA | Unexpected top-rank consistency under a null model | `RRA_pval`, `RRA_rank` | Lower p-value; lower rank | Missing values preserved during rank conversion |
+
+The native outputs are not numerically interchangeable. For example, a CRank
+value, a Dowdall score, and an RRA p-value have different meanings even when
+they refer to the same drug.
+
+DrugSigNet therefore retains method-specific aggregation outputs rather than
+treating the three values as measurements on a common scale.
+
+# How DrugSigNet uses rank aggregation
+
+DrugSigNet applies CRank, Dowdall, and RRA at several levels of the workflow.
+
+## Signature-based aggregation
+
+Within a signature-search family, rankings generated against different
+reference databases can first be aggregated. DrugSigNet can then harmonize
+evidence across CMAP, LINCS, gCMAP, and correlation families.
+
+For processed signature `rank_score` inputs, larger values represent stronger
+evidence. The aggregation direction is therefore handled accordingly:
+
+```text
+CRank:   reverse = FALSE
+Dowdall: reverse = TRUE
+RRA:     reverse = TRUE
+```
+
+## Network-based aggregation
+
+Centrality outputs are first converted to ranks. When the full network workflow
+is used, network-proximity evidence and diffusion-based ranks are also
+incorporated.
+
+The five diffusion rank columns can themselves be aggregated using CRank,
+Dowdall, and RRA before they are incorporated into the broader network
+consensus.
+
+Because centrality scores are larger-is-better while proximity, diffusion, and
+consensus tables are typically represented as smaller-is-better ranks, DrugSigNet
+handles direction before applying each aggregation method.
+
+## Integrated aggregation
+
+The integrated DrugSigNet workflow does not simply average the final signature
+and network consensus columns.
+
+Instead, method-specific evidence from the signature and network analyses is
+assembled into integration inputs and CRank, Dowdall, and RRA are applied again
+to generate integrated consensus rankings.
+
+# Run the rank aggregation methods
+
+```{r rank-aggregation-input}
+rank_input <- data.frame(
+  Drug = paste0("drug_", letters[1:10]),
+  CMAP = c(1, 3, 2, 7, 5, 4, 10, 6, 8, 9),
+  LINCS = c(2, 1, 4, 3, 6, 8, 5, 10, 7, 9),
+  Correlation = c(3, 2, 1, 5, 4, 7, 6, 8, 10, 9),
+  stringsAsFactors = FALSE
+)
+```
+
+The first column identifies the items being aggregated. Each remaining numeric
+column is one method-specific ranking, where smaller values are better. Therefore
+all three calls use `reverse = FALSE`.
+
+## Dowdall
+
+```{r run-dowdall}
+dowdall_result <- Dowdall(
+  input_data = rank_input,
+  ties_method = "max",
+  reverse = FALSE
+)
+dowdall_result@result
+```
+
+## Robust Rank Aggregation
+
+```{r run-rra}
+rra_result <- RRA(
+  input_data = rank_input,
+  full = TRUE,
+  exact = FALSE,
+  ties_method = "max",
+  reverse = FALSE
+)
+rra_result@result
+```
+
+## CRank
+
+CRank uses the package's Python-backed implementation. Configure the Python
+dependencies before running this section.
+
+```{r run-crank}
+crank_result <- CRank(
+  input_data = rank_input,
+  ties_method = "max",
+  prior = 0.093,
+  num_bin = 200,
+  num_iter = 1000,
+  reverse = FALSE
+)
+crank_result@result
+```
+# Reusing stored pipeline inputs
+
+Because the original aggregation input is retained in `@parameters`, an existing
+pipeline aggregation can be rerun directly.
+
+For example:
+
+```{r rerun-stored-input}
+stored_input <-
+  covid_rep@RankAggregation[["signature"]][["Pairwise"]][["CMAP"]][["CRank"]]@
+    parameters[["input_data"]]
+
+crank_check <- CRank(
+  input_data = stored_input,
+  reverse = FALSE
+)
+```
+
+The appropriate `reverse` value must be chosen according to the semantics of the
+stored numeric columns. In this example, DrugSigNet pairwise signature
+`rank_score` columns are larger-is-better, so CRank uses `reverse = FALSE`.
+
+The equivalent larger-is-better input would use:
+
+```{r rerun-stored-input-other-methods}
+dowdall_check <- Dowdall(
+  input_data = stored_input,
+  reverse = TRUE
+)
+
+rra_check <- RRA(
+  input_data = stored_input,
+  reverse = TRUE
+)
+```
+
+# Tie handling
+
+DrugSigNet supports several tie-handling rules through `ties_method`. Common
+choices include `"max"`, `"min"`, `"average"`, and `"dense"`.
+
+The choice affects both the intermediate rank conversion and, depending on the
+aggregation method, the final consensus rank.
+
+For reproducible analyses, retain the same tie-handling rule across comparable
+runs unless there is a specific reason to change it.
+
+When a top-k set is defined from ranks, ties can result in more than exactly
+`k` drugs satisfying a criterion such as `rank <= k`.
+
+# Practical reporting
+
+For a reproducible DrugSigNet rank-aggregation analysis, report:
+
+- the input ranking columns and whether larger or smaller values represented
+  stronger evidence;
+- the aggregation methods used;
+- `reverse` and `ties_method` for each aggregation call;
+- CRank `prior`, `num_bin`, and `num_iter`;
+- CRank convergence status where relevant;
+- the treatment of missing or unranked entries;
+- the number of items included in the aggregation;
+- the top-k rule used for downstream prioritization; and
+- agreement or overlap across CRank, Dowdall, and RRA outputs.
+
+# Common pitfalls
+
+## Using the wrong `reverse` setting
+
+The `reverse` convention differs between CRank and Dowdall/RRA. Always determine
+whether the input is smaller-is-better or larger-is-better before calling the
+method.
+
+## Interpreting `head()` as the top-ranked drugs
+
+CRank and Dowdall outputs are not guaranteed to be returned in final-rank order.
+Explicitly arrange by `CRank`, `Dowdall_rank`, or `RRA_rank` before interpreting
+the leading candidates.
+
+## Mixing scores and ranks
+
+A larger-is-better score and a smaller-is-better rank require different
+direction handling. Do not aggregate them without first confirming their
+semantics.
+
+## Ignoring missing-value conventions
+
+CRank and Dowdall convert numeric missing values to zero, whereas RRA preserves
+missingness during rank conversion. This can matter when input lists have
+different coverage.
+
+## Aggregating incompatible drug universes
+
+Harmonize drug names and identifiers before aggregation. Differences caused only
+by inconsistent naming can create artificial disagreement or missingness.
+
+## Treating consensus as validation
+
+Consensus ranking summarizes agreement among computational methods; it does not
+establish therapeutic efficacy.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Choose an overall DrugSigNet strategy | `choosing-analysis-strategy.Rmd` |
+| Understand signature-search inputs to aggregation | `signature-methods.Rmd` |
+| Understand network-method inputs to aggregation | `network-methods.Rmd` |
+| Run the complete signature workflow | `signature-workflow.Rmd` |
+| Run the complete network workflow | `network-workflow.Rmd` |
+| Run integrated signature-network prioritization | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

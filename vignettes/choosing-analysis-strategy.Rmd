@@ -1,0 +1,194 @@
+---
+title: "Choosing a DrugSigNet analysis strategy"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{02. Choosing a DrugSigNet analysis strategy}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+DrugSigNet supports complementary signature-based, network-based, and integrated
+drug-repurposing strategies. This vignette helps users choose an analysis route
+based primarily on the biological evidence available for the disease.
+
+Algorithmic details are provided in the method-specific vignettes, while
+executable analyses are provided in the workflow vignettes. This vignette
+therefore focuses on strategy selection, assumptions, and practical
+considerations rather than implementation.
+
+# The main decision
+
+The first question is not which algorithm to use, but which biological input is
+available and sufficiently informative for the analysis.
+
+| Disease evidence available | Recommended strategy | Main DrugSigNet entry point |
+|---|---|---|
+| Signed differential-expression profile | Signature-based analysis | `drugSignaturePipeline()` or `drugRepurposingPipeline(mode = "signature")` |
+| Disease-associated, risk, or seed genes | Network-based analysis | `drugNetworkPipeline()` or `drugRepurposingPipeline(mode = "network")` |
+| Both a suitable expression signature and disease-gene set | Integrated analysis | `drugRepurposingPipeline(mode = "both")` |
+
+If drug rankings have already been generated outside these workflows, users can
+enter DrugSigNet at later stages such as rank aggregation, annotation, or
+visualization.
+
+# Signature-based analysis
+
+Use signature-based analysis when the disease is represented by a signed
+molecular expression profile, particularly differential-expression data.
+DrugSigNet compares disease-associated expression changes with drug-induced
+reference signatures using CMAP-, LINCS-, gCMAP-, and correlation-based
+approaches.
+
+Signature-based analysis is most appropriate when:
+
+- up- and down-regulated genes or signed fold changes are available;
+- the disease phenotype is meaningfully represented by transcriptomic or
+  proteomic changes;
+- the expression signature contains enough informative genes for comparison
+  with drug-induced reference signatures; and
+- the scientific question concerns perturbational relationships between disease
+  and drug signatures.
+
+A common biological interpretation is that therapeutically useful perturbations
+may oppose disease-associated expression changes. However, the strength and
+direction of drug-signature relationships should be interpreted in the context
+of the disease state and the analysis objective.
+
+Avoid relying exclusively on signature-based prioritization when the input
+signature is weak, contains very few informative genes, or is strongly affected
+by technical or compositional effects.
+
+For methodological details, see `signature-methods.Rmd`. For an executable
+analysis, see `signature-workflow.Rmd`.
+
+# Network-based analysis
+
+Use network-based analysis when the disease is represented by disease-associated
+genes or proteins. DrugSigNet maps disease genes and drug targets onto
+biological interaction networks and prioritizes drugs according to their
+topological relationship to the disease module.
+
+Network-based methods in DrugSigNet include TrustRank, harmonic centrality,
+degree centrality, network proximity, and diffusion-based algorithms.
+
+Network analysis is most appropriate when:
+
+- the main input is a curated disease-gene or disease-protein set;
+- genetic, pathway, or protein-level evidence is stronger than expression
+  evidence;
+- disease genes and drug targets can be mapped adequately to the interaction
+  network; or
+- the scientific question concerns network influence, module proximity, or
+  propagation from disease seeds.
+
+Network-based results depend on the coverage and topology of the selected
+protein-protein interaction and drug-target networks. Poor mapping of disease
+genes or drug targets can limit the interpretability of downstream rankings.
+
+For methodological details, see `network-methods.Rmd`. For an executable
+analysis, see `network-workflow.Rmd`.
+
+# Integrated analysis
+
+Integrated analysis can be considered when both a suitable signed expression
+signature and a suitable disease-gene set are available.
+
+The two evidence layers capture different properties of disease biology.
+Signature-based methods evaluate relationships between disease-associated and
+drug-induced molecular changes, whereas network-based methods evaluate
+topological relationships between disease genes and drug targets.
+
+Agreement between the two evidence families can strengthen confidence in a
+candidate, but low agreement is not necessarily unexpected because the two
+approaches capture different biological information.
+
+In a typical integrated DrugSigNet analysis, method-specific signature and
+network rankings are first summarized within their respective evidence layers
+and are then combined into an integrated candidate prioritization.
+
+For an end-to-end integrated example, see `complete-case-study.Rmd`.
+
+# Additional considerations
+
+Input availability alone should not determine the final strategy. Consider the
+quality and suitability of each evidence source before interpreting rankings.
+
+| Situation | Practical consideration |
+|---|---|
+| Weak or noisy expression signature | Avoid relying exclusively on signature-based rankings |
+| Limited disease-gene or drug-target network coverage | Check mapping before interpreting network-based results |
+| Uncertain disease-module compactness | Use network diagnostics before relying heavily on proximity-based methods |
+| Strong disagreement among methods | Compare consensus rankings rather than selecting a single method arbitrarily |
+| Both evidence types are available | Consider integrated analysis and examine agreement across evidence layers |
+| Final or publication-oriented analysis | Use the strategy best supported by the available evidence and include appropriate consensus, annotation, diagnostics, and sensitivity analyses |
+
+# Consensus ranking
+
+DrugSigNet provides CRank, Dowdall, and Robust Rank Aggregation (RRA) to combine
+method-specific rankings. Consensus ranking can help identify candidates that
+receive support across multiple methods and can reduce reliance on any single
+ranking algorithm.
+
+For exploratory analyses, comparing more than one aggregation method can help
+assess ranking robustness. Detailed guidance on choosing, running, and
+interpreting the aggregation methods is provided in `rank-aggregation.Rmd`.
+
+# Interpreting prioritized candidates
+
+A high-ranking drug should be treated as a prioritization hypothesis rather
+than a validated therapeutic candidate.
+
+The strongest candidates are typically those supported by several complementary
+lines of evidence, such as high ranking, consistent support across aggregation
+methods, plausible targets or mechanisms, interpretable annotation profiles,
+and relevant disease literature.
+
+DrugSigNet is therefore best used to organize and integrate computational
+evidence for follow-up interpretation and validation rather than as a substitute
+for experimental or clinical evidence.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+Continue with the vignette that matches the selected strategy:
+
+| Selected task | Recommended vignette |
+|---|---|
+| Understand signature-based methods | `signature-methods.Rmd` |
+| Run a signature-based workflow | `signature-workflow.Rmd` |
+| Understand network-based methods | `network-methods.Rmd` |
+| Run a network-based workflow | `network-workflow.Rmd` |
+| Compare consensus methods | `rank-aggregation.Rmd` |
+| Run an integrated example | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

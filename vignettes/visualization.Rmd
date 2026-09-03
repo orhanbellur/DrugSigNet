@@ -1,0 +1,604 @@
+---
+title: "Visualization with DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{07. Visualization with DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+```{r load-package, include=FALSE}
+library(DrugSigNet)
+```
+
+# Introduction
+
+DrugSigNet provides standalone plotting functions for ranked drug lists,
+annotation summaries, target-set enrichment, and drug-drug similarity.
+
+This vignette summarizes the current visualization API. Complete signature,
+network, and integrated analyses are covered in the workflow vignettes.
+
+# Visualization functions
+
+| Function | Purpose | Return |
+|---|---|---|
+| `plot_drug_hierarchy()` | Hierarchical drug annotations | Plotly sunburst or ggplot alluvial plot |
+| `plot_drug_indications()` | Indication frequencies | ggplot bar plot or recorded word cloud |
+| `plot_drug_signature_overlay()` | Drug-target, disease, and signature network overlay | List containing the plot and evidence tables |
+| `plot_drug_similarity()` | Drug-drug similarity | ggplot heatmap or invisible `hclust` |
+| `plot_drug_status()` | Drug and condition-specific status | ggplot |
+| `plot_enriched_terms()` | Enrichment results | ggplot |
+| `plot_rank_agreement()` | Pairwise rank correlations | List containing matrices and `plot` |
+| `plot_rank_distribution()` | Pairwise rank scatter plots | ggplot |
+| `plot_top_k_hits()` | Annotated hits among top-ranked drugs | ggplot |
+| `plot_top_k_overlap()` | Top-k overlap across methods | ggplot |
+| `plot_top_k_overlap_comparison()` | Top-k overlap between two ranking results | ggplot |
+| `plot_all()` | Run multiple plotting helpers | List containing `plots` and `errors` |
+
+Most functions accept analysis-ready data frames directly; a complete pipeline
+object is not required.
+
+# Drug annotation plots
+
+## Drug hierarchy
+
+`plot_drug_hierarchy()` displays hierarchical annotation columns as a sunburst
+or alluvial plot. At least two hierarchy columns are required.
+
+```{r plot-drug-hierarchy}
+hierarchy_df <- data.frame(
+  ATC = rep(
+    c("Nervous system", "Antineoplastic", "Cardiovascular", "Metabolic"),
+    each = 4
+  ),
+  MoA = rep(
+    c(
+      "Neurotransmitter modulator", "Kinase inhibitor",
+      "Ion-channel modulator", "Metabolic enzyme inhibitor"
+    ),
+    each = 4
+  ),
+  Drug = paste0("drug_", sprintf("%02d", 1:16)),
+  N = c(18, 14, 11, 8, 17, 15, 10, 7, 16, 13, 9, 6, 14, 12, 8, 5)
+)
+
+p1 <- plot_drug_hierarchy(
+  data_df = hierarchy_df,
+  hierarchy_cols = c("ATC", "MoA", "Drug"),
+  value_col = "N",
+  plot_type = "sunburst"
+)
+
+p2 <- plot_drug_hierarchy(
+  data_df = hierarchy_df,
+  hierarchy_cols = c("ATC", "MoA", "Drug"),
+  value_col = "N",
+  plot_type = "alluvial"
+)
+
+p1
+p2
+```
+
+Use `layer_order = "inner_to_outer"` to reverse the hierarchy and `na_label`
+to control the label assigned to missing categories. The sunburst (`p1`) is
+interactive, whereas the alluvial view (`p2`) provides a static alternative.
+
+## Drug indications
+
+`plot_drug_indications()` requires `Drug` and `indication` columns. Multiple
+indications separated by `|` or `;` are split before counting.
+
+```{r plot-drug-indications}
+indication_df <- data.frame(
+  Drug = paste0("drug_", sprintf("%02d", 1:24)),
+  indication = rep(
+    c(
+      "Alzheimer disease|Cognitive impairment",
+      "Cancer|Solid tumor",
+      "Diabetes;Metabolic disease",
+      "Cardiovascular disease|Hypertension",
+      "Inflammation|Autoimmune disease",
+      "Asthma|Respiratory disease"
+    ),
+    each = 4
+  ),
+  stringsAsFactors = FALSE
+)
+
+p <- plot_drug_indications(
+  data_df = indication_df,
+  plottype = "barplot",
+  top_terms = 10
+)
+
+p
+```
+
+A word cloud can be generated with:
+
+```{r plot-drug-indications-wordcloud}
+wc <- plot_drug_indications(
+  data_df = indication_df,
+  plottype = "wordcloud",
+  max_words = 50
+)
+
+wc
+```
+
+## Drug status
+
+`plot_drug_status()` creates a nested donut chart from `drug`,
+`highest_status`, and `condition_status`.
+
+```{r plot-drug-status}
+status_df <- data.frame(
+  drug = paste0("drug_", sprintf("%02d", 1:20)),
+  highest_status = rep(
+    c("Approved", "Phase 3", "Phase 2", "Phase 1", "Preclinical"),
+    each = 4
+  ),
+  condition_status = rep(
+    c("Approved", "Clinical", "Clinical", "Preclinical"),
+    length.out = 20
+  )
+)
+
+plot_drug_status(status_df)
+```
+
+The inner ring represents `condition_status` and the outer ring represents
+`highest_status`. Categories can be removed with `exclude_condition_status`.
+
+# Drug similarity
+
+`plot_drug_similarity()` accepts a square numeric similarity matrix and can
+produce either a heatmap or a dendrogram.
+
+```{r plot-drug-similarity}
+set.seed(42)
+drug_features <- matrix(rnorm(15 * 8), nrow = 15)
+sim_mat <- stats::cor(t(drug_features))
+sim_mat <- (sim_mat + 1) / 2
+diag(sim_mat) <- 1
+drug_labels <- paste0("drug_", sprintf("%02d", 1:15))
+dimnames(sim_mat) <- list(drug_labels, drug_labels)
+
+plot_drug_similarity(
+  sim_mat,
+  plot_type = "heatmap"
+)
+
+plot_drug_similarity(
+  sim_mat,
+  plot_type = "dendrogram"
+)
+```
+
+Dendrogram mode clusters drugs using `1 - similarity`. Heatmaps can be shown as
+`"triangle"` or `"full"` using `heatmap_type`.
+
+# Drug signature network overlay
+
+`plot_drug_signature_overlay()` combines a drug-centered interaction subgraph
+with disease seed genes and genes from a drug signature. The example below
+uses a small, illustrative perhexiline network so that it can be built without
+downloading an external interaction network or signature database. The edges
+are for demonstration only and should not be interpreted as a curated
+perhexiline mechanism.
+
+```{r plot-drug-signature-overlay, fig.width=9, fig.height=7}
+perhexiline_subgraph <- list(
+  drug = "perhexiline",
+  subgraph = data.frame(
+    from = c(
+      "perhexiline", "perhexiline", "CPT1A", "CPT2",
+      "CPT1A", "NDUFS1"
+    ),
+    to = c("CPT1A", "CPT2", "APOE", "PPARG", "NDUFS1", "HIF1A"),
+    type = c("DT", "DT", "PPI", "PPI", "PPI", "PPI")
+  )
+)
+
+perhexiline_disease_seeds <- data.frame(
+  gene = c("CPT2", "APOE"),
+  direction = c("down", "up")
+)
+
+perhexiline_signature <- data.frame(
+  gene = c("CPT1A", "HIF1A"),
+  direction = c("down", "up")
+)
+
+perhexiline_gene_map <- data.frame(
+  gene = c("CPT1A", "CPT2", "APOE", "PPARG", "NDUFS1", "HIF1A"),
+  symbol = c("CPT1A", "CPT2", "APOE", "PPARG", "NDUFS1", "HIF1A")
+)
+
+perhexiline_overlay <- plot_drug_signature_overlay(
+  Drug = "perhexiline",
+  subgraph_result = perhexiline_subgraph,
+  disease_seed_genes = perhexiline_disease_seeds,
+  drug_signature_genes = perhexiline_signature,
+  symbol_map = perhexiline_gene_map,
+  include_all_drug_targets = TRUE,
+  seed = 42
+)
+
+perhexiline_overlay$plot
+```
+
+The larger drug node is connected to its direct targets. Node color separates
+disease seeds, drug-signature genes, and other targets, while emphasized node
+outlines identify direct drug targets. The returned object also contains
+`disease_seed_evidence`, `drug_signature_evidence`, and `drug_sig_path_info`
+tables, which can be inspected to understand why each gene was included.
+
+# Enrichment plots
+
+`plot_enriched_terms()` visualizes enrichment results such as those returned by
+`TSEA()`. The input must contain `Term`, `ont`, `Adjusted.P.value`, and
+`Overlap`, where `Overlap` is formatted as `"x/y"`.
+
+```{r plot-enriched-terms}
+enrich_df <- data.frame(
+  Term = c(
+    "apoptotic process (GO:0006915)",
+    "cell cycle (GO:0007049)",
+    "inflammatory response (GO:0006954)",
+    "oxidative stress response (GO:0006979)",
+    "synaptic signaling (GO:0099536)",
+    "protein phosphorylation (GO:0006468)",
+    "kinase activity (GO:0016301)",
+    "receptor binding (GO:0005102)",
+    "transcription regulator activity (GO:0140110)",
+    "protein complex binding (GO:0032403)",
+    "mitochondrial matrix (GO:0005759)",
+    "synaptic membrane (GO:0097060)"
+  ),
+  ont = rep(c("BP", "MF", "CC"), each = 4),
+  Adjusted.P.value = c(
+    0.0002, 0.0008, 0.002, 0.006,
+    0.0005, 0.001, 0.004, 0.012,
+    0.0009, 0.003, 0.009, 0.025
+  ),
+  Overlap = c(
+    "18/220", "15/190", "13/170", "11/150",
+    "16/210", "14/180", "12/160", "9/130",
+    "15/200", "12/165", "10/145", "8/120"
+  )
+)
+
+plot_enriched_terms(
+  enrich_df,
+  plottype = "dotplot"
+)
+
+plot_enriched_terms(
+  enrich_df,
+  plottype = "barplot"
+)
+```
+
+Use `show_category` to control the number of terms displayed per ontology.
+
+# Ranking comparison plots
+
+The ranking functions below expect numeric rank columns, where **smaller values
+represent higher priority**.
+
+## Rank agreement
+
+`plot_rank_agreement()` calculates pairwise rank correlations and returns both
+the plot and the underlying correlation statistics.
+
+```{r plot-rank-agreement}
+set.seed(42)
+n_drugs <- 100
+base_rank <- seq_len(n_drugs)
+rank_df <- data.frame(
+  Drug = paste0("drug_", sprintf("%03d", seq_len(n_drugs))),
+  CMAP = base_rank,
+  LINCS = rank(base_rank + rnorm(n_drugs, sd = 12)),
+  gCMAP = rank(base_rank + rnorm(n_drugs, sd = 20)),
+  Correlation = rank(rev(base_rank) + rnorm(n_drugs, sd = 18))
+)
+
+agreement_res <- plot_rank_agreement(
+  drug_ranks_df = rank_df,
+  cor_method = "spearman",
+  top_k = 100
+)
+
+agreement_res$plot
+agreement_res$cor_matrix
+agreement_res$p_matrix
+```
+
+Supported correlation methods are `"spearman"`, `"pearson"`, and `"kendall"`.
+With `cluster = TRUE`, methods are reordered by their correlation structure.
+
+## Rank distributions
+
+`plot_rank_distribution()` creates pairwise scatter plots across selected
+ranking methods.
+
+```{r plot-rank-distribution}
+rank_distribution_df <- rank_df
+
+plot_rank_distribution(rank_distribution_df)
+
+plot_rank_distribution(
+  drug_ranks_df = rank_distribution_df,
+  methods = c("CMAP", "LINCS", "gCMAP"),
+  top_k = 100
+)
+```
+
+When `methods = NULL`, all numeric columns are used.
+
+# Top-k plots
+
+## Top-k hits
+
+`plot_top_k_hits()` compares status-annotated hits among top-ranked drugs.
+Status can be supplied in a separate data frame or stored in the ranking table.
+
+```{r plot-top-k-hits}
+top_k_rank_df <- data.frame(
+  Drug = c(
+    "daratumumab|felzartamab|isatuximab",
+    paste0("drug_", sprintf("%03d", 2:80))
+  ),
+  Method1 = seq_len(80),
+  Method2 = rank(seq_len(80) + sin(seq_len(80) / 5) * 12),
+  Method3 = rank(seq_len(80) + cos(seq_len(80) / 7) * 15)
+)
+
+hit_status_df <- data.frame(
+  Drug = c(
+    "daratumumab", "felzartamab", "isatuximab",
+    paste0("drug_", sprintf("%03d", seq(5, 75, by = 5)))
+  ),
+  Status = "positive"
+)
+
+plot_top_k_hits(
+  drug_ranks_df = top_k_rank_df,
+  status_df = hit_status_df,
+  split_grouped_drugs = FALSE,
+  plottype = "Barplot"
+)
+```
+
+Supported plot types are `"Barplot"`, `"dotplot"`, and `"lineplot"`.
+
+For grouped drug labels, `split_grouped_drugs = FALSE` keeps the group as one
+ranked entity while still matching individual members to status annotations.
+Use `TRUE` to count grouped members separately after top-k selection.
+
+## Top-k overlap
+
+`plot_top_k_overlap()` compares pairwise overlap among top-ranked drug sets.
+
+```{r plot-top-k-overlap}
+overlap_rank_df <- top_k_rank_df
+
+overlap_status_df <- data.frame(
+  Drug = hit_status_df$Drug,
+  Status = hit_status_df$Status
+)
+
+p_overlap <- plot_top_k_overlap(
+  drug_ranks_df = overlap_rank_df,
+  status_df = overlap_status_df,
+  top_k = 20,
+  split_grouped_drugs = FALSE
+)
+
+p_overlap
+p_overlap$data
+```
+
+A drug is included when its rank is less than or equal to `top_k`. When status
+information is available, cell labels can also report the number of overlapping
+status-annotated drugs.
+
+## Compare two ranking results
+
+`plot_top_k_overlap_comparison()` compares methods from two separate ranking
+tables. Drug identifiers are matched case-insensitively.
+
+```{r plot-top-k-overlap-comparison}
+set.seed(17)
+comparison_drugs <- paste("Drug", sprintf("%03d", 1:100))
+df_a <- data.frame(
+  Drug = comparison_drugs,
+  Method_A1 = seq_len(100),
+  Method_A2 = rank(seq_len(100) + rnorm(100, sd = 15))
+)
+
+df_b <- data.frame(
+  Drug = tolower(c(comparison_drugs[1:85], paste("Drug", sprintf("%03d", 101:115)))),
+  Method_B1 = rank(seq_len(100) + rnorm(100, sd = 18)),
+  Method_B2 = rank(rev(seq_len(100)) + rnorm(100, sd = 20))
+)
+
+status_data <- data.frame(
+  Drug = comparison_drugs[seq(1, 100, by = 4)],
+  Status = rep(c("Strong", "Moderate", "Weak", "No effect", NA), 5)
+)
+
+comparison_plot <- plot_top_k_overlap_comparison(
+  df_x = df_a,
+  df_y = df_b,
+  top_k = 100,
+  status_df = status_data
+)
+
+comparison_plot
+comparison_plot$data
+```
+
+Use `methods_x` and `methods_y` to restrict or order the methods included in the
+comparison.
+
+# Generate multiple plots with `plot_all()`
+
+`plot_all()` runs multiple plotting helpers from one named input list.
+
+Supported keys are:
+
+```text
+drug_status
+drug_indications
+drug_similarity
+drug_hierarchy
+top_k_hits
+top_k_overlap
+enriched_terms
+rank_agreement
+rank_distribution_scatter
+```
+
+```{r plot-all}
+plot_all_rank_df <- data.frame(
+  Drug = rank_df$Drug,
+  Status = ifelse(seq_len(nrow(rank_df)) %% 6 == 0, "positive", NA),
+  CMAP = rank_df$CMAP,
+  LINCS = rank_df$LINCS,
+  gCMAP = rank_df$gCMAP
+)
+
+plot_all_indication_df <- data.frame(
+  Drug = plot_all_rank_df$Drug[1:30],
+  indication = rep(
+    c(
+      "Neurodegeneration|Cognitive impairment",
+      "Cancer|Solid tumor",
+      "Metabolic disease|Diabetes",
+      "Inflammation|Autoimmune disease",
+      "Cardiovascular disease|Hypertension"
+    ),
+    each = 6
+  )
+)
+
+all_plots <- plot_all(
+  plot_inputs = list(
+    top_k_hits = list(
+      drug_ranks_df = plot_all_rank_df,
+      plottype = "Barplot"
+    ),
+    top_k_overlap = plot_all_rank_df,
+    drug_indications = plot_all_indication_df
+  ),
+  file_type = "pdf",
+  output_dir = "plots",
+  file_prefix = "DrugSigNet_"
+)
+
+all_plots$plots
+all_plots$errors
+```
+
+With `continue_on_error = TRUE`, failed plots are reported in `$errors` while
+the remaining plots continue. `plot_top_k_overlap_comparison()` is a standalone
+helper and is not a `plot_all()` key.
+
+# Saving figures
+
+Most plotting functions can save directly by supplying `file_name` and
+`file_type`.
+
+```{r save-plot-directly}
+plot_enriched_terms(
+  data_df = enrich_df,
+  plottype = "dotplot",
+  file_name = "enriched_terms",
+  file_type = "pdf",
+  width = 10,
+  height = 7
+)
+```
+
+For ggplot objects, `ggplot2::ggsave()` can also be used.
+
+```{r save-with-ggsave}
+p <- plot_rank_distribution(
+  drug_ranks_df = rank_distribution_df,
+  methods = c("CMAP", "LINCS", "gCMAP")
+)
+
+ggplot2::ggsave(
+  filename = "rank_distribution.pdf",
+  plot = p,
+  width = 7,
+  height = 5
+)
+```
+
+# Practical recommendations
+
+- Use consistent drug identifiers and method names across related figures.
+- Confirm that rank-based inputs contain ranks rather than raw scores.
+- Report `top_k` in figure captions.
+- Use the same grouped-drug handling across hit and overlap analyses.
+- Restrict large annotation or enrichment tables to interpretable subsets.
+- Keep the input tables used to generate publication figures.
+
+# Common pitfalls
+
+- **Scores supplied as ranks:** top-k and rank-comparison functions assume
+  smaller values are better.
+- **Extra numeric metadata:** automatically detected numeric columns may be
+  interpreted as ranking methods.
+- **Missing annotation columns:** annotation plots require their documented input
+  schemas.
+- **Invalid similarity matrix:** `plot_drug_similarity()` requires a square
+  numeric matrix with at least two drugs.
+- **Crowded figures:** reduce the number of methods, drugs, or categories before
+  plotting.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Understand consensus rankings | `rank-aggregation.Rmd` |
+| Prepare annotations and TSEA results | `drug-annotation.Rmd` |
+| Run the complete signature workflow | `signature-workflow.Rmd` |
+| Run the complete network workflow | `network-workflow.Rmd` |
+| Run an integrated analysis | `complete-case-study.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

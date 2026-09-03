@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: "DrugSigNet"
+message: "If you use DrugSigNet, please cite it using the metadata in this file."
+type: software
+authors:
+  - family-names: "Bellur"
+    given-names: "Orhan"
+    email: "orhan.bellur@helmholtz-muenchen.de"
+  - family-names: "Arnold"
+    given-names: "Matthias"
+repository-code: "https://github.com/compneurobio/DrugSigNet"
+license: "MIT"
+version: "1.0.0"

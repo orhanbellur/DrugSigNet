@@ -1,0 +1,578 @@
+---
+title: "Signature-based methods in DrugSigNet"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{03. Signature-based methods in DrugSigNet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+This vignette explains the signature-based search methods used by DrugSigNet:
+CMAP, LINCS, gCMAP, and correlation-based search. It focuses on the biological
+and statistical interpretation of these methods, the expression representations
+they require, the CMAP and LINCS2 reference databases used by DrugSigNet, and
+the native scores returned by each search.
+
+DrugSigNet builds on gene-expression signature search functionality implemented
+in the Bioconductor
+[`signatureSearch`](https://bioconductor.org/packages/signatureSearch/) package.
+For a practical end-to-end DrugSigNet analysis, see `signature-workflow.Rmd`.
+
+# Biological rationale
+
+Signature-based drug repurposing represents both a disease state and a drug
+perturbation as molecular expression signatures. A disease signature describes
+genes whose expression changes in association with the disease or phenotype,
+whereas a drug signature describes expression changes induced by a compound in
+a cellular system.
+
+A signature search asks whether a drug-induced profile is related to the query
+disease profile. The relationship can be:
+
+- **positive or concordant**, when the drug signature resembles the disease
+  signature; or
+- **negative or discordant**, when the drug signature opposes the disease
+  signature.
+
+Reversal is a common therapeutic hypothesis because a drug that opposes
+disease-associated expression changes may counteract part of the disease state.
+However, reversal should not be assumed to be therapeutically preferable in
+every biological setting. DrugSigNet therefore retains connectivity direction
+for interpretation, and the appropriate direction should be considered in the
+context of the disease state and analysis objective.
+
+# DrugSigNet signature input
+
+The main DrugSigNet signature workflow uses a data frame containing `Entrez` and
+`FC` columns:
+
+- `Entrez` contains Entrez gene identifiers;
+- `FC` contains signed fold-change values, commonly log2 fold changes.
+
+The four search methods use two internal representations derived from this
+signed profile.
+
+| DrugSigNet method | Query representation used for the search | Reference representation used by the method |
+|---|---|---|
+| CMAP | Up- and down-regulated gene sets | Ranked reference expression profile |
+| LINCS | Up- and down-regulated gene sets | Quantitative differential-expression scores |
+| gCMAP | Ranked or quantitative one-column query profile | Signed reference gene sets generated from upper/lower score thresholds |
+| Correlation | Quantitative one-column query profile | Quantitative reference expression profile |
+
+For the individual method wrappers, CMAP and LINCS use `upset` and `downset`
+gene sets. gCMAP and correlation use a one-column numeric matrix with Entrez
+identifiers as row names. `drugSignaturePipeline()` prepares the required
+representations internally from `signature_input`.
+
+The upstream `signatureSearch` package also implements Fisher's exact-test
+search. Fisher search is not one of the four core signature-search methods
+orchestrated by the DrugSigNet signature pipeline.
+
+# Reference databases
+
+## CMAP and LINCS2 resources
+
+DrugSigNet searches drug-induced expression signatures stored in HDF5 reference
+databases. The CMAP and LINCS2 reference files correspond to databases provided
+by the Bioconductor
+[`signatureSearchData`](https://bioconductor.org/packages/signatureSearchData/)
+package through `ExperimentHub`.
+
+The frozen HDF5 copies used by the DrugSigNet reference-data workflow preserve
+these underlying reference resources so that analyses can be repeated against
+the same database files.
+
+| Reference database | Expression statistic | Genes | Compound treatments | Cell lines | Signatures | ExperimentHub ID |
+|---|---|---:|---:|---:|---:|---|
+| CMAP | Log2 fold-change values | 12,403 | 1,281 | 5 | 3,478 | `EH3223` |
+| LINCS2 | Moderated z-scores from differential-expression analysis | 12,328 | 30,456 | 58 | 136,460 | `EH7297` |
+
+The table follows the `signatureSearchData` data-package documentation for the
+CMAP HDF5 resource (`EH3223`), which reports 12,403 genes. Some versions of the
+upstream `signatureSearch` workflow vignette list 12,437 genes in a summary of
+the same resource; recording the ExperimentHub identifier together with the
+database statistics therefore provides the clearest provenance.
+
+The CMAP HDF5 database is derived from Connectivity Map/CMAP2 perturbation
+profiles. The database contains drug-induced log2 fold-change signatures and is
+much smaller than LINCS2 in both compound and cellular coverage.
+
+LINCS2 is derived from the expanded LINCS L1000 collection. The L1000 assay
+directly measures a set of landmark genes and infers additional genes. In the
+LINCS2 reference used by `signatureSearchData`, an exemplar signature is selected
+for each perturbagen within each cell line to reduce redundancy across treatment
+conditions. The exemplar selection is based on CLUE annotations and generally
+favours signatures with high transcriptional activity scores.
+
+The two databases therefore differ substantially in scale, assay technology,
+cellular coverage, and expression statistic. Differences between results
+obtained from CMAP and LINCS2 are expected and should not be interpreted as
+technical inconsistency by themselves.
+
+For the upstream construction details, see the
+[`signatureSearch` vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/signatureSearch/inst/doc/signatureSearch.html)
+and the `signatureSearchData` vignette.
+
+## ExperimentHub provenance
+
+The original HDF5 resources can be resolved through `ExperimentHub` as follows.
+This is useful for provenance checking; normal DrugSigNet analyses do not need
+to retrieve them manually when a supported `ref_db` value is used.
+
+```{r experimenthub-provenance}
+library(ExperimentHub)
+
+eh <- ExperimentHub()
+
+cmap_path <- eh[["EH3223"]]
+lincs2_path <- eh[["EH7297"]]
+```
+
+## Selecting `ref_db`
+
+The individual DrugSigNet signature methods accept a `ref_db` argument.
+
+Use:
+
+- `"cmap"` for the CMAP HDF5 reference;
+- `"lincs2"` for the LINCS2 HDF5 reference; or
+- a local HDF5 path returned by `load_signature_refdb()` when using a frozen
+  DrugSigNet reference database.
+
+A local frozen reference is useful when an analysis needs to be repeated against
+an unchanged database file rather than resolving the reference dynamically.
+
+The HDF5 databases are searched in chunks rather than being loaded completely
+into memory. The `chunk_size` argument controls the number of reference
+signatures processed per chunk and is therefore mainly a computational
+performance and memory-management parameter.
+
+# Methods and reference databases are separate choices
+
+The search algorithm and the reference database represent two different parts of
+the analysis. DrugSigNet can apply each of its four signature-search methods to
+either CMAP or LINCS2, producing eight method/reference combinations in a full
+multi-method search:
+
+| Reference | CMAP method | LINCS method | gCMAP method | Correlation method |
+|---|---|---|---|---|
+| CMAP | `CMAP_CMAP` | `LINCS_CMAP` | `gCMAP_CMAP` | `Correlation_CMAP` |
+| LINCS2 | `CMAP_LINCS2` | `LINCS_LINCS2` | `gCMAP_LINCS2` | `Correlation_LINCS2` |
+
+This distinction is important when interpreting disagreement between rankings.
+Two results may differ because the **search algorithm** differs, because the
+**reference database** differs, or because both differ.
+
+# Inspecting method results and parameters
+
+Each individual DrugSigNet signature search stores the search output in
+`@result` and the corresponding query and settings in `@parameters`.
+
+For example, a CMAP search stored in the raw pipeline results can be inspected
+with:
+
+```{r inspect-signature-parameters}
+names(
+  covid_signature@DrugSearching[["Raw"]][["CMAP_CMAP"]]@parameters
+)
+#> [1] "query" "signature_method" "refdb" "chunk_size"
+```
+
+For this search, `@parameters` records the query used, the signature-search
+method, the reference database, and the chunk size. This information is useful
+for documenting and reproducing the exact method/reference search.
+
+The contents of `@parameters` can vary across signature methods because their
+query representations and method-specific settings differ. In general, users
+can inspect the parameter provenance of any stored raw search with:
+
+```{r inspect-generic-signature-parameters}
+result@DrugSearching[["Raw"]][["METHOD_REFERENCE"]]@parameters
+```
+
+The individual method examples below therefore focus on `@result`; the
+parameter slot only needs to be inspected when the settings or provenance of a
+particular search are required.
+
+# CMAP search
+
+## How the method works
+
+The CMAP search uses two query gene sets representing the most up- and
+down-regulated genes. These sets are compared with ranked drug-induced
+expression profiles in the reference database.
+
+The method evaluates whether query genes occur preferentially toward the upper
+or lower ends of each ranked reference profile and combines the two directions
+into a bidirectional connectivity score. The `signatureSearch` implementation
+closely follows the original Connectivity Map search formulation.
+
+A positive score indicates concordant connectivity between the query and
+reference signature, whereas a negative score indicates discordant
+connectivity.
+
+## Native scores
+
+The main CMAP result fields are:
+
+- `raw_score`: bidirectional enrichment/connectivity score;
+- `scaled_score`: `raw_score` scaled separately within its positive and negative
+  ranges to values between -1 and 1;
+- `trend`: direction of connectivity (`up` for positive and `down` for negative
+  connectivity in the upstream result representation);
+- `N_upset` and `N_downset`: numbers of query genes retained in the corresponding
+  up and down sets.
+
+## Main considerations
+
+CMAP is intuitive and relatively technology-agnostic because the query is
+reduced to gene sets. This also means that the exact magnitude of the query fold
+changes is not directly retained after the up/down sets have been defined.
+Results can therefore depend on how the query genes are selected and on how many
+genes map to the reference database.
+
+# LINCS search
+
+## How the method works
+
+The LINCS method also uses up- and down-regulated query gene sets, but unlike
+CMAP it uses the quantitative differential-expression values stored in the
+reference database to weight the enrichment calculation.
+
+The method uses a bidirectional **weighted Kolmogorov-Smirnov enrichment
+statistic**. Consequently, the reference database must contain quantitative
+expression scores such as log2 fold changes or moderated z-scores rather than
+only ranks.
+
+## Native scores
+
+The upstream LINCS search can report several related connectivity measures:
+
+- `WTCS`: weighted connectivity score;
+- `WTCS_Pval`: nominal p-value for WTCS;
+- `WTCS_FDR`: false-discovery rate associated with the WTCS p-value;
+- `NCS`: normalized connectivity score, normalized within cell and perturbation
+  type;
+- `NCSct`: NCS summarized across cell types;
+- `Tau`: database-standardized connectivity measure, when requested.
+
+WTCS preserves the sign of the query-reference relationship. NCS improves
+comparability across cellular and perturbation contexts, while Tau expresses the
+relative extremeness of connectivity against a database-specific reference
+distribution.
+
+## Main considerations
+
+LINCS provides much broader perturbation coverage than CMAP, especially with the
+LINCS2 database. At the same time, results can vary substantially across cell
+types and perturbation contexts. A strong score in one reference cell line
+should not automatically be interpreted as evidence of activity in the
+disease-relevant tissue.
+
+# gCMAP search
+
+## How the method works
+
+gCMAP differs structurally from the CMAP method.
+
+CMAP uses **up/down query gene sets** against **ranked reference profiles**.
+gCMAP uses the opposite orientation: the query is a ranked or quantitative
+gene-expression profile, whereas each reference signature is represented as a
+signed gene set.
+
+For a quantitative reference database, the signed reference gene sets are
+created by applying the `higher` and `lower` thresholds to each reference
+profile. The numeric query values can be supplied directly and are internally
+converted to ranks when required.
+
+## Native scores
+
+The principal gCMAP result field is:
+
+- `effect`: scaled bidirectional enrichment effect, with positive and negative
+  signs representing concordant and discordant relationships, respectively.
+
+Other useful fields include:
+
+- `nSet`: size of the reference gene set after thresholding;
+- `nFound`: number of reference-set genes found in the query profile;
+- `signed`: whether the reference sets retain separate positive and negative
+  directions.
+
+## Main considerations
+
+The `higher` and `lower` thresholds determine which genes from each reference
+profile become members of the signed gene sets. They therefore affect the
+effective size and information content of the reference signatures and should
+be interpreted as part of the method definition rather than as simple
+computational settings.
+
+# Correlation-based search
+
+## How the method works
+
+Correlation-based search directly compares a quantitative query profile with
+quantitative reference profiles over their shared genes. The upstream
+`signatureSearch` implementation supports Spearman, Pearson, and Kendall
+correlation.
+
+DrugSigNet commonly uses a one-column signed expression matrix as the query,
+with Entrez gene identifiers stored as row names. Correlation can be calculated
+over all shared genes represented by the query or over a selected subset.
+
+A positive correlation indicates concordant profiles, whereas a negative
+correlation indicates discordant profiles.
+
+## Native score
+
+The principal result field is:
+
+- `cor_score`: the correlation coefficient produced by the selected correlation
+  method.
+
+## Main considerations
+
+Correlation preserves quantitative information that is discarded by strict
+up/down gene-set searches. However, query and reference values should represent
+biologically comparable expression signals, and the same gene identifiers must
+be used on both sides of the comparison.
+
+Spearman correlation is rank-based and is less dependent on the absolute scale
+of the expression statistic than Pearson correlation. Regardless of the chosen
+coefficient, results remain sensitive to gene coverage, preprocessing, biological
+context, and technical effects in the input profile.
+
+# Method comparison
+
+| Method | Query used in search | Reference representation | Main native score | Main methodological consideration |
+|---|---|---|---|---|
+| CMAP | Up/down gene sets | Ranked expression profile | `raw_score`, `scaled_score` | Query thresholding determines information retained |
+| LINCS | Up/down gene sets | Quantitative expression scores | `WTCS` (plus NCS/Tau derivatives) | Weighted enrichment is context dependent |
+| gCMAP | Ranked/quantitative profile | Threshold-derived signed gene sets | `effect` | `higher`/`lower` thresholds define reference sets |
+| Correlation | Quantitative profile | Quantitative profile | `cor_score` | Query and reference must share comparable quantitative information |
+
+Rather than choosing one method solely on theoretical preference, DrugSigNet is
+designed to compare complementary search formulations and integrate their
+rankings downstream. Agreement across methods can strengthen confidence, while
+method-specific results can reveal sensitivity to the representation used for
+the query or reference signature.
+
+# Practical recommendations
+
+- Use consistent Entrez identifiers and inspect how many query genes map to the
+  selected reference database.
+- Inspect and retain each method object's `@parameters` slot together with the
+  results so that the exact query and search settings are documented.
+- Define the disease signature using biologically and statistically justified
+  criteria before running signature search.
+- Interpret score **sign** separately from score **magnitude**; a strong
+  relationship may be concordant or discordant.
+- Compare results across both CMAP and LINCS2 because their coverage and
+  perturbation contexts differ substantially.
+- Treat cell-line and perturbation context as an important source of biological
+  heterogeneity rather than assuming that every reference signature is equally
+  relevant to the disease.
+- Use consensus ranking to identify candidates supported across complementary
+  methods, while retaining method-specific results for sensitivity analysis.
+- Treat prioritized drugs as computational hypotheses requiring biological
+  interpretation and, where appropriate, experimental validation.
+
+# Individual method calls
+
+The examples below demonstrate the four DrugSigNet method wrappers. The complete
+multi-method orchestration, filtering, rank aggregation, annotation, and
+visualization workflow is covered in `signature-workflow.Rmd`.
+
+## Prepare query representations
+
+```{r signature-example-input}
+data("disease_signature", package = "DrugSigNet")
+
+upset <- as.character(
+  disease_signature$Entrez[disease_signature$FC > 0]
+)
+downset <- as.character(
+  disease_signature$Entrez[disease_signature$FC < 0]
+)
+
+signature_matrix <- as.matrix(
+  disease_signature[, "FC", drop = FALSE]
+)
+rownames(signature_matrix) <- as.character(disease_signature$Entrez)
+colnames(signature_matrix) <- "FC"
+```
+
+For this compact example, positive and negative fold changes are used directly
+to illustrate the two query representations. In a scientific analysis, gene
+selection should follow the statistical and biological criteria appropriate to
+the input study.
+
+## CMAP
+
+```{r run-cmap-method}
+cmap_result <- cmap_method(
+  upset = upset,
+  downset = downset,
+  ref_db = "cmap",
+  chunk_size = 5000
+)
+
+head(cmap_result@result)
+```
+
+The same method can be evaluated against LINCS2 by setting
+`ref_db = "lincs2"`.
+
+## LINCS
+
+```{r run-lincs-method}
+lincs_result <- lincs_method(
+  upset = upset,
+  downset = downset,
+  ref_db = "lincs2",
+  chunk_size = 5000
+)
+
+head(lincs_result@result)
+```
+
+The LINCS algorithm can also be applied to the CMAP quantitative reference by
+setting `ref_db = "cmap"`.
+
+## gCMAP
+
+The `higher` and `lower` arguments determine how quantitative reference
+signatures are converted to signed reference gene sets.
+
+
+```{r run-gcmap-method}
+gcmap_result <- gcmap_method(
+  signature_matrix = signature_matrix,
+  ref_db = "cmap",
+  higher = min(signature_matrix[signature_matrix > 0]),
+  lower = max(signature_matrix[signature_matrix < 0]),
+  chunk_size = 5000
+)
+head(gcmap_result@result)
+```
+
+
+These thresholds are shown for illustration. They retain positive and negative
+directions in this example but should not be treated as universally optimal
+settings.
+
+## Correlation
+
+```{r run-correlation-method}
+correlation_result <- correlation_method(
+  signature_matrix = signature_matrix,
+  ref_db = "cmap",
+  method = "spearman",
+  chunk_size = 5000
+)
+
+head(correlation_result@result)
+```
+
+Correlation can likewise be run against LINCS2 by changing `ref_db` to
+`"lincs2"`.
+
+## Using a frozen local reference
+
+For reproducible runs against a fixed HDF5 database, replace the named
+`ref_db` value with the local path returned by `load_signature_refdb()`:
+
+```{r frozen-reference-example}
+# Example pattern:
+# frozen_ref <- load_signature_refdb(...)
+#
+# cmap_result <- cmap_method(
+#   upset = upset,
+#   downset = downset,
+#   ref_db = frozen_ref,
+#   chunk_size = 5000
+# )
+```
+
+See `signature-workflow.Rmd` for the full pipeline-level reference-database
+workflow.
+
+# Common pitfalls
+
+## Too few mapped genes
+
+Very small or poorly mapped signatures can produce unstable enrichment or
+correlation results. Inspect gene overlap with the selected reference database
+before interpreting rankings.
+
+## Arbitrary query thresholds
+
+CMAP and LINCS depend on the up/down query sets, while gCMAP depends on
+thresholds used to construct reference gene sets. Arbitrary cutoffs can change
+the information supplied to the search and should be justified or evaluated in
+sensitivity analyses.
+
+## Strong technical effects
+
+Batch effects, inappropriate normalization, or compositional differences can
+dominate the disease signature and consequently the connectivity search.
+Quality control and suitable differential-expression analysis should be
+completed before DrugSigNet is applied.
+
+## Mixing score semantics
+
+The native scores are not numerically interchangeable across methods:
+`scaled_score`, `WTCS`, `effect`, and `cor_score` arise from different
+statistical formulations. Compare ranks or appropriately harmonized downstream
+results rather than treating equal numeric values from different methods as
+equivalent evidence.
+
+## Overinterpreting reference context
+
+CMAP and LINCS2 signatures were generated in specific cellular and perturbation
+contexts. A highly ranked compound does not imply that the same transcriptional
+response will occur in the disease-relevant cell type, dose, exposure time, or
+organism.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
+| Run the complete signature workflow | `signature-workflow.Rmd` |
+| Understand consensus ranking | `rank-aggregation.Rmd` |
+| Annotate prioritized compounds | `drug-annotation.Rmd` |
+| Visualize signature and consensus results | `visualization.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

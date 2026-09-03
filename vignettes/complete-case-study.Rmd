@@ -1,0 +1,690 @@
+---
+title: "Integrated DrugSigNet workflow and complete case study"
+author: "DrugSigNet authors"
+date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{10. Integrated DrugSigNet workflow and complete case study}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+# Introduction
+
+This vignette demonstrates the integrated DrugSigNet workflow using
+`drugRepurposingPipeline(mode = "both")`.
+
+The signature and network branches are described in detail in
+`signature-workflow.Rmd` and `network-workflow.Rmd`. Here, the focus is on
+how those two evidence layers are run together, how their rankings are
+integrated, and how to inspect the resulting signature-network consensus.
+
+# Integrated workflow overview
+
+With `mode = "both"`, `drugRepurposingPipeline()`:
+
+1. runs `drugSignaturePipeline()`;
+2. runs `drugNetworkPipeline()`;
+3. validates that usable signature rankings are available;
+4. passes the two completed pipeline objects to `integrateSignatureNetwork()`;
+5. computes integrated CRank, Dowdall, and RRA rankings; and
+6. returns the signature, network, and integrated sections in one
+   `DrugSearchingPipeline` object.
+
+Conceptually:
+
+```text
+Disease expression signature
+          |
+          v
+ Signature workflow
+          |
+          |  Pairwise signature-family ranks
+          |
+          +-------------------+
+                              |
+                              v
+                    Signature-network
+                      integration
+                              ^
+                              |
+          +-------------------+
+          |
+          |  Network method ranks
+          |
+    Network workflow
+          ^
+          |
+   Disease seed genes
+```
+
+The integrated analysis does **not** simply combine
+`Signature_CRank` with `Network_CRank`. Instead, it integrates the underlying
+signature-family consensus ranks with the available network method ranks.
+
+# Prepare inputs
+
+The integrated workflow requires both a signed disease expression signature and
+disease-associated seed genes.
+
+```{r prepare-case-inputs}
+library(DrugSigNet)
+
+data("disease_signature", package = "DrugSigNet")
+data("disease_seeds", package = "DrugSigNet")
+
+signature_input <- disease_signature
+disease_genes <- disease_seeds
+```
+
+The signature input contains `Entrez` and `FC`, while the disease-gene input is
+used as the network seed set.
+
+For analyses that use frozen signature reference databases or Synapse-backed
+annotation resources, provide an authentication token securely:
+
+```{r case-authentication}
+auth_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN")
+```
+
+An optional drug synonym table can be supplied through `drug_name_synonym`.
+The table should be prepared before the pipeline call according to the schema
+documented for `drugSignaturePipeline()`.
+
+# Minimal integrated run
+
+A compact first run can disable downstream annotation and visualization and use
+the centrality-only network branch.
+
+```{r minimal-integrated-run}
+integrated_res <- drugRepurposingPipeline(
+  signature_input = signature_input,
+  disease_genes = disease_genes,
+  mode = "both",
+  run_all_network_methods = FALSE,
+  top_k = 100,
+  run_drug_annotation = FALSE,
+  run_visualization = FALSE
+)
+```
+
+With:
+
+```r
+run_all_network_methods = FALSE
+```
+
+the network branch runs only:
+
+```text
+TrustRank
+Harmonic_centrality
+Degree_centrality
+```
+
+Network proximity and diffusion are not run. Consequently, the integrated
+ranking uses only those three network-derived ranks together with the
+signature-family ranks.
+
+# Reproducible case-study run
+
+A more fully specified analysis can use frozen signature reference databases,
+drug-name harmonization, and downstream annotation.
+
+The following configuration mirrors a typical integrated analysis:
+
+```{r integrated-case-run}
+integrated_res <- drugRepurposingPipeline(
+  signature_input = disease_signature,
+  disease_genes = disease_seeds,
+  mode = "both",
+  padj = 0.05,
+  drug_name_synonym = signature_drug_map,
+  ties_method = "max",
+  prior = 0.093,
+  num_bin = 200,
+  n_workers = 1,
+  chunk_size = 1000,
+  signature_refdb_mode = "frozen",
+  signature_refdb_auth_token = auth_token,
+  validate_signature_refdb = TRUE,
+  top_k = 100,
+  include_indirect_drugs = TRUE,
+  run_all_network_methods = FALSE,
+  auth_token = auth_token,
+  trial_condition = "covid",
+  run_drug_annotation = TRUE,
+  run_visualization = TRUE
+)
+```
+
+In this example, `signature_drug_map` is an analysis-specific synonym table
+prepared before running the pipeline.
+
+The explicit `padj = 0.05` is included because
+`drugRepurposingPipeline()` uses `0.05` as its default signature-mode value.
+This differs from the standalone `drugSignaturePipeline()` default, where
+`padj = NULL`.
+
+# Important integrated-workflow arguments
+
+| Argument | Role in the integrated analysis |
+|---|---|
+| `signature_input` | Signed disease expression signature |
+| `disease_genes` | Disease seed genes for the network branch |
+| `mode = "both"` | Runs both branches and then integrates their rankings |
+| `drug_name_synonym` | Optional drug-name harmonization for signature results |
+| `ties_method` | Tie handling used during rank generation and aggregation |
+| `prior` | CRank prior |
+| `num_bin` | Number of CRank rank intervals |
+| `chunk_size` | Signature-reference chunk size |
+| `signature_refdb_mode` | Default or frozen signature reference databases |
+| `signature_refdb_auth_token` | Authentication for frozen signature references |
+| `validate_signature_refdb` | Validate frozen HDF5 references before use |
+| `include_indirect_drugs` | Include indirectly connected drugs in the network branch |
+| `run_all_network_methods` | Controls whether proximity and diffusion are added to the network branch |
+| `top_k` | Threshold used for downstream annotation and visualization |
+| `trial_condition` | Optional condition used for clinical-trial annotation |
+| `auth_token` | Authentication used by supported Synapse-backed resources |
+
+Signature-specific arguments are forwarded to `drugSignaturePipeline()`, while
+network-specific arguments are forwarded to `drugNetworkPipeline()`.
+
+# Inspect the combined result structure
+
+The unified result preserves the three analysis levels:
+
+```{r inspect-integrated-structure}
+slotNames(integrated_res)
+
+names(integrated_res@DrugSearching[["Raw"]])
+names(integrated_res@DrugSearching[["Processed"]])
+names(integrated_res@RankAggregation)
+```
+
+For `mode = "both"`, these sections are organized under:
+
+```text
+signature
+network
+integrated
+```
+
+The integrated stage itself performs rank integration rather than another drug
+search. Its dedicated result is therefore primarily stored under
+`@RankAggregation[["integrated"]]`.
+
+# Inspect the signature branch
+
+The complete signature outputs remain available in the unified object.
+
+```{r inspect-integrated-signature}
+names(
+  integrated_res@DrugSearching[["Raw"]][["signature"]]
+)
+
+signature_rankings <-
+  integrated_res@RankAggregation[["signature"]][["Signature_Harmonized"]]
+
+head(signature_rankings)
+```
+
+The signature branch first calculates method-specific `rank_score`s, then
+aggregates CMAP and LINCS2 reference results within CMAP, LINCS, gCMAP, and
+correlation families. See `signature-workflow.Rmd` for the full processing
+sequence.
+
+# Inspect the network branch
+
+The network outputs are stored separately:
+
+```{r inspect-integrated-network}
+names(
+  integrated_res@DrugSearching[["Raw"]][["network"]]
+)
+
+network_rankings <-
+  integrated_res@RankAggregation[["network"]][["Network_Harmonized"]]
+
+head(network_rankings)
+```
+
+When `run_all_network_methods = FALSE`, `Network_Harmonized` is based on
+TrustRank, harmonic centrality, and degree centrality only.
+
+When `run_all_network_methods = TRUE`, network proximity and diffusion are also
+run and incorporated into the network workflow as described in
+`network-workflow.Rmd`.
+
+# How signature and network rankings are integrated
+
+`integrateSignatureNetwork()` first identifies drugs shared between the
+signature and network results. Pipe-delimited network drug labels are expanded
+before overlap matching.
+
+Integration requires at least one overlapping drug.
+
+## Signature contribution
+
+For integration, DrugSigNet uses the **pairwise signature-family rankings**
+rather than only the final `Signature_CRank`, `Signature_Dowdall`, and
+`Signature_RRA` columns.
+
+For CRank integration, the signature contribution is:
+
+```text
+CMAP_CRank
+LINCS_CRank
+gCMAP_CRank
+Correlation_CRank
+```
+
+For Dowdall integration:
+
+```text
+CMAP_Dowdall
+LINCS_Dowdall
+gCMAP_Dowdall
+Correlation_Dowdall
+```
+
+For RRA integration:
+
+```text
+CMAP_RRA
+LINCS_RRA
+gCMAP_RRA
+Correlation_RRA
+```
+
+Each of these columns already summarizes the CMAP- and LINCS2-reference results
+within one signature-search family.
+
+## Network contribution when `run_all_network_methods = FALSE`
+
+With the case-study setting:
+
+```r
+run_all_network_methods = FALSE
+```
+
+the network contribution is:
+
+```text
+TrustRank
+Harmonic_centrality
+Degree_centrality
+```
+
+The native centrality scores are converted to smaller-is-better ranks before
+integration.
+
+Therefore, the three integrated aggregation inputs are conceptually:
+
+| Integrated ranking | Signature inputs | Network inputs |
+|---|---|---|
+| `Signature_Network_CRank` | `CMAP_CRank`, `LINCS_CRank`, `gCMAP_CRank`, `Correlation_CRank` | TrustRank, harmonic-centrality, degree-centrality ranks |
+| `Signature_Network_Dowdall` | `CMAP_Dowdall`, `LINCS_Dowdall`, `gCMAP_Dowdall`, `Correlation_Dowdall` | TrustRank, harmonic-centrality, degree-centrality ranks |
+| `Signature_Network_RRA` | `CMAP_RRA`, `LINCS_RRA`, `gCMAP_RRA`, `Correlation_RRA` | TrustRank, harmonic-centrality, degree-centrality ranks |
+
+This preserves the individual signature-method families and network methods as
+separate evidence sources during integration.
+
+## If `run_all_network_methods = TRUE`
+
+When the full network workflow is enabled, the integration step can additionally
+include:
+
+```text
+Network_proximity
+DSD-min-Rank
+KL-med-Rank
+KL-min-Rank
+JS-med-Rank
+JS-min-Rank
+```
+
+Thus, enabling all network methods changes not only the network consensus but
+also the network evidence supplied to the integrated rank aggregation.
+
+# Integrated rank aggregation
+
+All inputs supplied to the integration step are rank-oriented, with smaller
+values representing stronger priority.
+
+DrugSigNet therefore uses:
+
+```text
+CRank:   reverse = TRUE
+Dowdall: reverse = FALSE
+RRA:     reverse = FALSE
+```
+
+The three integrated aggregation objects are available as:
+
+```{r inspect-integrated-aggregation}
+integrated_rank_aggregation <-
+  integrated_res@RankAggregation[["integrated"]]
+
+names(integrated_rank_aggregation)
+
+integrated_rank_aggregation[["Signature_Network_CRank"]]@result
+integrated_rank_aggregation[["Signature_Network_Dowdall"]]@result
+integrated_rank_aggregation[["Signature_Network_RRA"]]@result
+```
+
+Their final rank columns are:
+
+```text
+Signature_Network_CRank
+Signature_Network_Dowdall
+Signature_Network_RRA
+```
+
+Smaller values indicate higher integrated priority.
+
+# Final integrated ranking table
+
+The analysis-ready integrated table is:
+
+```{r inspect-integrated-harmonized}
+integrated_rankings <-
+  integrated_res@RankAggregation[["integrated"]][[
+    "Signature_Network_Harmonized"
+  ]]
+
+head(integrated_rankings)
+colnames(integrated_rankings)
+```
+
+`Signature_Network_Harmonized` retains the overlapping signature and network
+ranking information together with the three new integrated consensus ranks.
+
+The final integrated ranks can be inspected directly:
+
+```{r top-integrated-candidates}
+integrated_rankings |>
+  dplyr::arrange(Signature_Network_CRank) |>
+  dplyr::select(
+    Drug,
+    Signature_Network_CRank,
+    Signature_Network_Dowdall,
+    Signature_Network_RRA
+  ) |>
+  head(20)
+```
+
+The three aggregation methods should be interpreted as complementary consensus
+formulations rather than assuming that one is universally preferable.
+
+# Compare evidence layers
+
+Because the unified object retains the signature, network, and integrated
+tables, candidate support can be compared across analysis layers without
+rerunning the pipelines.
+
+```{r compare-analysis-layers}
+signature_top <- signature_rankings |>
+  dplyr::arrange(Signature_CRank) |>
+  dplyr::select(
+    Drug,
+    Signature_CRank,
+    Signature_Dowdall,
+    Signature_RRA
+  )
+
+network_top <- network_rankings |>
+  dplyr::arrange(Network_CRank) |>
+  dplyr::select(
+    Drug,
+    Network_CRank,
+    Network_Dowdall,
+    Network_RRA
+  )
+
+integrated_top <- integrated_rankings |>
+  dplyr::arrange(Signature_Network_CRank) |>
+  dplyr::select(
+    Drug,
+    Signature_Network_CRank,
+    Signature_Network_Dowdall,
+    Signature_Network_RRA
+  )
+```
+
+A high integrated rank can therefore be interpreted alongside the underlying
+signature and network evidence rather than as an isolated score.
+
+# Annotation and enrichment
+
+When `run_drug_annotation = TRUE`, annotation sections from all stages are
+retained in the unified object.
+
+```{r inspect-integrated-annotation}
+names(integrated_res@DrugAnnotation)
+
+integrated_annotation <-
+  integrated_res@DrugAnnotation[["integrated"]]
+
+integrated_annotation
+```
+
+The integrated annotation section can contain:
+
+```text
+top_k_union_drugs
+Features
+Functional_Enrichment
+```
+
+Detailed drug annotation and `TSEA()` usage are covered in
+`drug-annotation.Rmd`.
+
+# Visualization
+
+When `run_visualization = TRUE`, visualization outputs are similarly organized
+by analysis stage:
+
+```{r inspect-integrated-visualization}
+names(integrated_res@Visualization)
+
+integrated_res@Visualization[["integrated"]]
+```
+
+For standalone plotting of the integrated ranking table, use the current
+`plot_*()` functions documented in `visualization.Rmd`.
+
+For example, rank agreement among the three integrated consensus rankings can
+be inspected with:
+
+```{r integrated-rank-agreement}
+agreement <- plot_rank_agreement(
+  drug_ranks_df = integrated_rankings |>
+    dplyr::select(
+      Drug,
+      Signature_Network_CRank,
+      Signature_Network_Dowdall,
+      Signature_Network_RRA
+    ),
+  cor_method = "spearman",
+  top_k = 100
+)
+
+agreement$plot
+```
+
+# Candidate interpretation
+
+Integrated prioritization is most useful when the final rank is interpreted
+together with its contributing evidence.
+
+For each high-priority drug, consider:
+
+- whether it is supported across several signature-method families;
+- whether it is supported by more than one network method;
+- whether the signature and network evidence are concordant or complementary;
+- the direction of the underlying signature association;
+- plausible drug targets and mechanisms;
+- known indications, development status, and safety information;
+- condition-relevant clinical evidence; and
+- whether the candidate provides a biologically meaningful hypothesis for
+  follow-up.
+
+A high integrated rank indicates convergence within the computational framework;
+it does not by itself establish therapeutic efficacy.
+
+# Save, export, and report results
+
+The complete object retains the signature, network, and integrated results and
+can be saved for downstream analysis.
+
+```{r save-integrated-result}
+saveRDS(
+  integrated_res,
+  file = "drugsignet_integrated_case_study.rds"
+)
+```
+
+A compact ranking table can also be exported directly:
+
+```{r save-integrated-table}
+write.csv(
+  integrated_rankings,
+  file = "drugsignet_integrated_rankings.csv",
+  row.names = FALSE
+)
+```
+
+## Export pipeline results to Excel
+
+`write_pipeline_results()` writes available pipeline tables to a multi-sheet
+Excel workbook. Depending on the result object, the workbook can include raw
+drug-search results, harmonized rankings, drug annotations, top-ranked drugs,
+and functional enrichment results.
+
+```{r export-integrated-results}
+write_pipeline_results(
+  result_obj = integrated_res,
+  file_path = "DrugSigNet_integrated_results.xlsx",
+  top_n = 100
+)
+```
+
+If `file_path` is a directory, the default workbook name
+`drugsignet_pipeline_results.xlsx` is used inside that directory.
+
+## Generate an analysis report
+
+`write_report()` generates an HTML or PDF summary of one or more DrugSigNet
+pipeline results. Reports can include drug-search results, rank aggregation,
+annotation, and visualization sections when available.
+
+```{r write-integrated-report}
+write_report(
+  object = integrated_res,
+  title = "DrugSigNet integrated analysis",
+  file = "DrugSigNet_integrated_report",
+  device = "html",
+  interactive = TRUE
+)
+```
+
+Set `write_results = TRUE` to export the corresponding Excel result workbook
+while generating the report:
+
+```{r write-integrated-report-with-results}
+write_report(
+  object = integrated_res,
+  file = "DrugSigNet_integrated_report",
+  device = "html",
+  interactive = TRUE,
+  write_results = TRUE
+)
+```
+
+Use `device = "pdf"` for PDF output. PDF rendering requires an available LaTeX
+engine. HTML reports use the tabset layout by default; set
+`dashboard = "shinydashboard"` when an interactive Shiny dashboard is preferred.
+
+# Reproducibility checklist
+
+For a manuscript or shared analysis, report:
+
+- DrugSigNet version;
+- disease-signature source and preprocessing;
+- disease-gene source and preprocessing;
+- identifier systems;
+- CMAP/LINCS2 reference resources and whether frozen references were used;
+- PPI and drug-target network sources;
+- whether `run_all_network_methods` was `TRUE` or `FALSE`;
+- `ties_method`, `prior`, and `num_bin`;
+- relevant signature and network parameters;
+- `top_k`;
+- annotation sources and trial condition when used; and
+- versions or retrieval dates of external resources.
+
+# Troubleshooting
+
+## No overlapping drugs are available for integration
+
+The integration step requires drugs shared between the signature pairwise
+rankings and the network ranking table. Check drug-name harmonization and the
+drug universes represented by the two workflows.
+
+## Signature and network results are present but integrated results are absent
+
+Confirm that the signature result contains usable
+`RankAggregation[["Pairwise"]]` CRank, Dowdall, and RRA results and that the
+network result contains usable network-method rankings.
+
+## Integrated results change when `run_all_network_methods` changes
+
+This is expected. With `FALSE`, integration uses the three centrality-derived
+network ranks. With `TRUE`, network-proximity and diffusion ranks can also enter
+the integrated aggregation.
+
+## Frozen reference loading fails
+
+Check `signature_refdb_auth_token`, `auth_token`, Synapse access, local cache
+permissions, and HDF5 validation.
+
+# Summary
+
+This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+
+# Next steps
+
+| Goal | Recommended vignette |
+|---|---|
+| Review individual signature methods | `signature-methods.Rmd` |
+| Review individual network methods | `network-methods.Rmd` |
+| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
+| Annotate integrated candidates | `drug-annotation.Rmd` |
+| Visualize integrated rankings | `visualization.Rmd` |
+| Review the signature branch in detail | `signature-workflow.Rmd` |
+| Review the network branch in detail | `network-workflow.Rmd` |
+
+# Session information
+
+Record the R and package versions used to build this vignette.
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```
