@@ -48,20 +48,18 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
 }
 
 options(repos = BiocManager::repositories())
-devtools::install_github("compneurobio/DrugSigNet", dependencies = TRUE)
-```
-
-This command installs the declared dependencies (including optional packages
-available from their declared repositories) and can also build the vignettes in
-the same transaction:
-
-```r
 devtools::install_github(
   "compneurobio/DrugSigNet",
   dependencies = TRUE,
+  upgrade = "never",
   build_vignettes = TRUE
 )
 ```
+
+This command installs the declared dependencies (including optional packages
+available from their declared repositories), leaves already installed
+dependencies at their current versions, and builds the package vignettes in the
+same transaction.
 
 Alternatively, install with `pak`:
 
@@ -70,7 +68,13 @@ if (!requireNamespace("pak", quietly = TRUE)) {
   install.packages("pak", repos = "https://cloud.r-project.org")
 }
 
-pak::pak("compneurobio/DrugSigNet")
+options(pkg.build_vignettes = TRUE)
+
+pak::pak(
+  "compneurobio/DrugSigNet",
+  dependencies = TRUE,
+  upgrade = FALSE
+)
 ```
 
 Load the package:
@@ -331,7 +335,3 @@ If DrugSigNet contributes to your analysis or publication, please cite the packa
 ## Issues and feature requests
 
 Please report bugs, questions, and feature requests through [GitHub issues](https://github.com/compneurobio/DrugSigNet/issues).
-
-## Website
-
-The package source and development version are available at <https://github.com/compneurobio/DrugSigNet>.

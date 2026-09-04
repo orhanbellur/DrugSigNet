@@ -71,8 +71,11 @@ managers if they are not already available:
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager", repos = "https://cloud.r-project.org")
 }
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes", repos = "https://cloud.r-project.org")
+if (!requireNamespace("devtools", quietly = TRUE)) {
+  install.packages("devtools", repos = "https://cloud.r-project.org")
+}
+if (!requireNamespace("pak", quietly = TRUE)) {
+  install.packages("pak", repos = "https://cloud.r-project.org")
 }
 ```
 
@@ -81,10 +84,24 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 Install the development version from GitHub:
 
 ```{r install-drugsignet}
-remotes::install_github(
+devtools::install_github(
   "compneurobio/DrugSigNet",
   dependencies = TRUE,
-  upgrade = "never"
+  upgrade = "never",
+  build_vignettes = TRUE
+)
+```
+
+Alternatively, install the same dependencies and build the vignettes with
+`pak`:
+
+```{r install-drugsignet-pak}
+options(pkg.build_vignettes = TRUE)
+
+pak::pak(
+  "compneurobio/DrugSigNet",
+  dependencies = TRUE,
+  upgrade = FALSE
 )
 ```
 
