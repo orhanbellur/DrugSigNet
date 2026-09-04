@@ -55,6 +55,7 @@ jobs:
         has_testthat: ${{ true }}
         run_covr: ${{ true }}
         run_pkgdown: ${{ true }}
+        run_telemetry: false
         has_runit: ${{ false }}
         has_latex: ${{ false }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
