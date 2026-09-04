@@ -51,6 +51,18 @@ options(repos = BiocManager::repositories())
 devtools::install_github("compneurobio/DrugSigNet", dependencies = TRUE)
 ```
 
+This command installs the declared dependencies (including optional packages
+available from their declared repositories) and can also build the vignettes in
+the same transaction:
+
+```r
+devtools::install_github(
+  "compneurobio/DrugSigNet",
+  dependencies = TRUE,
+  build_vignettes = TRUE
+)
+```
+
 Alternatively, install with `pak`:
 
 ```r
@@ -71,7 +83,22 @@ library(DrugSigNet)
 
 Some workflows require additional setup:
 
-- **Synapse-backed annotation data** requires a Synapse personal access token and the optional `synapser` package.
+- **Synapse-backed annotation data** requires a Synapse personal access token
+  and the optional `synapser` package. DrugSigNet declares the Synapse R
+  repository, so dependency-aware installers can find it. To add it later, use:
+
+  ```r
+  install.packages(
+    "synapser",
+    repos = c(
+      synapse = "https://ran.synapse.org",
+      CRAN = "https://cloud.r-project.org"
+    )
+  )
+  ```
+
+  DrugSigNet never replaces or downgrades `rjson`; dependency version selection
+  is the responsibility of the installer and the `synapser` repository.
 - **Graph-tool-backed network methods** require a Python/conda environment with `graph-tool` available through `reticulate`.
 - **Fully reproducible local execution** is supported through Docker.
 

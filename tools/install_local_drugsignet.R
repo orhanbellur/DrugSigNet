@@ -24,7 +24,7 @@ install_synapser <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_SYNAPSER", "false"))
 write_renviron <- truthy(Sys.getenv("DRUGSIGNET_WRITE_RENVIRON", "false"))
 
 repos <- c(
-  synapse = "http://ran.synapse.org",
+  synapse = "https://ran.synapse.org",
   CRAN = "https://cloud.r-project.org"
 )
 options(repos = repos, timeout = max(1000, getOption("timeout", 60)))
@@ -122,31 +122,13 @@ if (write_renviron) {
   message("Wrote RETICULATE_PYTHON to ", renviron)
 }
 
-# Install package dependencies from DESCRIPTION without forcing optional synapser.
+# Install all package dependencies declared in DESCRIPTION. The explicit block
+# below remains useful when this script is run with a restricted dependency set.
 message("Installing DrugSigNet R dependencies from DESCRIPTION.")
 remotes::install_deps(pkg_dir, dependencies = TRUE, upgrade = "never", repos = repos)
 
 if (install_synapser) {
   message("Installing optional synapser support.")
-  if ("rjson" %in% loadedNamespaces()) {
-    stop(
-      "Cannot safely replace rjson because its namespace is loaded. ",
-      "Restart R and run this installer in a clean R session.",
-      call. = FALSE
-    )
-  }
-  rjson_paths <- find.package("rjson", quiet = TRUE)
-  if (length(rjson_paths)) {
-    for (lib in unique(dirname(rjson_paths))) {
-      remove.packages("rjson", lib = lib)
-    }
-  }
-  remotes::install_version(
-    "rjson",
-    version = "0.2.21",
-    repos = "https://cloud.r-project.org",
-    upgrade = "never"
-  )
   install.packages("synapser", repos = repos)
 }
 

@@ -170,34 +170,8 @@ setup_python_dependencies <- function(
 
 .drugsignet_install_synapser <- function(quiet = FALSE) {
   repos <- c(
-    synapse = "http://ran.synapse.org",
+    synapse = "https://ran.synapse.org",
     CRAN = "https://cloud.r-project.org"
-  )
-
-  if (!requireNamespace("remotes", quietly = TRUE)) {
-    if (!quiet) message("Installing remotes for Synapse dependency setup.")
-    utils::install.packages("remotes", repos = repos)
-  }
-
-  if ("rjson" %in% loadedNamespaces()) {
-    stop(
-      "Cannot safely install synapser because the rjson namespace is already loaded. ",
-      "Restart R and install synapser before loading DrugSigNet.",
-      call. = FALSE
-    )
-  }
-  rjson_paths <- find.package("rjson", quiet = TRUE)
-  if (length(rjson_paths) > 0L) {
-    for (lib in unique(dirname(rjson_paths))) {
-      utils::remove.packages("rjson", lib = lib)
-    }
-  }
-
-  remotes::install_version(
-    "rjson",
-    version = "0.2.21",
-    repos = "https://cloud.r-project.org",
-    upgrade = "never"
   )
 
   old_repos <- getOption("repos")
@@ -205,7 +179,7 @@ setup_python_dependencies <- function(
   on.exit(options(repos = old_repos, timeout = old_timeout), add = TRUE)
   if (is.null(old_timeout) || is.na(old_timeout)) old_timeout <- 60
   options(repos = repos, timeout = max(1000, old_timeout))
-  utils::install.packages("synapser", repos = repos)
+  utils::install.packages("synapser", repos = repos, quiet = quiet)
   synapser_load <- tryCatch(
     {
       loadNamespace(.drugsignet_synapser_package())

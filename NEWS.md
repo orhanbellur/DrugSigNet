@@ -13,3 +13,9 @@
 - Added ten package vignettes covering setup, analysis selection, methods,
   annotation, visualization, end-to-end workflows, and an integrated case
   study.
+
+### Installation
+
+- Declared optional `synapser` support and its repository in `DESCRIPTION`.
+- Made configure scripts side-effect free so staged installation and vignette
+  builds never alter packages in the user's libraries.
