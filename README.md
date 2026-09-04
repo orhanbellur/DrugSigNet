@@ -84,20 +84,20 @@ library(DrugSigNet)
 Some workflows require additional setup:
 
 - **Synapse-backed data** requires a Synapse personal access token and the
-  `synapser` package. DrugSigNet declares Synapse's R package repository using
-  its supported `http://ran.synapse.org` endpoint, so
-  `devtools::install_github(..., dependencies = TRUE)` can install it without
-  rebuilding Synapser's pinned `rjson` GitHub source. To repair an installation
-  that was created without dependencies, use:
+  `synapser` package. DrugSigNet installs it automatically when a Synapse-backed
+  function is first called. Keeping it out of `Suggests` prevents
+  `dependencies = TRUE` from installing incompatible `rjson 0.2.23` before
+  Synapser. To install and validate Synapse support in advance, use:
 
   ```r
   DrugSigNet::setup_synapser()
   ```
 
-  The setup helper first tries the Synapse R repository, falls back to the
-  official GitHub repository without rebuilding dependency vignettes, and
-  verifies that the namespace can load. The fallback disables dependency and
-  vignette rebuilding, avoiding an unrelated LaTeX requirement.
+  The helper installs Synapser's required `rjson 0.2.21` directly from the CRAN
+  archive, installs Synapser without re-resolving that dependency, and verifies
+  that its namespace loads. Set
+  `options(DrugSigNet.auto_install_synapser = FALSE)` before a Synapse call to
+  disable automatic installation.
 - **Graph-tool-backed network methods** require a Python/conda environment with `graph-tool` available through `reticulate`.
 - **Fully reproducible local execution** is supported through Docker.
 

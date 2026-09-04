@@ -4,12 +4,8 @@
   paste0(
     "Package 'synapser' is required for this Synapse-backed workflow.\n",
     "Install it with DrugSigNet's setup helper, then retry:\n",
-    "  setup_synapser()\n\n",
-    "Equivalent manual installation command:\n",
-    "install.packages('synapser', repos = c(\n",
-    "  synapse = 'http://ran.synapse.org',\n",
-    "  CRAN = 'https://cloud.r-project.org'\n",
-    "))"
+    "  setup_synapser()\n",
+    "The helper installs the compatible rjson version before synapser."
   )
 }
 
@@ -18,12 +14,13 @@
 #' @description
 #' Installs and verifies the `synapser` R package used to download
 #' DrugSigNet networks, reference databases, and annotation resources. The
-#' package is installed from the Synapse R repository. A GitHub fallback is
-#' available when that repository is temporarily unavailable.
+#' package is installed from the Synapse R repository after its compatible
+#' `rjson` release is installed. A GitHub fallback is available when that
+#' repository is temporarily unavailable.
 #'
-#' Dependency-aware installation with `remotes` or `devtools` normally installs
-#' `synapser` automatically. This helper is a repair path for installations that
-#' deliberately skipped dependencies.
+#' DrugSigNet normally calls this helper automatically when a Synapse-backed
+#' function is first used. Call it directly to install and validate Synapse
+#' support in advance.
 #'
 #' @param quiet Logical; if `FALSE`, show package installation progress.
 #'
@@ -57,6 +54,11 @@ setup_synapser <- function(quiet = FALSE) {
 }
 
 .drugsignet_require_synapser <- function(purpose) {
+  if (!.drugsignet_synapser_available() && .drugsignet_auto_install_synapser_enabled()) {
+    message("Installing Synapse support before attempting to ", purpose, ".")
+    setup_synapser()
+  }
+
   load_result <- tryCatch(
     {
       available <- .drugsignet_synapser_available()
@@ -77,6 +79,15 @@ setup_synapser <- function(quiet = FALSE) {
     )
   }
   invisible(TRUE)
+}
+
+.drugsignet_auto_install_synapser_enabled <- function() {
+  opt <- getOption("DrugSigNet.auto_install_synapser", TRUE)
+  env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_SYNAPSER", "")
+  if (nzchar(env)) {
+    return(tolower(env) %in% c("1", "true", "yes", "y"))
+  }
+  isTRUE(opt)
 }
 
 .drugsignet_synapser_function <- function(name) {

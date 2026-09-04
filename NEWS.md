@@ -21,6 +21,6 @@
   builds never alter packages in the user's libraries.
 - Added `setup_synapser()` as an explicit, verified retry path when the optional
   Synapse repository was unavailable during the main package installation.
-- Restored Synapse's supported `http://ran.synapse.org` additional repository
-  so dependency-aware installation does not rebuild the pinned `rjson` GitHub
-  source or require LaTeX.
+- Install Synapser on first use rather than through `dependencies = TRUE`, and
+  install its compatible `rjson 0.2.21` archive first. This avoids CRAN selecting
+  incompatible `rjson 0.2.23` and avoids rebuilding dependency vignettes.

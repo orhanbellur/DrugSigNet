@@ -179,9 +179,43 @@ setup_python_dependencies <- function(
   on.exit(options(repos = old_repos, timeout = old_timeout), add = TRUE)
   if (is.null(old_timeout) || is.na(old_timeout)) old_timeout <- 60
   options(repos = repos, timeout = max(1000, old_timeout))
+
+  # synapser 2.1.5.356 has a strict rjson <= 0.2.21 requirement. CRAN's normal
+  # dependency resolver selects the newer, incompatible release, so install the
+  # compatible archived source tarball directly. install.packages() installs a
+  # source-package archive without rebuilding its vignettes.
+  rjson_ok <- requireNamespace("rjson", quietly = TRUE) &&
+    utils::packageVersion("rjson") <= utils::package_version("0.2.21")
+  if (!rjson_ok) {
+    if (isNamespaceLoaded("rjson")) {
+      tryCatch(
+        unloadNamespace("rjson"),
+        error = function(e) {
+          stop(
+            "The incompatible rjson namespace is already in use and cannot be ",
+            "replaced: ", conditionMessage(e),
+            "\nRestart R, load DrugSigNet, and call setup_synapser() again.",
+            call. = FALSE
+          )
+        }
+      )
+    }
+    if (!quiet) {
+      message("Installing Synapser-compatible rjson 0.2.21 from the CRAN archive.")
+    }
+    utils::install.packages(
+      "https://cloud.r-project.org/src/contrib/Archive/rjson/rjson_0.2.21.tar.gz",
+      repos = NULL,
+      type = "source",
+      quiet = quiet
+    )
+  }
+
   tryCatch(
     {
-      utils::install.packages("synapser", repos = repos, quiet = quiet)
+      utils::install.packages(
+        "synapser", repos = repos, dependencies = FALSE, quiet = quiet
+      )
     },
     error = function(e) {
       if (!quiet) {

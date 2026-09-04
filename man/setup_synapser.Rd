@@ -16,13 +16,14 @@ namespace can be loaded.
 \description{
 Installs and verifies the \code{synapser} R package used to download
 DrugSigNet networks, reference databases, and annotation resources. The
-package is installed from the Synapse R repository. A GitHub fallback is
-available when that repository is temporarily unavailable.
+package is installed from the Synapse R repository after its compatible
+\code{rjson} release is installed. A GitHub fallback is available when that
+repository is temporarily unavailable.
 }
 \details{
-Dependency-aware installation with \code{remotes} or \code{devtools} normally installs
-\code{synapser} automatically. This helper is a repair path for installations that
-deliberately skipped dependencies.
+DrugSigNet normally calls this helper automatically when a Synapse-backed
+function is first used. Call it directly to install and validate Synapse
+support in advance.
 }
 \examples{
 \dontrun{

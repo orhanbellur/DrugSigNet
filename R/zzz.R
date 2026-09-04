@@ -40,8 +40,8 @@
 
   if (!.drugsignet_synapser_available()) {
     packageStartupMessage(
-      "Optional Synapse support is not installed. Run setup_synapser() before ",
-      "using Synapse-backed network or annotation downloads."
+      "Synapse support will be installed on first use. Run setup_synapser() now, ",
+      "or set options(DrugSigNet.auto_install_synapser = FALSE) to disable this."
     )
   }
 }

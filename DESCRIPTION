@@ -54,14 +54,14 @@ Suggests:
     rhdf5,
     remotes,
     rmarkdown,
-    synapser,
     testthat,
     tinytex,
     webr,
     wordcloud
+Enhances:
+    synapser
 VignetteBuilder: 
     knitr
-Additional_repositories: http://ran.synapse.org
 Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
