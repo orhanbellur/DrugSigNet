@@ -301,7 +301,8 @@ available in `SYNAPSE_AUTH_TOKEN`.
 If the error says that `synapser` is unavailable, run
 `DrugSigNet::setup_synapser()`. The helper falls back to the official Sage
 Bionetworks GitHub repository when the legacy Synapse R package index cannot be
-reached.
+reached and disables dependency-vignette rebuilding, so a LaTeX installation is
+not needed for this repair step.
 
 ## Network methods are slow
 

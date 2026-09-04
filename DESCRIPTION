@@ -62,6 +62,7 @@ Suggests:
 VignetteBuilder: 
     knitr
 Remotes:
+    url::https://cloud.r-project.org/src/contrib/Archive/rjson/rjson_0.2.21.tar.gz,
     Sage-Bionetworks/synapser
 Config/testthat/edition: 3
 Encoding: UTF-8

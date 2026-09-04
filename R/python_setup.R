@@ -201,8 +201,9 @@ setup_python_dependencies <- function(
     }
     remotes::install_github(
       "Sage-Bionetworks/synapser",
-      dependencies = TRUE,
+      dependencies = FALSE,
       upgrade = "never",
+      build_vignettes = FALSE,
       quiet = quiet
     )
   }

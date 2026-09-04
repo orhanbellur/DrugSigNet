@@ -94,10 +94,13 @@ Some workflows require additional setup:
   ```
 
   The setup helper first tries the Synapse R repository, falls back to the
-  official GitHub repository, and verifies that the namespace can load.
+  official GitHub repository without rebuilding dependency vignettes, and
+  verifies that the namespace can load. DrugSigNet also resolves Synapser's
+  pinned `rjson` dependency from the published CRAN source archive rather than
+  rebuilding the `rjson` GitHub mirror; this avoids requiring LaTeX merely to
+  install `synapser` while building DrugSigNet's own vignettes.
 
-  DrugSigNet never replaces or downgrades `rjson`; dependency version selection
-  is the responsibility of the installer and the `synapser` repository.
+  The archived `rjson` version matches Synapser's declared compatibility pin.
 - **Graph-tool-backed network methods** require a Python/conda environment with `graph-tool` available through `reticulate`.
 - **Fully reproducible local execution** is supported through Docker.
 
