@@ -19,3 +19,5 @@
 - Declared optional `synapser` support and its repository in `DESCRIPTION`.
 - Made configure scripts side-effect free so staged installation and vignette
   builds never alter packages in the user's libraries.
+- Added `setup_synapser()` as an explicit, verified retry path when the optional
+  Synapse repository was unavailable during the main package installation.

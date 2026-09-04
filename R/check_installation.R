@@ -23,6 +23,7 @@
 #'
 #' @examples
 #' \dontrun{
+#' setup_synapser()
 #' check_drugsignet_installation(check_synapser = TRUE, stop_on_error = TRUE)
 #' }
 #'

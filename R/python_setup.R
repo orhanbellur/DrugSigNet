@@ -179,7 +179,22 @@ setup_python_dependencies <- function(
   on.exit(options(repos = old_repos, timeout = old_timeout), add = TRUE)
   if (is.null(old_timeout) || is.na(old_timeout)) old_timeout <- 60
   options(repos = repos, timeout = max(1000, old_timeout))
-  utils::install.packages("synapser", repos = repos, quiet = quiet)
+  install_result <- tryCatch(
+    {
+      utils::install.packages("synapser", repos = repos, quiet = quiet)
+      TRUE
+    },
+    error = function(e) e
+  )
+  if (!isTRUE(install_result)) {
+    stop(
+      "Could not install 'synapser' from https://ran.synapse.org: ",
+      conditionMessage(install_result), "\n",
+      "Check that the Synapse repository is reachable, then retry ",
+      "setup_synapser().",
+      call. = FALSE
+    )
+  }
   synapser_load <- tryCatch(
     {
       loadNamespace(.drugsignet_synapser_package())
@@ -191,6 +206,9 @@ setup_python_dependencies <- function(
     stop(
       "Package 'synapser' was installed from Synapse RAN but its namespace ",
       "could not be loaded: ", conditionMessage(synapser_load),
+      "\nThe Synapse repository may have been unavailable during installation. ",
+      "Retry setup_synapser() after confirming that ",
+      "https://ran.synapse.org/src/contrib/PACKAGES is reachable.",
       call. = FALSE
     )
   }

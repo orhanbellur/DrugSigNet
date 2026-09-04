@@ -37,4 +37,11 @@
       "or set options(DrugSigNet.auto_install_python = TRUE) before library(DrugSigNet)."
     )
   }
+
+  if (!.drugsignet_synapser_available()) {
+    packageStartupMessage(
+      "Optional Synapse support is not installed. Run setup_synapser() before ",
+      "using Synapse-backed network or annotation downloads."
+    )
+  }
 }

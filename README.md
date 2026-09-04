@@ -88,14 +88,13 @@ Some workflows require additional setup:
   repository, so dependency-aware installers can find it. To add it later, use:
 
   ```r
-  install.packages(
-    "synapser",
-    repos = c(
-      synapse = "https://ran.synapse.org",
-      CRAN = "https://cloud.r-project.org"
-    )
-  )
+  DrugSigNet::setup_synapser()
   ```
+
+  `dependencies = TRUE` asks the installer to include suggested packages, but
+  installation can still continue without `synapser` if
+  `https://ran.synapse.org` is temporarily unreachable. The setup helper retries
+  against the correct repositories and verifies that the namespace can load.
 
   DrugSigNet never replaces or downgrades `rjson`; dependency version selection
   is the responsibility of the installer and the `synapser` repository.

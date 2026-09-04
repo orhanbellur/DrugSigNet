@@ -3,12 +3,49 @@
 .drugsignet_synapser_install_message <- function() {
   paste0(
     "Package 'synapser' is required for this Synapse-backed workflow.\n",
-    "Install it from the Synapse R repository, then retry:\n",
+    "Install it with DrugSigNet's setup helper, then retry:\n",
+    "  setup_synapser()\n\n",
+    "Equivalent manual installation command:\n",
     "install.packages('synapser', repos = c(\n",
     "  synapse = 'https://ran.synapse.org',\n",
     "  CRAN = 'https://cloud.r-project.org'\n",
     "))"
   )
+}
+
+#' Install optional Synapse support
+#'
+#' @description
+#' Installs and verifies the optional `synapser` R package used to download
+#' DrugSigNet networks, reference databases, and annotation resources. The
+#' package is hosted in the Synapse R repository rather than CRAN, so a normal
+#' GitHub installation can finish without it when that repository is
+#' temporarily unavailable.
+#'
+#' This function is intentionally opt-in: installing or attaching DrugSigNet
+#' never changes the user's package library automatically.
+#'
+#' @param quiet Logical; if `FALSE`, show package installation progress.
+#'
+#' @return Invisibly returns `TRUE` after `synapser` has been installed and its
+#'   namespace can be loaded.
+#'
+#' @examples
+#' \dontrun{
+#' setup_synapser()
+#' }
+#'
+#' @export
+setup_synapser <- function(quiet = FALSE) {
+  if (.drugsignet_synapser_available()) {
+    if (!isTRUE(quiet)) {
+      message("Package 'synapser' is already installed and loadable.")
+    }
+    return(invisible(TRUE))
+  }
+
+  .drugsignet_install_synapser(quiet = quiet)
+  invisible(TRUE)
 }
 
 .drugsignet_synapser_package <- function() {
