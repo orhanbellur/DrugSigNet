@@ -61,7 +61,10 @@ jobs:
         run_docker: ${{ false }}
         DOCKER_TOKEN: ${{ secrets.DOCKER_PATH }}
         runner_os: ${{ runner.os }}
-        cache_version: cache-v1
+        # Windows hosted runners have intermittently failed while extracting
+        # the shared R package cache. Give each Windows run a fresh cache
+        # namespace; retain the stable cache for Ubuntu and macOS.
+        cache_version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || 'cache-v1' }}
         docker_registry: ghcr.io
     - name: Validate R CMD check result
       if: ${{ always() }}
