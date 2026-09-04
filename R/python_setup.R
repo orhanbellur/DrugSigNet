@@ -185,7 +185,7 @@ setup_python_dependencies <- function(
   # compatible archived source tarball directly. install.packages() installs a
   # source-package archive without rebuilding its vignettes.
   rjson_ok <- requireNamespace("rjson", quietly = TRUE) &&
-    utils::packageVersion("rjson") <= utils::package_version("0.2.21")
+    .drugsignet_rjson_version_compatible(utils::packageVersion("rjson"))
   if (!rjson_ok) {
     if (isNamespaceLoaded("rjson")) {
       tryCatch(
@@ -257,6 +257,10 @@ setup_python_dependencies <- function(
     )
   }
   TRUE
+}
+
+.drugsignet_rjson_version_compatible <- function(version) {
+  utils::compareVersion(as.character(version), "0.2.21") <= 0L
 }
 
 .drugsignet_is_windows <- function() {

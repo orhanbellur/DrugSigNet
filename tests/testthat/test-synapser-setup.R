@@ -56,3 +56,9 @@ test_that("Synapse requirements install support on first use", {
   )
   expect_true(available)
 })
+
+test_that("Synapser rjson compatibility accepts only supported versions", {
+  expect_true(DrugSigNet:::.drugsignet_rjson_version_compatible("0.2.21"))
+  expect_true(DrugSigNet:::.drugsignet_rjson_version_compatible("0.2.20"))
+  expect_false(DrugSigNet:::.drugsignet_rjson_version_compatible("0.2.23"))
+})
