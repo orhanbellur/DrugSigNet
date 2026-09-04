@@ -1,10 +1,15 @@
 # DrugSigNet news
 
-## DrugSigNet 0.1.0
+## DrugSigNet 1.0.0
+
+### Initial release
+
+- Added signature-based, network-based, and integrated drug-repurposing
+  workflows.
 
 ### Documentation
 
 - Reworked `README.md` to prioritize onboarding and quick-start usage.
-- Added `DOCUMENTATION_PLAN.md` with benchmark-inspired documentation strategy.
-- Added contributor and governance files: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `CITATION.cff`.
-- Added `_pkgdown.yml` starter configuration for a structured documentation website.
+- Added ten package vignettes covering setup, analysis selection, methods,
+  annotation, visualization, end-to-end workflows, and an integrated case
+  study.
