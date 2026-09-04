@@ -78,8 +78,10 @@ RUN echo "RETICULATE_PYTHON=${RETICULATE_PYTHON}" >> /usr/local/lib/R/etc/Renvir
   && echo "LD_PRELOAD=${LD_PRELOAD}" >> /usr/local/lib/R/etc/Renviron.site \
   && R -q -e "py <- reticulate::py_config(); stopifnot(normalizePath(py[['python']]) == normalizePath(Sys.getenv('RETICULATE_PYTHON')), reticulate::py_module_available('graph_tool'), reticulate::py_module_available('pip'), reticulate::py_module_available('jinja2'), reticulate::py_module_available('markupsafe'), reticulate::py_module_available('synapseclient'), reticulate::py_module_available('kaleido'), reticulate::py_module_available('openpyxl'), reticulate::py_module_available('pandas'))"
 
-# Install Synapse R client and verify required packages.
-RUN R -q -e "Sys.setenv(RETICULATE_PYTHON = Sys.getenv('RETICULATE_PYTHON'), LD_LIBRARY_PATH = Sys.getenv('LD_LIBRARY_PATH')); install.packages('synapser', repos = c('http://ran.synapse.org', 'https://cloud.r-project.org'), Ncpus = 1); stopifnot(all(c('synapser', 'readxl', 'wordcloud') %in% rownames(utils::installed.packages())))"
+# Synapser 2.1.5.356 requires rjson <= 0.2.21. Install that archived release
+# explicitly and disable dependency resolution for synapser so CRAN's newer,
+# incompatible rjson is not selected during the image build.
+RUN R -q -e "Sys.setenv(RETICULATE_PYTHON = Sys.getenv('RETICULATE_PYTHON'), LD_LIBRARY_PATH = Sys.getenv('LD_LIBRARY_PATH')); install.packages('https://cloud.r-project.org/src/contrib/Archive/rjson/rjson_0.2.21.tar.gz', repos = NULL, type = 'source'); install.packages('synapser', repos = c('http://ran.synapse.org', 'https://cloud.r-project.org'), dependencies = FALSE, Ncpus = 1); stopifnot(utils::packageVersion('rjson') <= '0.2.21', all(c('synapser', 'readxl', 'wordcloud') %in% rownames(utils::installed.packages())), requireNamespace('synapser', quietly = TRUE))"
 
 # Verify Synapse packages for both root and the RStudio user.
 RUN R -q -e "Sys.setenv(RETICULATE_PYTHON = Sys.getenv('RETICULATE_PYTHON'), LD_LIBRARY_PATH = Sys.getenv('LD_LIBRARY_PATH')); library(synapser); library(readxl)" \
