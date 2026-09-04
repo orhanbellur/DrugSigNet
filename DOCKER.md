@@ -5,8 +5,9 @@ DrugSigNet containers use a Linux userspace because Bioconductor and the
 Windows users run this image through Docker Desktop; these are not native macOS
 or Windows containers.
 
-The required R dependency set, including `wordcloud`, is installed in the Linux
-base image and inherited by the macOS and Windows Docker Desktop images.
+The required R dependency set, including `data.table`, `ggalluvial`, `ggforce`,
+and `wordcloud` for the visualization vignette, is installed in the Linux base
+image and inherited by the macOS and Windows Docker Desktop images.
 DrugSigNet is installed before its vignettes are built, so vignette calls to
 `library(DrugSigNet)` use the installed package. Vignette output is generated
 in the package source's `doc` directory during the image build. The build uses
