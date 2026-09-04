@@ -48,9 +48,6 @@ jobs:
       # warning that is known for this package.
       continue-on-error: true
       with:
-        # Select matching Bioconductor repositories before rworkflows installs
-        # its tooling (including BiocStyle and BiocVersion).
-        bioc: ${{ matrix.config.bioc }}
         run_bioccheck: ${{ false }}
         run_rcmdcheck: ${{ true }}
         as_cran: ${{ true }}
