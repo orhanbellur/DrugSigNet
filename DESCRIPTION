@@ -58,8 +58,6 @@ Suggests:
     tinytex,
     webr,
     wordcloud
-Additional_repositories:
-    http://ran.synapse.org
 VignetteBuilder: 
     knitr
 Config/testthat/edition: 3
