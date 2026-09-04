@@ -61,7 +61,8 @@ Suggests:
     wordcloud
 VignetteBuilder: 
     knitr
-Additional_repositories: https://ran.synapse.org
+Remotes:
+    Sage-Bionetworks/synapser
 Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true

@@ -83,18 +83,18 @@ library(DrugSigNet)
 
 Some workflows require additional setup:
 
-- **Synapse-backed annotation data** requires a Synapse personal access token
-  and the optional `synapser` package. DrugSigNet declares the Synapse R
-  repository, so dependency-aware installers can find it. To add it later, use:
+- **Synapse-backed data** requires a Synapse personal access token and the
+  `synapser` package. DrugSigNet declares the official Sage Bionetworks GitHub
+  remote, so `devtools::install_github(..., dependencies = TRUE)` installs it
+  even when the legacy `ran.synapse.org` package index is unavailable. To
+  repair an installation that was created without dependencies, use:
 
   ```r
   DrugSigNet::setup_synapser()
   ```
 
-  `dependencies = TRUE` asks the installer to include suggested packages, but
-  installation can still continue without `synapser` if
-  `https://ran.synapse.org` is temporarily unreachable. The setup helper retries
-  against the correct repositories and verifies that the namespace can load.
+  The setup helper first tries the Synapse R repository, falls back to the
+  official GitHub repository, and verifies that the namespace can load.
 
   DrugSigNet never replaces or downgrades `rjson`; dependency version selection
   is the responsibility of the installer and the `synapser` repository.

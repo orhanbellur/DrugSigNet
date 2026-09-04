@@ -160,9 +160,10 @@ Core DrugSigNet ranking workflows can be run without Synapse authentication.
 Some remotely hosted resources, particularly optional annotation data, may
 require a Synapse personal access token or a local cache.
 
-Install the optional Synapse client before the first remote download. This is
-a separate step because a GitHub package installation can continue when the
-Synapse R repository is temporarily unreachable:
+Dependency-aware `devtools` and `remotes` installations install the Synapse
+client from its official Sage Bionetworks GitHub repository. If DrugSigNet was
+installed while deliberately skipping dependencies, repair it before the first
+remote download with:
 
 ```{r install-synapser}
 DrugSigNet::setup_synapser()
@@ -298,9 +299,9 @@ resource requires Synapse authentication, also confirm that a valid token is
 available in `SYNAPSE_AUTH_TOKEN`.
 
 If the error says that `synapser` is unavailable, run
-`DrugSigNet::setup_synapser()`. If setup reports that the repository cannot be
-reached, confirm that `https://ran.synapse.org/src/contrib/PACKAGES` is
-accessible from the same machine and retry.
+`DrugSigNet::setup_synapser()`. The helper falls back to the official Sage
+Bionetworks GitHub repository when the legacy Synapse R package index cannot be
+reached.
 
 ## Network methods are slow
 

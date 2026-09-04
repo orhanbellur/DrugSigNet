@@ -14,15 +14,15 @@ Invisibly returns \code{TRUE} after \code{synapser} has been installed and its
 namespace can be loaded.
 }
 \description{
-Installs and verifies the optional \code{synapser} R package used to download
+Installs and verifies the \code{synapser} R package used to download
 DrugSigNet networks, reference databases, and annotation resources. The
-package is hosted in the Synapse R repository rather than CRAN, so a normal
-GitHub installation can finish without it when that repository is
-temporarily unavailable.
+package is installed from its official Sage Bionetworks GitHub repository
+when the legacy Synapse R repository is unavailable.
 }
 \details{
-This function is intentionally opt-in: installing or attaching DrugSigNet
-never changes the user's package library automatically.
+Dependency-aware installation with \code{remotes} or \code{devtools} normally installs
+\code{synapser} automatically. This helper is a repair path for installations that
+deliberately skipped dependencies.
 }
 \examples{
 \dontrun{

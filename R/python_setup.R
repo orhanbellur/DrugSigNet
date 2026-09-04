@@ -179,20 +179,31 @@ setup_python_dependencies <- function(
   on.exit(options(repos = old_repos, timeout = old_timeout), add = TRUE)
   if (is.null(old_timeout) || is.na(old_timeout)) old_timeout <- 60
   options(repos = repos, timeout = max(1000, old_timeout))
-  install_result <- tryCatch(
+  tryCatch(
     {
       utils::install.packages("synapser", repos = repos, quiet = quiet)
-      TRUE
     },
-    error = function(e) e
+    error = function(e) {
+      if (!quiet) {
+        message("Synapse R repository installation failed: ", conditionMessage(e))
+      }
+    }
   )
-  if (!isTRUE(install_result)) {
-    stop(
-      "Could not install 'synapser' from https://ran.synapse.org: ",
-      conditionMessage(install_result), "\n",
-      "Check that the Synapse repository is reachable, then retry ",
-      "setup_synapser().",
-      call. = FALSE
+
+  if (!.drugsignet_synapser_available()) {
+    if (!requireNamespace("remotes", quietly = TRUE)) {
+      utils::install.packages("remotes", repos = repos[["CRAN"]], quiet = quiet)
+    }
+    if (!quiet) {
+      message(
+        "Installing 'synapser' from its official Sage Bionetworks GitHub repository."
+      )
+    }
+    remotes::install_github(
+      "Sage-Bionetworks/synapser",
+      dependencies = TRUE,
+      upgrade = "never",
+      quiet = quiet
     )
   }
   synapser_load <- tryCatch(
@@ -204,11 +215,9 @@ setup_python_dependencies <- function(
   )
   if (!isTRUE(synapser_load)) {
     stop(
-      "Package 'synapser' was installed from Synapse RAN but its namespace ",
+      "Package 'synapser' was installed but its namespace ",
       "could not be loaded: ", conditionMessage(synapser_load),
-      "\nThe Synapse repository may have been unavailable during installation. ",
-      "Retry setup_synapser() after confirming that ",
-      "https://ran.synapse.org/src/contrib/PACKAGES is reachable.",
+      "\nRetry setup_synapser() and inspect the preceding installation output.",
       call. = FALSE
     )
   }

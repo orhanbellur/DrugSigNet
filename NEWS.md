@@ -21,3 +21,5 @@
   builds never alter packages in the user's libraries.
 - Added `setup_synapser()` as an explicit, verified retry path when the optional
   Synapse repository was unavailable during the main package installation.
+- Declared `synapser` as an official GitHub remote so dependency-aware installs
+  no longer rely on the unavailable legacy Synapse R package index.
