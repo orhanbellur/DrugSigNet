@@ -173,9 +173,43 @@ volume mounting, authentication, and troubleshooting.
 
 # Optional resources
 
+## Configure Synapse authentication
+
 Core DrugSigNet ranking workflows can be run without Synapse authentication.
-Some remotely hosted resources, particularly optional annotation data, may
-require a Synapse personal access token or a local cache.
+Some remotely hosted resources, particularly optional annotation data, require
+a Synapse Personal Access Token (PAT).
+
+1. Create or sign in to an account at [Synapse](https://www.synapse.org/).
+2. Open your account settings, navigate to **Personal Access Tokens**, and
+   create a token. Select the permissions needed to view and download DrugSigNet
+   resources, then copy the token.
+3. Store the token in your user-level `.Renviron` file. Open the file with:
+
+   ```{r edit-renviron}
+   usethis::edit_r_environ()
+   ```
+
+   Add the following line, replacing the placeholder with your token:
+
+   ```text
+   SYNAPSE_AUTH_TOKEN="your_personal_access_token"
+   ```
+
+   Save the file and restart R.
+4. Verify that the token is available without displaying it:
+
+   ```{r verify-synapse-token}
+   nzchar(Sys.getenv("SYNAPSE_AUTH_TOKEN"))
+   ```
+
+   This should return:
+
+   ```text
+   [1] TRUE
+   ```
+
+Do not hard-code the token in analysis scripts, commit it to GitHub or other
+version control, or print it in examples.
 
 DrugSigNet installs the Synapse client automatically on the first Synapse-backed
 call. It performs this separately from `dependencies = TRUE` so Synapser's
@@ -185,15 +219,6 @@ advance, use:
 ```{r install-synapser}
 DrugSigNet::setup_synapser()
 ```
-
-If your workflow requires Synapse authentication, make the token available as an
-environment variable and retrieve it in R as follows:
-
-```{r synapse-token}
-auth_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN")
-```
-
-See the annotation and workflow vignettes for resource-specific requirements.
 
 # Basic inputs
 

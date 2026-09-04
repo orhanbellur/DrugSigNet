@@ -65,9 +65,15 @@ of the remaining annotations.
 
 # Authentication and cached annotation resources
 
+> **Synapse authentication**
+>
+> Some annotation resources require a Synapse Personal Access Token. Configure
+> authentication before running these functions; see the
+> [Getting Started vignette](getting-started.Rmd).
+
 Several DrugSigNet annotation resources are loaded from a local cache or
-Synapse. An authentication token can be supplied explicitly or through the
-`SYNAPSE_AUTH_TOKEN` environment variable.
+Synapse. The configured token can be read from the environment when it is
+needed:
 
 ```{r annotation-authentication}
 auth_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN")

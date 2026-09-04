@@ -315,18 +315,16 @@ For platform-specific builds, configuration, and troubleshooting, see [`DOCKER.m
 The repository includes `docker/macos/build.sh` for Apple Silicon and Intel
 macOS hosts, plus `docker/windows/build.ps1` for Docker Desktop on Windows.
 
-## Synapse annotation data
+## Synapse authentication
 
-Annotation-enabled workflows can use DrugSigNet annotation data from Synapse. Set a Synapse personal access token before downloading annotation data:
+Some DrugSigNet annotation resources are hosted on Synapse and require a
+Synapse Personal Access Token (PAT).
 
-```r
-Sys.setenv(SYNAPSE_AUTH_TOKEN = "your-token")
-annotation_data <- load_synapse_data(
-  auth_token = Sys.getenv("SYNAPSE_AUTH_TOKEN")
-)
-```
+For instructions on creating a token and configuring it securely in R, see the
+[Getting Started vignette](vignettes/getting-started.Rmd).
 
-Synapse support is optional and is not required for the minimal signature or network examples above.
+Synapse authentication is optional and is not required for the basic
+signature- or network-based workflows.
 
 ## Citation
 
