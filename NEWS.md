@@ -24,3 +24,5 @@
 - Install Synapser on first use rather than through `dependencies = TRUE`, and
   install its compatible `rjson 0.2.21` archive first. This avoids CRAN selecting
   incompatible `rjson 0.2.23` and avoids rebuilding dependency vignettes.
+- Treat `enrichR` as a runtime-checked optional dependency so it does not keep
+  an incompatible `rjson` namespace loaded when Synapser setup replaces it.

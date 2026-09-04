@@ -62,3 +62,8 @@ test_that("Synapser rjson compatibility accepts only supported versions", {
   expect_true(DrugSigNet:::.drugsignet_rjson_version_compatible("0.2.20"))
   expect_false(DrugSigNet:::.drugsignet_rjson_version_compatible("0.2.23"))
 })
+
+test_that("enrichR remains optional and is not imported on package load", {
+  imports <- getNamespaceImports("DrugSigNet")
+  expect_false("enrichR" %in% names(imports))
+})

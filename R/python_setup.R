@@ -184,7 +184,8 @@ setup_python_dependencies <- function(
   # dependency resolver selects the newer, incompatible release, so install the
   # compatible archived source tarball directly. install.packages() installs a
   # source-package archive without rebuilding its vignettes.
-  rjson_ok <- requireNamespace("rjson", quietly = TRUE) &&
+  rjson_installed <- "rjson" %in% rownames(utils::installed.packages())
+  rjson_ok <- rjson_installed &&
     .drugsignet_rjson_version_compatible(utils::packageVersion("rjson"))
   if (!rjson_ok) {
     if (isNamespaceLoaded("rjson")) {

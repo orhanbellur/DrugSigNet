@@ -70,7 +70,6 @@
 #' res_pipe <- TSEA(ensembl_targets, ont = "ALL")
 #' }
 #'
-#' @importFrom enrichR enrichr
 #' @importFrom dplyr mutate filter bind_rows
 #' @export
 setGeneric(

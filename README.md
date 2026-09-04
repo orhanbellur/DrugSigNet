@@ -85,9 +85,11 @@ Some workflows require additional setup:
 
 - **Synapse-backed data** requires a Synapse personal access token and the
   `synapser` package. DrugSigNet installs it automatically when a Synapse-backed
-  function is first called. Keeping it out of `Suggests` prevents
-  `dependencies = TRUE` from installing incompatible `rjson 0.2.23` before
-  Synapser. To install and validate Synapse support in advance, use:
+  function is first called. Although `dependencies = TRUE` can install
+  `rjson 0.2.23` through optional `enrichR`, DrugSigNet loads `enrichR` only when
+  enrichment is requested. This allows the Synapser setup to replace `rjson`
+  with its compatible release before Synapser starts. To install and validate
+  Synapse support in advance, use:
 
   ```r
   DrugSigNet::setup_synapser()
