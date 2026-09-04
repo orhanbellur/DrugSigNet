@@ -79,7 +79,7 @@ RUN echo "RETICULATE_PYTHON=${RETICULATE_PYTHON}" >> /usr/local/lib/R/etc/Renvir
   && R -q -e "py <- reticulate::py_config(); stopifnot(normalizePath(py[['python']]) == normalizePath(Sys.getenv('RETICULATE_PYTHON')), reticulate::py_module_available('graph_tool'), reticulate::py_module_available('pip'), reticulate::py_module_available('jinja2'), reticulate::py_module_available('markupsafe'), reticulate::py_module_available('synapseclient'), reticulate::py_module_available('kaleido'), reticulate::py_module_available('openpyxl'), reticulate::py_module_available('pandas'))"
 
 # Install Synapse R client and verify required packages.
-RUN R -q -e "Sys.setenv(RETICULATE_PYTHON = Sys.getenv('RETICULATE_PYTHON'), LD_LIBRARY_PATH = Sys.getenv('LD_LIBRARY_PATH')); install.packages('synapser', repos = c('https://ran.synapse.org', 'https://cloud.r-project.org'), Ncpus = 1); stopifnot(all(c('synapser', 'readxl', 'wordcloud') %in% rownames(utils::installed.packages())))"
+RUN R -q -e "Sys.setenv(RETICULATE_PYTHON = Sys.getenv('RETICULATE_PYTHON'), LD_LIBRARY_PATH = Sys.getenv('LD_LIBRARY_PATH')); install.packages('synapser', repos = c('http://ran.synapse.org', 'https://cloud.r-project.org'), Ncpus = 1); stopifnot(all(c('synapser', 'readxl', 'wordcloud') %in% rownames(utils::installed.packages())))"
 
 # Verify Synapse packages for both root and the RStudio user.
 RUN R -q -e "Sys.setenv(RETICULATE_PYTHON = Sys.getenv('RETICULATE_PYTHON'), LD_LIBRARY_PATH = Sys.getenv('LD_LIBRARY_PATH')); library(synapser); library(readxl)" \

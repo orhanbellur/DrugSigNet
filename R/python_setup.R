@@ -170,7 +170,7 @@ setup_python_dependencies <- function(
 
 .drugsignet_install_synapser <- function(quiet = FALSE) {
   repos <- c(
-    synapse = "https://ran.synapse.org",
+    synapse = "http://ran.synapse.org",
     CRAN = "https://cloud.r-project.org"
   )
 

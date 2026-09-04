@@ -21,8 +21,6 @@
   builds never alter packages in the user's libraries.
 - Added `setup_synapser()` as an explicit, verified retry path when the optional
   Synapse repository was unavailable during the main package installation.
-- Declared `synapser` as an official GitHub remote so dependency-aware installs
-  no longer rely on the unavailable legacy Synapse R package index.
-- Resolve Synapser's pinned `rjson` release from its CRAN source archive and
-  disable dependency vignette builds in `setup_synapser()`, avoiding an
-  unrelated LaTeX requirement during installation.
+- Restored Synapse's supported `http://ran.synapse.org` additional repository
+  so dependency-aware installation does not rebuild the pinned `rjson` GitHub
+  source or require LaTeX.

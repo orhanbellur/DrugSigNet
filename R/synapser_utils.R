@@ -7,7 +7,7 @@
     "  setup_synapser()\n\n",
     "Equivalent manual installation command:\n",
     "install.packages('synapser', repos = c(\n",
-    "  synapse = 'https://ran.synapse.org',\n",
+    "  synapse = 'http://ran.synapse.org',\n",
     "  CRAN = 'https://cloud.r-project.org'\n",
     "))"
   )
@@ -18,8 +18,8 @@
 #' @description
 #' Installs and verifies the `synapser` R package used to download
 #' DrugSigNet networks, reference databases, and annotation resources. The
-#' package is installed from its official Sage Bionetworks GitHub repository
-#' when the legacy Synapse R repository is unavailable.
+#' package is installed from the Synapse R repository. A GitHub fallback is
+#' available when that repository is temporarily unavailable.
 #'
 #' Dependency-aware installation with `remotes` or `devtools` normally installs
 #' `synapser` automatically. This helper is a repair path for installations that

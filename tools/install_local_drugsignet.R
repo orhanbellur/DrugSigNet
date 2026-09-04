@@ -24,7 +24,7 @@ install_synapser <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_SYNAPSER", "false"))
 write_renviron <- truthy(Sys.getenv("DRUGSIGNET_WRITE_RENVIRON", "false"))
 
 repos <- c(
-  synapse = "https://ran.synapse.org",
+  synapse = "http://ran.synapse.org",
   CRAN = "https://cloud.r-project.org"
 )
 options(repos = repos, timeout = max(1000, getOption("timeout", 60)))

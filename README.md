@@ -84,10 +84,11 @@ library(DrugSigNet)
 Some workflows require additional setup:
 
 - **Synapse-backed data** requires a Synapse personal access token and the
-  `synapser` package. DrugSigNet declares the official Sage Bionetworks GitHub
-  remote, so `devtools::install_github(..., dependencies = TRUE)` installs it
-  even when the legacy `ran.synapse.org` package index is unavailable. To
-  repair an installation that was created without dependencies, use:
+  `synapser` package. DrugSigNet declares Synapse's R package repository using
+  its supported `http://ran.synapse.org` endpoint, so
+  `devtools::install_github(..., dependencies = TRUE)` can install it without
+  rebuilding Synapser's pinned `rjson` GitHub source. To repair an installation
+  that was created without dependencies, use:
 
   ```r
   DrugSigNet::setup_synapser()
@@ -95,12 +96,8 @@ Some workflows require additional setup:
 
   The setup helper first tries the Synapse R repository, falls back to the
   official GitHub repository without rebuilding dependency vignettes, and
-  verifies that the namespace can load. DrugSigNet also resolves Synapser's
-  pinned `rjson` dependency from the published CRAN source archive rather than
-  rebuilding the `rjson` GitHub mirror; this avoids requiring LaTeX merely to
-  install `synapser` while building DrugSigNet's own vignettes.
-
-  The archived `rjson` version matches Synapser's declared compatibility pin.
+  verifies that the namespace can load. The fallback disables dependency and
+  vignette rebuilding, avoiding an unrelated LaTeX requirement.
 - **Graph-tool-backed network methods** require a Python/conda environment with `graph-tool` available through `reticulate`.
 - **Fully reproducible local execution** is supported through Docker.
 

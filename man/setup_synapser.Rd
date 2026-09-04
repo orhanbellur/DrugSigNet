@@ -16,8 +16,8 @@ namespace can be loaded.
 \description{
 Installs and verifies the \code{synapser} R package used to download
 DrugSigNet networks, reference databases, and annotation resources. The
-package is installed from its official Sage Bionetworks GitHub repository
-when the legacy Synapse R repository is unavailable.
+package is installed from the Synapse R repository. A GitHub fallback is
+available when that repository is temporarily unavailable.
 }
 \details{
 Dependency-aware installation with \code{remotes} or \code{devtools} normally installs
