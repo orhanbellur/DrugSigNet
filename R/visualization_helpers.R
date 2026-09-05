@@ -250,9 +250,6 @@
         dplyr::select(Drug, Status, dplyr::all_of(rank_cols))
     }
   } else {
-    plot_inputs$top_k_hits <- top_hits_input %>%
-      dplyr::select(Drug, dplyr::all_of(rank_cols))
-
     plot_inputs$top_k_overlap <- overlap_input %>%
       dplyr::select(Drug, dplyr::all_of(rank_cols))
 
