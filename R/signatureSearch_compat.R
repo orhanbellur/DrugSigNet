@@ -11,7 +11,7 @@
 
   if (!was_attached) {
     suppressPackageStartupMessages(
-      library("signatureSearch", character.only = TRUE)
+      base::attachNamespace("signatureSearch")
     )
     on.exit(
       detach("package:signatureSearch", unload = FALSE, character.only = TRUE),

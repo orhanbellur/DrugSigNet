@@ -223,6 +223,13 @@
 
     overlap_input <- overlap_input %>%
       dplyr::left_join(condition_hits, by = "Drug")
+  } else if (!is.null(trial_condition)) {
+    # Keep trial-condition plots available when the annotation lookup returns
+    # no matching clinical-trial rows.
+    top_hits_input <- top_hits_input %>%
+      dplyr::mutate(Status = NA_character_)
+    overlap_input <- overlap_input %>%
+      dplyr::mutate(Status = NA_character_)
   }
 
   # ------------------------------------------------------------
@@ -243,9 +250,6 @@
         dplyr::select(Drug, Status, dplyr::all_of(rank_cols))
     }
   } else {
-    plot_inputs$top_k_hits <- top_hits_input %>%
-      dplyr::select(Drug, dplyr::all_of(rank_cols))
-
     plot_inputs$top_k_overlap <- overlap_input %>%
       dplyr::select(Drug, dplyr::all_of(rank_cols))
 

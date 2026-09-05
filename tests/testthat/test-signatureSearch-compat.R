@@ -23,7 +23,7 @@ test_that("signatureSearch remains attached when it was attached by the caller",
 
   initially_attached <- "package:signatureSearch" %in% search()
   if (!initially_attached) {
-    suppressPackageStartupMessages(library("signatureSearch", character.only = TRUE))
+    suppressPackageStartupMessages(base::attachNamespace("signatureSearch"))
     on.exit(
       detach("package:signatureSearch", unload = FALSE, character.only = TRUE),
       add = TRUE

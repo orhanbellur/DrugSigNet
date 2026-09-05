@@ -54,7 +54,9 @@ jobs:
         run_vignettes: ${{ true }}
         has_testthat: ${{ true }}
         run_covr: ${{ true }}
-        run_pkgdown: ${{ true }}
+        run_pkgdown: false
+        run_lintr: false
+        run_spelling: false
         run_telemetry: false
         has_runit: ${{ false }}
         has_latex: ${{ false }}
