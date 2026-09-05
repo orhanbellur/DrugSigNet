@@ -16,4 +16,5 @@
 ^CITATION\.cff$
 ^DOCKER\.md$
 ^DrugSigNet\.pdf$
+^DrugSigNet-reference-manual\.pdf$
 ^docker$

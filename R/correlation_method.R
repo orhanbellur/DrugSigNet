@@ -169,11 +169,9 @@ setMethod(
     # Perform correlation-based analysis
     tryCatch(
       {
-        method_res <- .with_signature_search_attached(
-          signatureSearch::qSig(query = query, gess_method = "Cor", refdb = ref_db) %>%
-            signatureSearch::gess_cor(method = method, chunk_size = chunk_size) %>%
-            signatureSearch::result()
-        )
+        method_res <- signatureSearch::qSig(query = query, gess_method = "Cor", refdb = ref_db) %>%
+          signatureSearch::gess_cor(method = method, chunk_size = chunk_size) %>%
+          signatureSearch::result()
 
         # Update the result slot
         object@result <- method_res

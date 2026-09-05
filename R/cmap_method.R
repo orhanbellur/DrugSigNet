@@ -150,11 +150,9 @@ setMethod(
     # Perform the CMAP analysis
     tryCatch(
       {
-        method_res <- .with_signature_search_attached(
-          signatureSearch::qSig(query = query, gess_method = "CMAP", refdb = refdb) %>%
-            signatureSearch::gess_cmap(chunk_size = chunk_size) %>%
-            signatureSearch::result()
-        )
+        method_res <- signatureSearch::qSig(query = query, gess_method = "CMAP", refdb = refdb) %>%
+          signatureSearch::gess_cmap(chunk_size = chunk_size) %>%
+          signatureSearch::result()
 
         # Update the result slot
         object@result <- method_res

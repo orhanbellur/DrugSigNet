@@ -175,11 +175,9 @@ setMethod(
     # Perform the gCMAP analysis
     tryCatch(
       {
-        method_res <- .with_signature_search_attached(
-          signatureSearch::qSig(query = query, gess_method = "gCMAP", refdb = ref_db) %>%
-            signatureSearch::gess_gcmap(higher = higher, lower = lower, padj = padj, chunk_size = chunk_size) %>%
-            signatureSearch::result()
-        )
+        method_res <- signatureSearch::qSig(query = query, gess_method = "gCMAP", refdb = ref_db) %>%
+          signatureSearch::gess_gcmap(higher = higher, lower = lower, padj = padj, chunk_size = chunk_size) %>%
+          signatureSearch::result()
 
         # Update the result slot
         object@result <- method_res

@@ -176,11 +176,9 @@ setMethod(
 
     # Perform the LINCS method search
     tryCatch({
-      method_res <- .with_signature_search_attached(
-        signatureSearch::qSig(query = query, gess_method = "LINCS", refdb = ref_db) %>%
-          signatureSearch::gess_lincs(sortby = sortby, tau = tau, chunk_size = chunk_size, GeneType = GeneType) %>%
-          signatureSearch::result()
-      )
+      method_res <- signatureSearch::qSig(query = query, gess_method = "LINCS", refdb = ref_db) %>%
+        signatureSearch::gess_lincs(sortby = sortby, tau = tau, chunk_size = chunk_size, GeneType = GeneType) %>%
+        signatureSearch::result()
 
       # Update the result slot
       object@result <- method_res
