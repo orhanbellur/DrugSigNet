@@ -230,10 +230,13 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
     ## --------------------------
     run_method_once <- function(method) {
       tryCatch({
-        clue_env <- new.env(parent = emptyenv())
-        utils::data("clue_moa_list", package = "signatureSearch", envir = clue_env)
-        force(clue_env$clue_moa_list)
-        process_method(method, signature_input_edit)
+        # Keep signatureSearch attached in both sequential execution and each
+        # parallel worker. Its annotation methods use unqualified data() calls,
+        # while the individual method wrapper provides the same protection when
+        # it is invoked outside this pipeline.
+        .with_signature_search_attached(
+          process_method(method, signature_input_edit)
+        )
       }, error = function(e) {
         structure(
           list(method = method, message = conditionMessage(e)),
