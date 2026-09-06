@@ -14,7 +14,7 @@
 #'
 #' @inheritParams plot_top_k_overlap
 #' @param cor_method Correlation method. One of `"spearman"`, `"pearson"`, or
-#'   `"kendall"`.
+#'   `"kendall"`. Default is `"kendall"`.
 #' @param cluster Logical; whether to cluster methods by correlation similarity.
 #'   Default is `TRUE`.
 #'
@@ -46,7 +46,7 @@
 setGeneric(
   "plot_rank_agreement",
   function(object = NULL, drug_ranks_df = NULL,
-           cor_method = c("spearman", "pearson", "kendall"),
+           cor_method = c("kendall", "spearman", "pearson"),
            top_k = NULL,
            cluster = TRUE,
            label_size = 2,
@@ -128,7 +128,7 @@ setMethod(
     drug_ranks_df <- params$input_data
 
     if (missing(cor_method) || is.null(cor_method)) {
-      cor_method <- if (!is.null(params$cor_method)) params$cor_method else "spearman"
+      cor_method <- if (!is.null(params$cor_method)) params$cor_method else "kendall"
     }
     cor_method <- match.arg(cor_method, c("spearman", "pearson", "kendall"))
 

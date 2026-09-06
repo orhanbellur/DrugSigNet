@@ -8,7 +8,7 @@
 plot_rank_agreement(
   object = NULL,
   drug_ranks_df = NULL,
-  cor_method = c("spearman", "pearson", "kendall"),
+  cor_method = c("kendall", "spearman", "pearson"),
   top_k = NULL,
   cluster = TRUE,
   label_size = 2,
@@ -29,7 +29,7 @@ also be supplied as `object` when `drug_ranks_df` is omitted.}
 facet columns, and numeric rank columns. Smaller ranks are better.}
 
 \item{cor_method}{Correlation method. One of `"spearman"`, `"pearson"`, or
-`"kendall"`.}
+`"kendall"`. Default is `"kendall"`.}
 
 \item{top_k}{Positive rank threshold. Default is `100`.}
 
