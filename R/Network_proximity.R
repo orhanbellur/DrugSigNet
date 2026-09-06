@@ -185,7 +185,7 @@ setMethod("Network_proximity", signature = "NetworkBased", function(object) {
 
   # Load and run the Network Proximity Python function
   py <- reticulate::py_run_file(NetworkProximity_script)
-  Network_Proximity_result <- py$Network_Proximity(
+  Network_Proximity_result <- .clean_python_result(py$Network_Proximity(
     disease_genes = seed_genes,
     drug_edges_df = files_path$drug_graph$drug_edges,
     gene_edges_df = files_path$ppi_graph$gene_edges,
@@ -194,7 +194,7 @@ setMethod("Network_proximity", signature = "NetworkBased", function(object) {
     start = params$start,
     end = params$end,
     random_seed = params$random_seed
-  ) %>% dplyr::rename("ID" = "Drug")
+  )) %>% dplyr::rename("ID" = "Drug")
 
   Network_Proximity_result <- dplyr::left_join(
     Network_Proximity_result,

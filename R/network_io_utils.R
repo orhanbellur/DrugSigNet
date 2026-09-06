@@ -156,7 +156,10 @@ create_temp_work_dir <- function(prefix = "drugsignet_") {
 }
 
 .clean_python_result <- function(x) {
-
+  # reticulate uses this attribute to hold the source pandas Index. Its value is
+  # an external pointer whose identity is specific to a conversion, even when
+  # the converted values and row names are identical. DrugSigNet does not use
+  # the Python index after conversion, so do not retain it in result objects.
   if (is.data.frame(x)) {
     attr(x, "pandas.index") <- NULL
   }

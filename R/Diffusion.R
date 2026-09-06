@@ -236,13 +236,13 @@ setMethod("Diffusion", signature = "NetworkBased", function(object) {
   py <- reticulate::py_run_file(python_script2_path)
 
   # Run the diffusion-based pipelines using Python
-  Diffusion_methods_results <- py$Diff_run_pipelines(
+  Diffusion_methods_results <- .clean_python_result(py$Diff_run_pipelines(
     drug_edges_df = files_path$drug_graph$drug_edges,
     seed_genes = seed_genes,
     gene_edges_df = files_path$ppi_graph$gene_edges,
     ties_method = diffusion_params$ties_method,
     path = out_path
-  ) %>%
+  )) %>%
     dplyr::rename("ID" = "Drug") %>%
     left_join(., unique(params$drug_target_network[, c("ID","Drug")])) %>%
     dplyr::select(-ID) %>%

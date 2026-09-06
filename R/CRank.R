@@ -158,7 +158,10 @@ setMethod(
       )
 
       # Process results
-      rankagg_result <- CRank_res[[1]] #%>% dplyr::mutate(Drug = tolower(Drug))
+      # reticulate attaches the pandas Index as an external-pointer attribute
+      # when converting a pandas DataFrame. The index has no meaning in the
+      # returned R table and makes otherwise equal results fail identical().
+      rankagg_result <- .clean_python_result(CRank_res[[1]])
     } else {
       # Handle non-numeric or invalid data
       rankagg_result <- data.frame(Drug = input_data[, 1]) %>%
