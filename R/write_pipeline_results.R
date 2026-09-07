@@ -6,10 +6,7 @@
 #'
 #' @details
 #' `write_pipeline_results()` exports tables from `drugNetworkPipeline()`,
-#' `drugSignaturePipeline()`, or `drugRepurposingPipeline()`. Single-mode
-#' repurposing results use the same worksheet layout as the
-#' corresponding standalone signature or network pipeline. Combined results
-#' retain separate signature, network, and integrated worksheets.
+#' `drugSignaturePipeline()`, or combined DrugSigNet pipeline outputs.
 #'
 #' The workbook may include raw drug-searching results, harmonized drug
 #' rankings, drug annotations, top-ranked drugs with annotations, and functional
@@ -68,31 +65,6 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
     stop("`result_obj` must be a DrugSigNet pipeline result object or list.", call. = FALSE)
   }
 
-  # A single-mode drugRepurposingPipeline result wraps the standalone pipeline
-  # sections in one additional `signature` or `network` list. Remove only that
-  # wrapper so its workbook is identical to writing the standalone result.
-  pipeline_type <- result_obj$type
-  if (is.character(pipeline_type) && length(pipeline_type) == 1L &&
-      pipeline_type %in% c("signature", "network") &&
-      is.list(result_obj$RankAggregation) &&
-      is.list(result_obj$RankAggregation[[pipeline_type]])) {
-    result_obj$RankAggregation <- result_obj$RankAggregation[[pipeline_type]]
-
-    if (is.list(result_obj$DrugSearching)) {
-      for (section in intersect(c("Raw", "Processed"), names(result_obj$DrugSearching))) {
-        section_value <- result_obj$DrugSearching[[section]]
-        if (is.list(section_value) && !is.null(section_value[[pipeline_type]])) {
-          result_obj$DrugSearching[[section]] <- section_value[[pipeline_type]]
-        }
-      }
-    }
-
-    if (is.list(result_obj$DrugAnnotation) &&
-        !is.null(result_obj$DrugAnnotation[[pipeline_type]])) {
-      result_obj$DrugAnnotation <- result_obj$DrugAnnotation[[pipeline_type]]
-    }
-  }
-
   if (!is.character(file_path) || length(file_path) != 1 || !nzchar(file_path)) {
     stop("`file_path` must be a non-empty file path.", call. = FALSE)
   }
@@ -136,17 +108,6 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
 
   flatten_result_tables <- function(x, parent = NULL) {
     out <- list()
-
-    # A data frame is also a list in R. Extract writable tables before
-    # traversing ordinary lists; otherwise data frames are split into column
-    # vectors and silently disappear from the workbook.
-    df <- extract_result_df(x)
-    if (!is.null(df)) {
-      nm <- if (is.null(parent)) "result" else parent
-      out[[nm]] <- df
-      return(out)
-    }
-
     if (is.list(x)) {
       nms <- names(x)
       if (is.null(nms)) nms <- paste0("item_", seq_along(x))
@@ -155,6 +116,12 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
         out <- c(out, flatten_result_tables(x[[i]], parent = key))
       }
       return(out)
+    }
+
+    df <- extract_result_df(x)
+    if (!is.null(df)) {
+      nm <- if (is.null(parent)) "result" else parent
+      out[[nm]] <- df
     }
     out
   }
@@ -175,43 +142,26 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
     sheets <- c(sheets, raw_tables)
   }
 
-  table_scope <- function(name, suffix) {
-    sub(paste0("_?", suffix, "$"), "", name, perl = TRUE)
+  # 2) Drug rankings
+  ranking_df <- NULL
+  if (!is.null(result_obj$RankAggregation$Network_Harmonized)) {
+    ranking_df <- result_obj$RankAggregation$Network_Harmonized
+  } else if (!is.null(result_obj$RankAggregation$Signature_Harmonized)) {
+    ranking_df <- result_obj$RankAggregation$Signature_Harmonized
+  }
+  if (is.data.frame(ranking_df)) {
+    sheets[["Drug_Rankings"]] <- ranking_df
   }
 
-  scoped_sheet_name <- function(scope, label) {
-    if (!nzchar(scope)) label else paste(scope, label, sep = "_")
+  # 3) Drug annotations
+  features_df <- NULL
+  if (!is.null(result_obj$DrugAnnotation$Features) && is.data.frame(result_obj$DrugAnnotation$Features)) {
+    features_df <- result_obj$DrugAnnotation$Features
+    sheets[["Drug_Annotations"]] <- features_df
   }
 
-  # 2) Drug rankings. Repurposing-pipeline results nest these tables under
-  # signature, network, and integrated mode names.
-  rank_tables <- flatten_result_tables(result_obj$RankAggregation)
-  rank_tables <- rank_tables[grepl("Harmonized$", names(rank_tables))]
-
-  # 3) Drug annotations, also potentially nested by repurposing mode.
-  annotation_tables <- flatten_result_tables(result_obj$DrugAnnotation)
-  feature_tables <- annotation_tables[grepl("Features$", names(annotation_tables))]
-  enrichment_tables <- annotation_tables[grepl("Functional_Enrichment$", names(annotation_tables))]
-
-  for (feature_name in names(feature_tables)) {
-    scope <- table_scope(feature_name, "Features")
-    sheets[[scoped_sheet_name(scope, "Drug_Annotations")]] <- feature_tables[[feature_name]]
-  }
-
-  # 4) Rankings and Top N drugs across CRank / Dowdall / RRA, with annotations
-  # from the corresponding repurposing mode when available.
-  for (ranking_name in names(rank_tables)) {
-    ranking_df <- rank_tables[[ranking_name]]
-    if (!is.data.frame(ranking_df)) next
-
-    ranking_scope <- table_scope(
-      ranking_name,
-      "(?:Signature_Network_|Network_|Signature_)?Harmonized"
-    )
-    sheets[[scoped_sheet_name(ranking_scope, "Drug_Rankings")]] <- ranking_df
-
-    if (!"Drug" %in% names(ranking_df)) next
-
+  # 4) Top N drugs across CRank / Dowdall / RRA + annotations
+  if (is.data.frame(ranking_df) && "Drug" %in% names(ranking_df)) {
     rank_cols <- c(
       grep("CRank$", names(ranking_df), value = TRUE),
       grep("Dowdall$", names(ranking_df), value = TRUE),
@@ -233,32 +183,19 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
         dplyr::select(Drug, dplyr::all_of(rank_cols)) %>%
         dplyr::distinct()
 
-      features_df <- NULL
-      feature_scopes <- vapply(
-        names(feature_tables),
-        table_scope,
-        character(1),
-        suffix = "Features"
-      )
-      matching_feature <- which(feature_scopes == ranking_scope)
-      if (length(matching_feature) > 0) {
-        features_df <- feature_tables[[matching_feature[[1]]]]
-      }
-
       if (is.data.frame(features_df) && nrow(top_df) > 0) {
         top_df <- top_df %>%
           dplyr::left_join(features_df, by = "Drug")
       }
 
-      sheets[[scoped_sheet_name(ranking_scope, paste0("Top_", top_n, "_Drugs"))]] <- top_df
+      sheets[[paste0("Top_", top_n, "_Drugs")]] <- top_df
     }
   }
 
-  # 5) Enriched terms for every available repurposing mode.
-  for (enrichment_name in names(enrichment_tables)) {
-    scope <- table_scope(enrichment_name, "Functional_Enrichment")
-    sheets[[scoped_sheet_name(scope, paste0("Enriched_Terms_Top_", top_n))]] <-
-      enrichment_tables[[enrichment_name]]
+  # 5) Enriched terms
+  enrich_df <- extract_result_df(result_obj$DrugAnnotation$Functional_Enrichment)
+  if (is.data.frame(enrich_df)) {
+    sheets[[paste0("Enriched_Terms_Top_", top_n)]] <- enrich_df
   }
 
   # drop empty / invalid
