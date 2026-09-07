@@ -50,40 +50,6 @@ collapse_annotations_by_drug <- function(ref_tbl) {
 }
 
 
-#' Load clinical-trial features for visualization
-#'
-#' Internal helper used when trial-condition plots are requested without the
-#' full drug-annotation stage.
-#'
-#' @param drugs Character vector of drug names.
-#' @param condition Clinical-trial condition to match.
-#' @param force Logical; force refresh of cached annotation resources.
-#' @param auth_token Optional Synapse authentication token.
-#' @return A tibble with one row per matched drug and collapsed trial fields.
-#' @keywords internal
-.load_trial_features <- function(drugs, condition, force = FALSE, auth_token = NULL) {
-  trials <- get_drug_trials(
-    drugs = drugs,
-    condition = condition,
-    force = force,
-    auth_token = auth_token
-  )@result
-
-  required_columns <- c("matched_drug", "Conditions", "Phases", "NCT Number")
-  validate_network_columns(trials, required_columns, "clinical trial results")
-
-  trials %>%
-    dplyr::select(dplyr::all_of(required_columns)) %>%
-    dplyr::rename(
-      Drug = matched_drug,
-      Clinical_trial_conditions = Conditions,
-      Clinical_trial_phase = Phases,
-      NCT_Number = `NCT Number`
-    ) %>%
-    collapse_annotations_by_drug()
-}
-
-
 #' Load DrugSigNet data with backward-compatible fallback
 #'
 #' Internal helper that uses `load_drugsignet_data()` when available and falls
