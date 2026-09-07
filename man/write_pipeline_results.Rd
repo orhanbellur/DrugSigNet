@@ -27,7 +27,9 @@ Excel workbook.
 }
 \details{
 `write_pipeline_results()` exports tables from `drugNetworkPipeline()`,
-`drugSignaturePipeline()`, or combined DrugSigNet pipeline outputs.
+`drugSignaturePipeline()`, or `drugRepurposingPipeline()`. Unified
+repurposing results retain separate signature, network, and integrated
+worksheets according to the mode that was run.
 
 The workbook may include raw drug-searching results, harmonized drug
 rankings, drug annotations, top-ranked drugs with annotations, and functional
