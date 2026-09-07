@@ -6,9 +6,10 @@
 #'
 #' @details
 #' `write_pipeline_results()` exports tables from `drugNetworkPipeline()`,
-#' `drugSignaturePipeline()`, or `drugRepurposingPipeline()`. Unified
-#' repurposing results retain separate signature, network, and integrated
-#' worksheets according to the mode that was run.
+#' `drugSignaturePipeline()`, or `drugRepurposingPipeline()`. Single-mode
+#' repurposing results use the same worksheet layout as the
+#' corresponding standalone signature or network pipeline. Combined results
+#' retain separate signature, network, and integrated worksheets.
 #'
 #' The workbook may include raw drug-searching results, harmonized drug
 #' rankings, drug annotations, top-ranked drugs with annotations, and functional
@@ -65,6 +66,31 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
 
   if (!is.list(result_obj)) {
     stop("`result_obj` must be a DrugSigNet pipeline result object or list.", call. = FALSE)
+  }
+
+  # A single-mode drugRepurposingPipeline result wraps the standalone pipeline
+  # sections in one additional `signature` or `network` list. Remove only that
+  # wrapper so its workbook is identical to writing the standalone result.
+  pipeline_type <- result_obj$type
+  if (is.character(pipeline_type) && length(pipeline_type) == 1L &&
+      pipeline_type %in% c("signature", "network") &&
+      is.list(result_obj$RankAggregation) &&
+      is.list(result_obj$RankAggregation[[pipeline_type]])) {
+    result_obj$RankAggregation <- result_obj$RankAggregation[[pipeline_type]]
+
+    if (is.list(result_obj$DrugSearching)) {
+      for (section in intersect(c("Raw", "Processed"), names(result_obj$DrugSearching))) {
+        section_value <- result_obj$DrugSearching[[section]]
+        if (is.list(section_value) && !is.null(section_value[[pipeline_type]])) {
+          result_obj$DrugSearching[[section]] <- section_value[[pipeline_type]]
+        }
+      }
+    }
+
+    if (is.list(result_obj$DrugAnnotation) &&
+        !is.null(result_obj$DrugAnnotation[[pipeline_type]])) {
+      result_obj$DrugAnnotation <- result_obj$DrugAnnotation[[pipeline_type]]
+    }
   }
 
   if (!is.character(file_path) || length(file_path) != 1 || !nzchar(file_path)) {

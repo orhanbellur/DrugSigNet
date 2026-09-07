@@ -81,3 +81,62 @@ test_that("write_pipeline_results exports every drug repurposing mode", {
   integrated_top <- openxlsx::read.xlsx(output, sheet = "integrated_Top_100_Drugs")
   expect_identical(integrated_top$indication, "integrated indication")
 })
+
+test_that("single repurposing modes export like their standalone pipelines", {
+  skip_if_not_installed("openxlsx")
+
+  for (mode in c("signature", "network")) {
+    harmonized_name <- if (mode == "signature") {
+      "Signature_Harmonized"
+    } else {
+      "Network_Harmonized"
+    }
+    ranking <- stats::setNames(
+      list(data.frame(Drug = "example drug", RRA = 1)),
+      harmonized_name
+    )
+    annotation <- list(
+      Features = data.frame(Drug = "example drug", indication = "example indication"),
+      Functional_Enrichment = data.frame(Term = "example term")
+    )
+    searching <- list(
+      Raw = list(method = data.frame(Drug = "example drug", Score = 1)),
+      Processed = list()
+    )
+
+    standalone <- DrugSearchingPipeline(
+      DrugSearching = searching,
+      RankAggregation = ranking,
+      DrugAnnotation = annotation,
+      type = mode
+    )
+    repurposing <- DrugSearchingPipeline(
+      DrugSearching = list(
+        Raw = stats::setNames(list(searching$Raw), mode),
+        Processed = stats::setNames(list(searching$Processed), mode)
+      ),
+      RankAggregation = stats::setNames(list(ranking), mode),
+      DrugAnnotation = stats::setNames(list(annotation), mode),
+      type = mode
+    )
+
+    standalone_output <- tempfile(fileext = ".xlsx")
+    repurposing_output <- tempfile(fileext = ".xlsx")
+    on.exit(unlink(c(standalone_output, repurposing_output)), add = TRUE)
+
+    write_pipeline_results(standalone, standalone_output, top_n = 100)
+    write_pipeline_results(repurposing, repurposing_output, top_n = 100)
+
+    standalone_sheets <- openxlsx::getSheetNames(standalone_output)
+    repurposing_sheets <- openxlsx::getSheetNames(repurposing_output)
+    expect_identical(repurposing_sheets, standalone_sheets, info = mode)
+
+    for (sheet in standalone_sheets) {
+      expect_equal(
+        openxlsx::read.xlsx(repurposing_output, sheet = sheet),
+        openxlsx::read.xlsx(standalone_output, sheet = sheet),
+        info = paste(mode, sheet)
+      )
+    }
+  }
+})
