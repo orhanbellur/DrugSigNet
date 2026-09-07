@@ -25,6 +25,11 @@ test_that("write_pipeline_results accepts current S4 pipeline results", {
     output
   )
   expect_true(file.exists(output))
+  expect_true("Drug_Rankings" %in% openxlsx::getSheetNames(output))
+  expect_identical(
+    openxlsx::read.xlsx(output, sheet = "Drug_Rankings")$Drug,
+    "example drug"
+  )
 })
 
 test_that("write_pipeline_results exports every drug repurposing mode", {

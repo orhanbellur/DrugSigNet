@@ -136,6 +136,17 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
 
   flatten_result_tables <- function(x, parent = NULL) {
     out <- list()
+
+    # A data frame is also a list in R. Extract writable tables before
+    # traversing ordinary lists; otherwise data frames are split into column
+    # vectors and silently disappear from the workbook.
+    df <- extract_result_df(x)
+    if (!is.null(df)) {
+      nm <- if (is.null(parent)) "result" else parent
+      out[[nm]] <- df
+      return(out)
+    }
+
     if (is.list(x)) {
       nms <- names(x)
       if (is.null(nms)) nms <- paste0("item_", seq_along(x))
@@ -144,12 +155,6 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
         out <- c(out, flatten_result_tables(x[[i]], parent = key))
       }
       return(out)
-    }
-
-    df <- extract_result_df(x)
-    if (!is.null(df)) {
-      nm <- if (is.null(parent)) "result" else parent
-      out[[nm]] <- df
     }
     out
   }
