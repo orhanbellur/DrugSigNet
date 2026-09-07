@@ -682,10 +682,27 @@ drugNetworkPipeline <- function(
 
   if (run_visualization) {
     .pipeline_message("Network", "Building visualization payload.", 9, 9)
+    visualization_features <- res$DrugAnnotation$Features
+
+    if (!run_drug_annotation && !is.null(trial_condition)) {
+      visualization_features <- tryCatch(
+        .load_trial_features(
+          drugs = res$RankAggregation$Network_Harmonized$Drug,
+          condition = trial_condition,
+          force = force,
+          auth_token = auth_token
+        ),
+        error = function(e) {
+          warning(conditionMessage(e), call. = FALSE)
+          NULL
+        }
+      )
+    }
+
     plot_inputs <- .build_plot_inputs(
       rank_df = res$RankAggregation$Network_Harmonized,
       top_k_union_drugs = top_k_union_drugs,
-      features_df = res$DrugAnnotation$Features,
+      features_df = visualization_features,
       functional_enrichment = res$DrugAnnotation$Functional_Enrichment,
       top_k = top_k,
       trial_condition = trial_condition

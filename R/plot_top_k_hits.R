@@ -467,6 +467,15 @@ setMethod(
           name = "count"
         )
 
+      if (nrow(count_df) == 0) {
+        count_df <- res_df %>%
+          dplyr::distinct(Study, top_k, method) %>%
+          dplyr::mutate(
+            Groups = "No matching trials",
+            count = 0L
+          )
+      }
+
       base <- ggplot2::ggplot(
         count_df,
         ggplot2::aes(

@@ -62,9 +62,18 @@ resolve_network_inputs <- function(ppi_network = NULL,
                                    auth_token = NULL) {
   standardize_ppi <- function(x) {
     x <- tibble::as_tibble(x)
+
     if ("confidence" %in% names(x)) {
-      x <- x %>% dplyr::filter(confidence == "High")
+      x <- x %>%
+        dplyr::filter(
+          grepl(
+            "High",
+            as.character(confidence),
+            ignore.case = TRUE
+          )
+        )
     }
+
     x %>%
       dplyr::select(gene1, gene2) %>%
       dplyr::distinct()
