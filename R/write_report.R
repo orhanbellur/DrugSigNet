@@ -76,6 +76,21 @@
   })
 }
 
+.report_result_title <- function(object, index = NULL) {
+  object_type <- if (is.list(object)) object$type else NULL
+  title <- switch(
+    object_type,
+    signature = "Signature-based results",
+    network = "Network-based results",
+    integration = "Integrated results",
+    NULL
+  )
+  if (!is.null(title)) {
+    return(title)
+  }
+  paste("Result object", if (is.null(index)) "" else index)
+}
+
 
 #' @title Write DrugSigNet Analysis Report
 #'
@@ -85,7 +100,8 @@
 #'
 #' @details
 #' `write_report()` creates a report from pipeline results returned by
-#' DrugSigNet workflows.
+#' DrugSigNet workflows. A combined `drugRepurposingPipeline()` result is shown
+#' in separate signature-based, network-based, and integrated report parts.
 #'
 #' HTML reports include interactive sections for:
 #' \itemize{
@@ -245,6 +261,13 @@ write_report <- function(object,
       "  viz[['plots']]",
       "}",
       "plot_title <- function(key) tools::toTitleCase(gsub('_', ' ', key, fixed = TRUE))",
+      "result_title <- function(obj, index) {",
+      "  switch(obj$type, signature = 'Signature-based results', network = 'Network-based results', integration = 'Integrated results', paste('Result object', index))",
+      "}",
+      "result_choices <- stats::setNames(",
+      "  seq_along(report_objects),",
+      "  vapply(seq_along(report_objects), function(i) result_title(report_objects[[i]], i), character(1))",
+      ")",
       "",
       "select_harmonized_rank_df <- function(rank_items, obj_type) {",
       "  if (!is.list(rank_items)) return(NULL)",
@@ -271,7 +294,7 @@ write_report <- function(object,
       "ui <- dashboardPage(",
       "  dashboardHeader(title = 'DrugSigNet Interactive Report'),",
       "  dashboardSidebar(",
-      "    selectInput('object_idx', 'Result Object', choices = seq_along(report_objects), selected = 1),",
+      "    selectInput('object_idx', 'Result section', choices = result_choices, selected = 1),",
       "    sidebarMenuOutput('sidebar_menu')",
       "  ),",
       "  dashboardBody(",
@@ -961,6 +984,7 @@ write_report <- function(object,
   body <- c()
   interactive_flag <- if (device == "html") "TRUE" else "FALSE"
   for (i in seq_along(objects)) {
+    result_heading <- .report_result_title(objects[[i]], i)
     annotation_body <- if (.report_has_annotation(objects[[i]])) {
       c(
         "### DrugAnnotation {.tabset}",
@@ -999,7 +1023,7 @@ write_report <- function(object,
 
     body <- c(
       body,
-      paste0("## Result object ", i),
+      paste0("## ", result_heading),
       "",
       paste0("```{r result-", i, "-obj, include=FALSE}"),
       paste0("obj <- report_objects[[", i, "]]"),

@@ -47,7 +47,8 @@ results.
 }
 \details{
 `write_report()` creates a report from pipeline results returned by
-DrugSigNet workflows.
+DrugSigNet workflows. A combined `drugRepurposingPipeline()` result is shown
+in separate signature-based, network-based, and integrated report parts.
 
 HTML reports include interactive sections for:
 \itemize{

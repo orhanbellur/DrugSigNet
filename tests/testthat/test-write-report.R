@@ -39,6 +39,10 @@ test_that("report input expansion preserves every repurposing section", {
     "signature", "network", "integration"
   ))
   expect_identical(
+    vapply(expanded, DrugSigNet:::.report_result_title, character(1)),
+    c("Signature-based results", "Network-based results", "Integrated results")
+  )
+  expect_identical(
     vapply(expanded, function(x) x$DrugAnnotation$Features$Drug, character(1)),
     paste0(sections, "_drug")
   )
