@@ -29,6 +29,53 @@
   tools::toTitleCase(gsub("_", " ", key, fixed = TRUE))
 }
 
+.report_normalize_pipeline_result <- function(x) {
+  if (!.is_drug_searching_pipeline(x)) {
+    return(x)
+  }
+
+  result <- list(
+    DrugSearching = methods::slot(x, "DrugSearching"),
+    RankAggregation = methods::slot(x, "RankAggregation"),
+    type = methods::slot(x, "type")
+  )
+  object_slots <- methods::slotNames(x)
+  if ("DrugAnnotation" %in% object_slots) {
+    result$DrugAnnotation <- methods::slot(x, "DrugAnnotation")
+  }
+  if ("Visualization" %in% object_slots) {
+    result$Visualization <- methods::slot(x, "Visualization")
+  }
+  result
+}
+
+.report_expand_pipeline_result <- function(x) {
+  result <- .report_normalize_pipeline_result(x)
+  sections <- intersect(
+    c("signature", "network", "integrated"),
+    names(result$RankAggregation)
+  )
+
+  if (length(sections) == 0L) {
+    return(list(result))
+  }
+
+  lapply(sections, function(section) {
+    raw <- result$DrugSearching$Raw[[section]]
+    processed <- result$DrugSearching$Processed[[section]]
+    list(
+      DrugSearching = list(
+        Raw = if (is.null(raw)) list() else raw,
+        Processed = if (is.null(processed)) list() else processed
+      ),
+      RankAggregation = result$RankAggregation[[section]],
+      DrugAnnotation = result$DrugAnnotation[[section]],
+      Visualization = result$Visualization[[section]],
+      type = if (identical(section, "integrated")) "integration" else section
+    )
+  })
+}
+
 
 #' @title Write DrugSigNet Analysis Report
 #'
@@ -125,27 +172,8 @@ write_report <- function(object,
     stop("`object` cannot be NULL.", call. = FALSE)
   }
 
-  normalize_pipeline_result <- function(x) {
-    if (.is_drug_searching_pipeline(x)) {
-      result <- list(
-        DrugSearching = methods::slot(x, "DrugSearching"),
-        RankAggregation = methods::slot(x, "RankAggregation"),
-        type = methods::slot(x, "type")
-      )
-      object_slots <- methods::slotNames(x)
-      if ("DrugAnnotation" %in% object_slots) {
-        result$DrugAnnotation <- methods::slot(x, "DrugAnnotation")
-      }
-      if ("Visualization" %in% object_slots) {
-        result$Visualization <- methods::slot(x, "Visualization")
-      }
-      return(result)
-    }
-    x
-  }
-
   is_pipeline_result <- function(x) {
-    x_norm <- normalize_pipeline_result(x)
+    x_norm <- .report_normalize_pipeline_result(x)
     is.list(x_norm) && !is.null(x_norm$RankAggregation)
   }
 
@@ -156,7 +184,10 @@ write_report <- function(object,
   } else {
     stop("`object` must be a pipeline result list or a list of pipeline results.", call. = FALSE)
   }
-  objects <- lapply(raw_objects, normalize_pipeline_result)
+  objects <- unlist(
+    lapply(raw_objects, .report_expand_pipeline_result),
+    recursive = FALSE
+  )
 
   base_name <- if (is.null(file)) {
     paste0("drugsignet_", Sys.Date())
