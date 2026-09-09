@@ -80,9 +80,9 @@ installed but no LaTeX engine is available, `write_report()` attempts to
 install TinyTeX automatically before rendering the PDF. When available,
 `lualatex` (then `xelatex`) is preferred over `pdflatex` so Unicode symbols
 in drug and gene annotations can be rendered directly. PDF tables use
-dependency-free `knitr::kable()` output rather than `booktabs`, nested
-scaling, or float wrappers, avoiding missing LaTeX commands and page-output
-failures for wide rank-aggregation tables.
+Markdown tables that Pandoc converts to LaTeX, rather than injecting raw
+table environments. PDF reports also use a numbered table of contents and
+cap each displayed table at 20 rows (or `table_rows`, when smaller).
 
 The visualization section is generated from every entry in
 `object@Visualization$plots`; it is not limited to a fixed set of plot names.

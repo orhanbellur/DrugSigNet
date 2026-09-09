@@ -133,9 +133,9 @@
 #' install TinyTeX automatically before rendering the PDF. When available,
 #' `lualatex` (then `xelatex`) is preferred over `pdflatex` so Unicode symbols
 #' in drug and gene annotations can be rendered directly. PDF tables use
-#' dependency-free `knitr::kable()` output rather than `booktabs`, nested
-#' scaling, or float wrappers, avoiding missing LaTeX commands and page-output
-#' failures for wide rank-aggregation tables.
+#' Markdown tables that Pandoc converts to LaTeX, rather than injecting raw
+#' table environments. PDF reports also use a numbered table of contents and
+#' cap each displayed table at 20 rows (or `table_rows`, when smaller).
 #'
 #' The visualization section is generated from every entry in
 #' `object@Visualization$plots`; it is not limited to a fixed set of plot names.
@@ -615,14 +615,10 @@ write_report <- function(object,
     "      )",
     "    ))",
     "  } else {",
-    "    table_format <- if (knitr::is_latex_output()) 'latex' else 'pipe'",
-    "    table_rows <- if (knitr::is_latex_output()) 6 else report_table_rows",
+    "    table_format <- 'pipe'",
+    "    table_rows <- if (knitr::is_latex_output()) min(report_table_rows, 20L) else report_table_rows",
     "    table_head <- utils::head(x, table_rows)",
-    "    tbl <- if (knitr::is_latex_output()) {",
-    "      knitr::kable(table_head, format = 'latex', escape = TRUE)",
-    "    } else {",
-    "      knitr::kable(table_head, format = table_format, escape = TRUE)",
-    "    }",
+    "    tbl <- knitr::kable(table_head, format = table_format, escape = TRUE)",
     "    return(tbl)",
     "  }",
     "  invisible(NULL)",
@@ -1224,7 +1220,11 @@ write_report <- function(object,
   render_format <- if (device == "html") {
     rmarkdown::html_document(self_contained = self_contained)
   } else {
-    rmarkdown::pdf_document(latex_engine = latex_engine)
+    rmarkdown::pdf_document(
+      toc = TRUE,
+      number_sections = TRUE,
+      latex_engine = latex_engine
+    )
   }
   rmarkdown::render(
     input = rmd_file,
