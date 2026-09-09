@@ -29,6 +29,68 @@
   tools::toTitleCase(gsub("_", " ", key, fixed = TRUE))
 }
 
+.report_normalize_pipeline_result <- function(x) {
+  if (!.is_drug_searching_pipeline(x)) {
+    return(x)
+  }
+
+  result <- list(
+    DrugSearching = methods::slot(x, "DrugSearching"),
+    RankAggregation = methods::slot(x, "RankAggregation"),
+    type = methods::slot(x, "type")
+  )
+  object_slots <- methods::slotNames(x)
+  if ("DrugAnnotation" %in% object_slots) {
+    result$DrugAnnotation <- methods::slot(x, "DrugAnnotation")
+  }
+  if ("Visualization" %in% object_slots) {
+    result$Visualization <- methods::slot(x, "Visualization")
+  }
+  result
+}
+
+.report_expand_pipeline_result <- function(x) {
+  result <- .report_normalize_pipeline_result(x)
+  sections <- intersect(
+    c("signature", "network", "integrated"),
+    names(result$RankAggregation)
+  )
+
+  if (length(sections) == 0L) {
+    return(list(result))
+  }
+
+  lapply(sections, function(section) {
+    raw <- result$DrugSearching$Raw[[section]]
+    processed <- result$DrugSearching$Processed[[section]]
+    list(
+      DrugSearching = list(
+        Raw = if (is.null(raw)) list() else raw,
+        Processed = if (is.null(processed)) list() else processed
+      ),
+      RankAggregation = result$RankAggregation[[section]],
+      DrugAnnotation = result$DrugAnnotation[[section]],
+      Visualization = result$Visualization[[section]],
+      type = if (identical(section, "integrated")) "integration" else section
+    )
+  })
+}
+
+.report_result_title <- function(object, index = NULL) {
+  object_type <- if (is.list(object)) object$type else NULL
+  title <- switch(
+    object_type,
+    signature = "Signature-based results",
+    network = "Network-based results",
+    integration = "Integrated results",
+    NULL
+  )
+  if (!is.null(title)) {
+    return(title)
+  }
+  paste("Result object", if (is.null(index)) "" else index)
+}
+
 
 #' @title Write DrugSigNet Analysis Report
 #'
@@ -38,7 +100,8 @@
 #'
 #' @details
 #' `write_report()` creates a report from pipeline results returned by
-#' DrugSigNet workflows.
+#' DrugSigNet workflows. A combined `drugRepurposingPipeline()` result is shown
+#' in separate signature-based, network-based, and integrated report parts.
 #'
 #' HTML reports include interactive sections for:
 #' \itemize{
@@ -47,6 +110,9 @@
 #'   \item Drug annotation,
 #'   \item Visualization.
 #' }
+#' Tabular collections use searchable, styled, scrollable HTML tables with
+#' sticky headers; complex list or matrix columns are converted to readable
+#' cell text without nesting HTML widgets inside Shiny tabs.
 #'
 #' Reports can optionally export pipeline results as Excel files using
 #' `write_pipeline_results()`. PDF reports require a LaTeX engine such as
@@ -125,27 +191,8 @@ write_report <- function(object,
     stop("`object` cannot be NULL.", call. = FALSE)
   }
 
-  normalize_pipeline_result <- function(x) {
-    if (.is_drug_searching_pipeline(x)) {
-      result <- list(
-        DrugSearching = methods::slot(x, "DrugSearching"),
-        RankAggregation = methods::slot(x, "RankAggregation"),
-        type = methods::slot(x, "type")
-      )
-      object_slots <- methods::slotNames(x)
-      if ("DrugAnnotation" %in% object_slots) {
-        result$DrugAnnotation <- methods::slot(x, "DrugAnnotation")
-      }
-      if ("Visualization" %in% object_slots) {
-        result$Visualization <- methods::slot(x, "Visualization")
-      }
-      return(result)
-    }
-    x
-  }
-
   is_pipeline_result <- function(x) {
-    x_norm <- normalize_pipeline_result(x)
+    x_norm <- .report_normalize_pipeline_result(x)
     is.list(x_norm) && !is.null(x_norm$RankAggregation)
   }
 
@@ -156,7 +203,10 @@ write_report <- function(object,
   } else {
     stop("`object` must be a pipeline result list or a list of pipeline results.", call. = FALSE)
   }
-  objects <- lapply(raw_objects, normalize_pipeline_result)
+  objects <- unlist(
+    lapply(raw_objects, .report_expand_pipeline_result),
+    recursive = FALSE
+  )
 
   base_name <- if (is.null(file)) {
     paste0("drugsignet_", Sys.Date())
@@ -214,6 +264,13 @@ write_report <- function(object,
       "  viz[['plots']]",
       "}",
       "plot_title <- function(key) tools::toTitleCase(gsub('_', ' ', key, fixed = TRUE))",
+      "result_title <- function(obj, index) {",
+      "  switch(obj$type, signature = 'Signature-based results', network = 'Network-based results', integration = 'Integrated results', paste('Result object', index))",
+      "}",
+      "result_choices <- stats::setNames(",
+      "  seq_along(report_objects),",
+      "  vapply(seq_along(report_objects), function(i) result_title(report_objects[[i]], i), character(1))",
+      ")",
       "",
       "select_harmonized_rank_df <- function(rank_items, obj_type) {",
       "  if (!is.list(rank_items)) return(NULL)",
@@ -240,7 +297,7 @@ write_report <- function(object,
       "ui <- dashboardPage(",
       "  dashboardHeader(title = 'DrugSigNet Interactive Report'),",
       "  dashboardSidebar(",
-      "    selectInput('object_idx', 'Result Object', choices = seq_along(report_objects), selected = 1),",
+      "    selectInput('object_idx', 'Result section', choices = result_choices, selected = 1),",
       "    sidebarMenuOutput('sidebar_menu')",
       "  ),",
       "  dashboardBody(",
@@ -542,6 +599,43 @@ write_report <- function(object,
     "  }",
     "  invisible(NULL)",
     "}",
+    "# Shiny tab children must render to one HTML value across htmltools versions.",
+    "embedded_table_counter <- 0L",
+    "render_embedded_table <- function(x) {",
+    "  x <- extract_df(x)",
+    "  if (!is.data.frame(x)) return(htmltools::tags$p('No table available'))",
+    "  embedded_table_counter <<- embedded_table_counter + 1L",
+    "  table_id <- paste0('drugsignet-table-', embedded_table_counter)",
+    "  shown_rows <- min(nrow(x), 200L)",
+    "  x[] <- lapply(x, function(column) {",
+    "    if (is.matrix(column)) return(apply(column, 1, paste, collapse = ' | '))",
+    "    if (is.list(column)) return(vapply(column, function(value) paste(as.character(value), collapse = ' | '), character(1)))",
+    "    column",
+    "  })",
+    "  table_html <- tryCatch(",
+    "    knitr::kable(",
+    "      utils::head(x, 200), format = 'html', escape = TRUE, row.names = FALSE,",
+    "      table.attr = 'class=\"table table-striped table-hover table-condensed drugsignet-table\"'",
+    "    ),",
+    "    error = function(e) knitr::kable(",
+    "      data.frame(Message = conditionMessage(e)), format = 'html', escape = TRUE,",
+    "      row.names = FALSE, table.attr = 'class=\"table drugsignet-table\"'",
+    "    )",
+    "  )",
+    "  htmltools::HTML(paste0(",
+    "    '<div class=\"drugsignet-table-wrap\">',",
+    "    '<div class=\"drugsignet-table-toolbar\">',",
+    "    '<label>Search <input type=\"search\" class=\"form-control input-sm\" ',",
+    "    'oninput=\"filterDrugSigNetTable(&quot;', table_id, '&quot;, this.value)\" ',",
+    "    'placeholder=\"Filter rows...\"></label>',",
+    "    '<span>Showing ', shown_rows, ' of ', nrow(x), ' rows</span>',",
+    "    '</div>',",
+    "    '<div class=\"drugsignet-table-scroll\">',",
+    "    '<div id=\"', table_id, '\">',",
+    "    paste(as.character(table_html), collapse = '\\n'),",
+    "    '</div></div></div>'",
+    "  ))",
+    "}",
     "render_plot_panel <- function(p, use_plotly = FALSE) {",
     "  if (is.null(p)) {",
     "    cat('*No plot available.*\\n')",
@@ -597,8 +691,7 @@ write_report <- function(object,
     "  }",
     "  if (knitr::is_html_output()) {",
     "    tabs_ui <- lapply(names(tabs), function(nm) {",
-    "      tbl <- render_table(tabs[[nm]])",
-    "      if (is.null(tbl)) tbl <- htmltools::tags$p('No table available')",
+    "      tbl <- render_embedded_table(tabs[[nm]])",
     "      shiny::tabPanel(title = nm, tbl)",
     "    })",
     "    return(do.call(shiny::tabsetPanel, c(list(type = 'tabs'), tabs_ui)))",
@@ -775,10 +868,66 @@ write_report <- function(object,
     ".section.level2, .section.level3 {",
     "  margin-top: 18px;",
     "}",
+    ".drugsignet-table-wrap {",
+    "  border: 1px solid #dce3ec;",
+    "  border-radius: 8px;",
+    "  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);",
+    "}",
+    ".drugsignet-table-toolbar {",
+    "  display: flex;",
+    "  align-items: center;",
+    "  justify-content: space-between;",
+    "  gap: 12px;",
+    "  padding: 10px 12px;",
+    "  background: #f6f9fc;",
+    "  border-bottom: 1px solid #dce3ec;",
+    "}",
+    ".drugsignet-table-toolbar label {",
+    "  display: flex;",
+    "  align-items: center;",
+    "  gap: 8px;",
+    "  margin: 0;",
+    "}",
+    ".drugsignet-table-toolbar input { min-width: 240px; }",
+    ".drugsignet-table-toolbar span { color: #607080; font-size: 12px; }",
+    ".drugsignet-table-scroll { max-height: 680px; overflow: auto; }",
+    ".drugsignet-table {",
+    "  width: 100%;",
+    "  margin-bottom: 0 !important;",
+    "  font-size: 13px;",
+    "  white-space: nowrap;",
+    "}",
+    ".drugsignet-table thead th {",
+    "  position: sticky;",
+    "  top: 0;",
+    "  z-index: 1;",
+    "  padding: 10px 12px !important;",
+    "  background: #2c7fb8 !important;",
+    "  color: #ffffff;",
+    "  border-color: #246b9b !important;",
+    "}",
+    ".drugsignet-table tbody td {",
+    "  padding: 8px 12px !important;",
+    "  vertical-align: top !important;",
+    "}",
+    ".drugsignet-table tbody tr:nth-child(even) {",
+    "  background-color: #f6f9fc;",
+    "}",
     "table.dataTable thead th {",
     "  background-color: #eef5fb;",
     "}",
     "</style>",
+    "<script>",
+    "function filterDrugSigNetTable(id, query) {",
+    "  var root = document.getElementById(id);",
+    "  if (!root) return;",
+    "  var rows = root.querySelectorAll('tbody tr');",
+    "  var needle = String(query || '').toLowerCase();",
+    "  rows.forEach(function(row) {",
+    "    row.style.display = row.textContent.toLowerCase().indexOf(needle) >= 0 ? '' : 'none';",
+    "  });",
+    "}",
+    "</script>",
     ""
   ) else character(0)
 
@@ -924,6 +1073,7 @@ write_report <- function(object,
   body <- c()
   interactive_flag <- if (device == "html") "TRUE" else "FALSE"
   for (i in seq_along(objects)) {
+    result_heading <- .report_result_title(objects[[i]], i)
     annotation_body <- if (.report_has_annotation(objects[[i]])) {
       c(
         "### DrugAnnotation {.tabset}",
@@ -962,7 +1112,7 @@ write_report <- function(object,
 
     body <- c(
       body,
-      paste0("## Result object ", i),
+      paste0("## ", result_heading),
       "",
       paste0("```{r result-", i, "-obj, include=FALSE}"),
       paste0("obj <- report_objects[[", i, "]]"),
