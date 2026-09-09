@@ -18,6 +18,23 @@ test_that("write_report exposes performance controls", {
   expect_identical(formals(write_report)$self_contained, TRUE)
 })
 
+test_that("PDF reports prefer a Unicode-capable LaTeX engine", {
+  engines <- c(
+    pdflatex = "/tex/pdflatex",
+    xelatex = "/tex/xelatex",
+    lualatex = "/tex/lualatex"
+  )
+
+  expect_identical(
+    DrugSigNet:::.report_select_latex_engine(engines),
+    "xelatex"
+  )
+  expect_identical(
+    DrugSigNet:::.report_select_latex_engine(engines[c("pdflatex", "lualatex")]),
+    "lualatex"
+  )
+})
+
 test_that("report input expansion preserves every repurposing section", {
   sections <- c("signature", "network", "integrated")
   result <- DrugSearchingPipeline(

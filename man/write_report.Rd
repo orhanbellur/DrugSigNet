@@ -77,7 +77,9 @@ Reports can optionally export pipeline results as Excel files using
 `write_pipeline_results()`. PDF reports require a LaTeX engine such as
 `pdflatex`, `xelatex`, or `lualatex`. If the `tinytex` R package is
 installed but no LaTeX engine is available, `write_report()` attempts to
-install TinyTeX automatically before rendering the PDF.
+install TinyTeX automatically before rendering the PDF. When available,
+`xelatex` (then `lualatex`) is preferred over `pdflatex` so Unicode symbols
+in drug and gene annotations can be rendered directly.
 
 The visualization section is generated from every entry in
 `object@Visualization$plots`; it is not limited to a fixed set of plot names.

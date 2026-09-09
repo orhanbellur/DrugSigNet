@@ -91,6 +91,15 @@
   paste("Result object", if (is.null(index)) "" else index)
 }
 
+.report_select_latex_engine <- function(paths = Sys.which(c(
+  "xelatex", "lualatex", "pdflatex"
+))) {
+  available <- names(paths)[nzchar(paths)]
+  preferred <- c("xelatex", "lualatex", "pdflatex")
+  selected <- preferred[preferred %in% available]
+  if (length(selected) == 0L) NULL else selected[[1]]
+}
+
 
 #' @title Write DrugSigNet Analysis Report
 #'
@@ -121,7 +130,9 @@
 #' `write_pipeline_results()`. PDF reports require a LaTeX engine such as
 #' `pdflatex`, `xelatex`, or `lualatex`. If the `tinytex` R package is
 #' installed but no LaTeX engine is available, `write_report()` attempts to
-#' install TinyTeX automatically before rendering the PDF.
+#' install TinyTeX automatically before rendering the PDF. When available,
+#' `xelatex` (then `lualatex`) is preferred over `pdflatex` so Unicode symbols
+#' in drug and gene annotations can be rendered directly.
 #'
 #' The visualization section is generated from every entry in
 #' `object@Visualization$plots`; it is not limited to a fixed set of plot names.
@@ -1172,6 +1183,7 @@ write_report <- function(object,
 
   writeLines(c(yaml, setup_chunk, style_block, body, footer), con = rmd_file)
 
+  latex_engine <- NULL
   if (device == "pdf") {
     latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
     if (!any(nzchar(latex_engines))) {
@@ -1202,12 +1214,13 @@ write_report <- function(object,
         )
       }
     }
+    latex_engine <- .report_select_latex_engine(latex_engines)
   }
 
   render_format <- if (device == "html") {
     rmarkdown::html_document(self_contained = self_contained)
   } else {
-    "pdf_document"
+    rmarkdown::pdf_document(latex_engine = latex_engine)
   }
   rmarkdown::render(
     input = rmd_file,
