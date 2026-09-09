@@ -11,6 +11,8 @@ write_report(
   write_results = FALSE,
   device = c("html", "pdf"),
   interactive = FALSE,
+  table_rows = 100,
+  self_contained = TRUE,
   author = NULL,
   dashboard = c("tabset", "shinydashboard")
 )
@@ -33,6 +35,13 @@ be exported as Excel files. Default is `FALSE`.}
 \item{interactive}{Logical; if `TRUE` and `device = "html"`, compatible
 `ggplot` objects are rendered as interactive Plotly figures.}
 
+\item{table_rows}{Positive integer maximum number of rows rendered per table.
+Lower values reduce HTML size and browser startup time. Default is `100`.}
+
+\item{self_contained}{Logical; whether HTML reports embed all supporting
+assets in one file. Set to `FALSE` for faster opening of large interactive
+reports; keep the generated companion directory beside the HTML file.}
+
 \item{author}{Optional author name.}
 
 \item{dashboard}{HTML report layout. One of `"tabset"` (default) or
@@ -47,7 +56,8 @@ results.
 }
 \details{
 `write_report()` creates a report from pipeline results returned by
-DrugSigNet workflows.
+DrugSigNet workflows. A combined `drugRepurposingPipeline()` result is shown
+in separate signature-based, network-based, and integrated report parts.
 
 HTML reports include interactive sections for:
 \itemize{
@@ -56,6 +66,12 @@ HTML reports include interactive sections for:
   \item Drug annotation,
   \item Visualization.
 }
+Tabular collections use searchable, styled, scrollable HTML tables with
+sticky headers; complex list or matrix columns are converted to readable
+cell text without nesting HTML widgets inside Shiny tabs.
+For large signature-based or integrated results, use `interactive = FALSE`
+when Plotly interactivity is unnecessary. Otherwise, `self_contained = FALSE`
+and a smaller `table_rows` value substantially reduce the initial HTML load.
 
 Reports can optionally export pipeline results as Excel files using
 `write_pipeline_results()`. PDF reports require a LaTeX engine such as
@@ -84,7 +100,9 @@ write_report(
   object = result,
   file = "DrugSigNet_Report",
   device = "html",
-  interactive = TRUE
+  interactive = TRUE,
+  table_rows = 50,
+  self_contained = FALSE
 )
 
 ## PDF report

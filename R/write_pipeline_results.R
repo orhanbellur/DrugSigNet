@@ -6,7 +6,9 @@
 #'
 #' @details
 #' `write_pipeline_results()` exports tables from `drugNetworkPipeline()`,
-#' `drugSignaturePipeline()`, or combined DrugSigNet pipeline outputs.
+#' `drugSignaturePipeline()`, or `drugRepurposingPipeline()`. Single-mode
+#' repurposing exports match the corresponding standalone pipeline layout;
+#' combined exports include signature, network, and integrated worksheets.
 #'
 #' The workbook may include raw drug-searching results, harmonized drug
 #' rankings, drug annotations, top-ranked drugs with annotations, and functional
@@ -81,6 +83,28 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
   }
   top_n <- as.integer(top_n)
 
+  repurposing_sections <- intersect(
+    c("signature", "network", "integrated"),
+    names(result_obj$RankAggregation)
+  )
+
+  if (length(repurposing_sections) == 1L &&
+      identical(result_obj$type, repurposing_sections)) {
+    section <- repurposing_sections[[1]]
+    result_obj$RankAggregation <- result_obj$RankAggregation[[section]]
+    if (!is.null(result_obj$DrugAnnotation[[section]])) {
+      result_obj$DrugAnnotation <- result_obj$DrugAnnotation[[section]]
+    }
+    if (is.list(result_obj$DrugSearching)) {
+      for (name in intersect(c("Raw", "Processed"), names(result_obj$DrugSearching))) {
+        if (!is.null(result_obj$DrugSearching[[name]][[section]])) {
+          result_obj$DrugSearching[[name]] <- result_obj$DrugSearching[[name]][[section]]
+        }
+      }
+    }
+    repurposing_sections <- character()
+  }
+
   extract_result_df <- function(x) {
     if (is.null(x)) return(NULL)
     if (is.data.frame(x)) return(x)
@@ -108,6 +132,13 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
 
   flatten_result_tables <- function(x, parent = NULL) {
     out <- list()
+    df <- extract_result_df(x)
+    if (!is.null(df)) {
+      nm <- if (is.null(parent)) "result" else parent
+      out[[nm]] <- df
+      return(out)
+    }
+
     if (is.list(x)) {
       nms <- names(x)
       if (is.null(nms)) nms <- paste0("item_", seq_along(x))
@@ -116,12 +147,6 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
         out <- c(out, flatten_result_tables(x[[i]], parent = key))
       }
       return(out)
-    }
-
-    df <- extract_result_df(x)
-    if (!is.null(df)) {
-      nm <- if (is.null(parent)) "result" else parent
-      out[[nm]] <- df
     }
     out
   }
@@ -142,60 +167,85 @@ write_pipeline_results <- function(result_obj, file_path, top_n = 100) {
     sheets <- c(sheets, raw_tables)
   }
 
-  # 2) Drug rankings
-  ranking_df <- NULL
-  if (!is.null(result_obj$RankAggregation$Network_Harmonized)) {
-    ranking_df <- result_obj$RankAggregation$Network_Harmonized
-  } else if (!is.null(result_obj$RankAggregation$Signature_Harmonized)) {
-    ranking_df <- result_obj$RankAggregation$Signature_Harmonized
-  }
-  if (is.data.frame(ranking_df)) {
-    sheets[["Drug_Rankings"]] <- ranking_df
-  }
+  collect_summary_sheets <- function(payload, prefix = "") {
+    section_sheets <- list()
+    sheet_name <- function(name) paste0(prefix, name)
 
-  # 3) Drug annotations
-  features_df <- NULL
-  if (!is.null(result_obj$DrugAnnotation$Features) && is.data.frame(result_obj$DrugAnnotation$Features)) {
-    features_df <- result_obj$DrugAnnotation$Features
-    sheets[["Drug_Annotations"]] <- features_df
-  }
-
-  # 4) Top N drugs across CRank / Dowdall / RRA + annotations
-  if (is.data.frame(ranking_df) && "Drug" %in% names(ranking_df)) {
-    rank_cols <- c(
-      grep("CRank$", names(ranking_df), value = TRUE),
-      grep("Dowdall$", names(ranking_df), value = TRUE),
-      grep("Dowdall_rank$", names(ranking_df), value = TRUE),
-      grep("RRA$", names(ranking_df), value = TRUE),
-      grep("RRA_rank$", names(ranking_df), value = TRUE)
-    )
-    rank_cols <- unique(rank_cols)
-    rank_cols <- rank_cols[vapply(ranking_df[rank_cols], is.numeric, logical(1))]
-
-    if (length(rank_cols) > 0) {
-      top_df <- ranking_df %>%
-        dplyr::filter(
-          dplyr::if_any(
-            dplyr::all_of(rank_cols),
-            ~ !is.na(.x) & .x <= top_n
-          )
-        ) %>%
-        dplyr::select(Drug, dplyr::all_of(rank_cols)) %>%
-        dplyr::distinct()
-
-      if (is.data.frame(features_df) && nrow(top_df) > 0) {
-        top_df <- top_df %>%
-          dplyr::left_join(features_df, by = "Drug")
-      }
-
-      sheets[[paste0("Top_", top_n, "_Drugs")]] <- top_df
+    # Drug rankings
+    ranking_df <- NULL
+    if (!is.null(payload$RankAggregation$Network_Harmonized)) {
+      ranking_df <- payload$RankAggregation$Network_Harmonized
+    } else if (!is.null(payload$RankAggregation$Signature_Harmonized)) {
+      ranking_df <- payload$RankAggregation$Signature_Harmonized
+    } else if (!is.null(payload$RankAggregation$Signature_Network_Harmonized)) {
+      ranking_df <- payload$RankAggregation$Signature_Network_Harmonized
     }
+    if (is.data.frame(ranking_df)) {
+      section_sheets[[sheet_name("Drug_Rankings")]] <- ranking_df
+    }
+
+    # Drug annotations
+    features_df <- NULL
+    if (!is.null(payload$DrugAnnotation$Features) &&
+        is.data.frame(payload$DrugAnnotation$Features)) {
+      features_df <- payload$DrugAnnotation$Features
+      section_sheets[[sheet_name("Drug_Annotations")]] <- features_df
+    }
+
+    # Top N drugs across CRank / Dowdall / RRA + annotations
+    if (is.data.frame(ranking_df) && "Drug" %in% names(ranking_df)) {
+      rank_cols <- c(
+        grep("CRank$", names(ranking_df), value = TRUE),
+        grep("Dowdall$", names(ranking_df), value = TRUE),
+        grep("Dowdall_rank$", names(ranking_df), value = TRUE),
+        grep("RRA$", names(ranking_df), value = TRUE),
+        grep("RRA_rank$", names(ranking_df), value = TRUE)
+      )
+      rank_cols <- unique(rank_cols)
+      rank_cols <- rank_cols[vapply(ranking_df[rank_cols], is.numeric, logical(1))]
+
+      if (length(rank_cols) > 0) {
+        top_df <- ranking_df %>%
+          dplyr::filter(
+            dplyr::if_any(
+              dplyr::all_of(rank_cols),
+              ~ !is.na(.x) & .x <= top_n
+            )
+          ) %>%
+          dplyr::select(Drug, dplyr::all_of(rank_cols)) %>%
+          dplyr::distinct()
+
+        if (is.data.frame(features_df) && nrow(top_df) > 0) {
+          top_df <- top_df %>%
+            dplyr::left_join(features_df, by = "Drug")
+        }
+
+        section_sheets[[sheet_name(paste0("Top_", top_n, "_Drugs"))]] <- top_df
+      }
+    }
+
+    # Enriched terms
+    enrich_df <- extract_result_df(payload$DrugAnnotation$Functional_Enrichment)
+    if (is.data.frame(enrich_df)) {
+      section_sheets[[sheet_name(paste0("Enriched_Terms_Top_", top_n))]] <- enrich_df
+    }
+
+    section_sheets
   }
 
-  # 5) Enriched terms
-  enrich_df <- extract_result_df(result_obj$DrugAnnotation$Functional_Enrichment)
-  if (is.data.frame(enrich_df)) {
-    sheets[[paste0("Enriched_Terms_Top_", top_n)]] <- enrich_df
+  if (length(repurposing_sections) > 0) {
+    for (section in repurposing_sections) {
+      section_payload <- list(
+        RankAggregation = result_obj$RankAggregation[[section]],
+        DrugAnnotation = result_obj$DrugAnnotation[[section]]
+      )
+      sheets <- c(
+        sheets,
+        collect_summary_sheets(section_payload, prefix = paste0(section, "_"))
+      )
+    }
+  } else {
+    sheets <- c(sheets, collect_summary_sheets(result_obj))
   }
 
   # drop empty / invalid
