@@ -260,7 +260,7 @@ docker pull orhan1117/drugsignet:linux
 **macOS**
 
 ```bash
-docker pull orhan1117/drugsignet:mac
+docker pull orhan1117/drugsignet:macos
 ```
 
 **Windows**
@@ -284,7 +284,7 @@ docker run --rm -p 8787:8787 -e PASSWORD=drugsignet orhan1117/drugsignet:linux
 **macOS**
 
 ```bash
-docker run --rm -p 8787:8787 -e PASSWORD=drugsignet orhan1117/drugsignet:mac
+docker run --rm -p 8787:8787 -e PASSWORD=drugsignet orhan1117/drugsignet:macos
 ```
 
 **Windows (PowerShell)**
