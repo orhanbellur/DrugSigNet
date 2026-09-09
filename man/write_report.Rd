@@ -57,8 +57,9 @@ HTML reports include interactive sections for:
   \item Drug annotation,
   \item Visualization.
 }
-Tabular collections use styled, scrollable HTML tables with sticky headers;
-complex list or matrix columns are converted to readable cell text.
+Tabular collections use searchable, styled, scrollable HTML tables with
+sticky headers; complex list or matrix columns are converted to readable
+cell text without nesting HTML widgets inside Shiny tabs.
 
 Reports can optionally export pipeline results as Excel files using
 `write_pipeline_results()`. PDF reports require a LaTeX engine such as
