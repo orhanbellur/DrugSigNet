@@ -95,7 +95,7 @@
   "xelatex", "lualatex", "pdflatex"
 ))) {
   available <- names(paths)[nzchar(paths)]
-  preferred <- c("xelatex", "lualatex", "pdflatex")
+  preferred <- c("lualatex", "xelatex", "pdflatex")
   selected <- preferred[preferred %in% available]
   if (length(selected) == 0L) NULL else selected[[1]]
 }
@@ -131,8 +131,10 @@
 #' `pdflatex`, `xelatex`, or `lualatex`. If the `tinytex` R package is
 #' installed but no LaTeX engine is available, `write_report()` attempts to
 #' install TinyTeX automatically before rendering the PDF. When available,
-#' `xelatex` (then `lualatex`) is preferred over `pdflatex` so Unicode symbols
-#' in drug and gene annotations can be rendered directly.
+#' `lualatex` (then `xelatex`) is preferred over `pdflatex` so Unicode symbols
+#' in drug and gene annotations can be rendered directly. PDF tables use plain
+#' `knitr::kable()` output rather than nested scaling and float wrappers, which
+#' avoids TeX page-output failures for wide rank-aggregation tables.
 #'
 #' The visualization section is generated from every entry in
 #' `object@Visualization$plots`; it is not limited to a fixed set of plot names.
@@ -615,9 +617,10 @@ write_report <- function(object,
     "    table_format <- if (knitr::is_latex_output()) 'latex' else 'pipe'",
     "    table_rows <- if (knitr::is_latex_output()) 6 else report_table_rows",
     "    table_head <- utils::head(x, table_rows)",
-    "    tbl <- knitr::kable(table_head, format = table_format, escape = TRUE)",
-    "    if (knitr::is_latex_output() && requireNamespace('kableExtra', quietly = TRUE)) {",
-    "      tbl <- kableExtra::kable_styling(tbl, latex_options = c('scale_down', 'hold_position'), font_size = 7, full_width = FALSE)",
+    "    tbl <- if (knitr::is_latex_output()) {",
+    "      knitr::kable(table_head, format = 'latex', escape = TRUE, booktabs = TRUE)",
+    "    } else {",
+    "      knitr::kable(table_head, format = table_format, escape = TRUE)",
     "    }",
     "    return(tbl)",
     "  }",

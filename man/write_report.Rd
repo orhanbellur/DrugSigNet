@@ -78,8 +78,10 @@ Reports can optionally export pipeline results as Excel files using
 `pdflatex`, `xelatex`, or `lualatex`. If the `tinytex` R package is
 installed but no LaTeX engine is available, `write_report()` attempts to
 install TinyTeX automatically before rendering the PDF. When available,
-`xelatex` (then `lualatex`) is preferred over `pdflatex` so Unicode symbols
-in drug and gene annotations can be rendered directly.
+`lualatex` (then `xelatex`) is preferred over `pdflatex` so Unicode symbols
+in drug and gene annotations can be rendered directly. PDF tables use plain
+`knitr::kable()` output rather than nested scaling and float wrappers, which
+avoids TeX page-output failures for wide rank-aggregation tables.
 
 The visualization section is generated from every entry in
 `object@Visualization$plots`; it is not limited to a fixed set of plot names.

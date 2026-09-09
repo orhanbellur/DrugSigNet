@@ -27,11 +27,11 @@ test_that("PDF reports prefer a Unicode-capable LaTeX engine", {
 
   expect_identical(
     DrugSigNet:::.report_select_latex_engine(engines),
-    "xelatex"
+    "lualatex"
   )
   expect_identical(
-    DrugSigNet:::.report_select_latex_engine(engines[c("pdflatex", "lualatex")]),
-    "lualatex"
+    DrugSigNet:::.report_select_latex_engine(engines[c("pdflatex", "xelatex")]),
+    "xelatex"
   )
 })
 
