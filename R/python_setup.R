@@ -203,6 +203,7 @@ setup_python_dependencies <- function(
   }
 
   Sys.setenv(RETICULATE_PYTHON = python)
+  .drugsignet_load_conda_crypto(python)
   conda_packages <- .drugsignet_conda_packages(
     include_graph_tool = include_graph_tool
   )
@@ -219,6 +220,34 @@ setup_python_dependencies <- function(
     )
   }
   invisible(python)
+}
+
+.drugsignet_load_conda_crypto <- function(python) {
+  if (.Platform$OS.type == "windows" || !identical(Sys.info()[["sysname"]], "Linux")) {
+    return(invisible(FALSE))
+  }
+
+  conda_lib <- file.path(dirname(dirname(python)), "lib")
+  libraries <- file.path(conda_lib, c("libcrypto.so.3", "libssl.so.3"))
+  libraries <- libraries[file.exists(libraries)]
+  if (!length(libraries)) return(invisible(FALSE))
+
+  # R/RStudio commonly loads Ubuntu's OpenSSL 3.0 first. Current conda Python
+  # builds require newer versioned OpenSSL symbols. Make the matching conda
+  # libraries globally visible before reticulate initializes libpython.
+  for (library in libraries) {
+    tryCatch(
+      dyn.load(library, local = FALSE, now = TRUE),
+      error = function(e) {
+        warning(
+          "Could not load conda shared library ", library, ": ",
+          conditionMessage(e),
+          call. = FALSE
+        )
+      }
+    )
+  }
+  invisible(TRUE)
 }
 
 .drugsignet_conda_packages <- function(include_graph_tool = TRUE) {

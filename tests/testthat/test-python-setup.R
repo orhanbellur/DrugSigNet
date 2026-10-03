@@ -53,3 +53,11 @@ test_that("module probe does not initialize reticulate", {
     python, "a_drugsignet_module_that_does_not_exist"
   ))
 })
+
+test_that("graph construction avoids graph_tool.all drawing imports", {
+  script <- system.file("Python", "make_graphs.py", package = "DrugSigNet")
+  source <- readLines(script, warn = FALSE)
+
+  expect_true(any(grepl("^import graph_tool as gt$", source)))
+  expect_false(any(grepl("^import graph_tool\\.all", source)))
+})
