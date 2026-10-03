@@ -3,21 +3,20 @@
 #' @description
 #' Installs required Python modules for DrugSigNet using `reticulate`.
 #'
-#' By default, this installs core Python modules plus `kaleido`, which Plotly
-#' uses for static sunburst/image export. `graph_tool` is not installed
-#' automatically because it is not available from PyPI and usually needs conda
-#' or a system package manager.
+#' By default, this creates a dedicated conda environment containing the core
+#' Python modules, `kaleido`, and `graph_tool`. A dedicated environment is
+#' necessary because `graph_tool` is distributed by conda-forge rather than
+#' PyPI. It also prevents reticulate's `uv` environment from being initialized
+#' before the graph stack has been selected.
 #'
 #' @param envname Name of the Python environment to install into.
 #' @param method Installation backend passed to [reticulate::py_install()].
-#'   One of `"auto"`, `"virtualenv"`, or `"conda"`.
+#'   One of `"conda"`, `"auto"`, or `"virtualenv"`. The default is `"conda"`.
 #' @param include_graph_tool Logical; whether to attempt installing `graph_tool`.
-#'   If `NULL` (default), DrugSigNet treats it as `FALSE`. Install `graph_tool`
-#'   separately with conda or a system package manager when needed. If `TRUE`
-#'   and `method = "conda"`, DrugSigNet installs the conda package
-#'   `graph-tool` from the `conda-forge` channel.
+#'   The default is `TRUE`. If `TRUE`, `method` must be `"conda"`; DrugSigNet
+#'   installs the `graph-tool` package from the `conda-forge` channel.
 #' @param force Logical; if `TRUE`, reinstall requested modules even if already available.
-#' @param install_synapser Logical; if `TRUE`, install optional Synapse RAN support
+#' @param install_synapser Logical; if `TRUE`, install optional Synapse support
 #'   after configuring Python. This mirrors `DRUGSIGNET_INSTALL_SYNAPSER=true`
 #'   in `tools/install_local_drugsignet.R`.
 #' @param write_renviron Logical; if `TRUE`, persist the selected Python by
@@ -29,8 +28,8 @@
 #' @export
 setup_python_dependencies <- function(
     envname = "r-drugsignet",
-    method = c("auto", "virtualenv", "conda"),
-    include_graph_tool = NULL,
+    method = c("conda", "auto", "virtualenv"),
+    include_graph_tool = TRUE,
     force = FALSE,
     install_synapser = FALSE,
     write_renviron = FALSE,
@@ -38,8 +37,26 @@ setup_python_dependencies <- function(
   method <- match.arg(method)
 
   is_windows <- .drugsignet_is_windows()
-  if (is.null(include_graph_tool)) {
+  if (is.null(include_graph_tool)) include_graph_tool <- TRUE
+  if (is_windows && isTRUE(include_graph_tool)) {
+    warning("graph_tool is not supported on Windows and was skipped.", call. = FALSE)
     include_graph_tool <- FALSE
+  }
+  if (isTRUE(include_graph_tool) && !identical(method, "conda")) {
+    stop(
+      "graph_tool is not available from PyPI; use method = 'conda', or set ",
+      "include_graph_tool = FALSE.",
+      call. = FALSE
+    )
+  }
+
+  if (identical(method, "conda")) {
+    .drugsignet_prepare_conda_environment(
+      envname = envname,
+      include_graph_tool = include_graph_tool,
+      force = force,
+      quiet = quiet
+    )
   }
 
   packages <- .drugsignet_python_packages(include_graph_tool = FALSE)
@@ -106,10 +123,6 @@ setup_python_dependencies <- function(
     }
   }
 
-  if (is_windows && !quiet && graph_tool_requested) {
-    warning("graph_tool is not supported on Windows and was skipped.", call. = FALSE)
-  }
-
   selected_python <- .drugsignet_selected_python(envname = envname, method = method)
   if (isTRUE(write_renviron) && nzchar(selected_python)) {
     .drugsignet_write_reticulate_python(selected_python)
@@ -135,6 +148,77 @@ setup_python_dependencies <- function(
     graph_tool_requested = graph_tool_requested,
     graph_tool_installed = graph_tool_installed
   ))
+}
+
+.drugsignet_prepare_conda_environment <- function(envname, include_graph_tool,
+                                                   force = FALSE, quiet = FALSE) {
+  conda <- reticulate::conda_binary()
+  if (is.null(conda) || !nzchar(conda)) {
+    if (!quiet) message("Installing Miniconda for DrugSigNet.")
+    reticulate::install_miniconda()
+  }
+
+  python <- tryCatch(reticulate::conda_python(envname), error = function(e) "")
+  if (!length(python) || !nzchar(python) || !file.exists(python)) {
+    if (!quiet) message("Creating DrugSigNet conda environment: ", envname)
+    reticulate::conda_create(
+      envname = envname,
+      packages = c("python=3.10", "pip"),
+      channel = "conda-forge"
+    )
+    python <- reticulate::conda_python(envname)
+  }
+
+  # Once reticulate initializes Python it cannot switch interpreters in the
+  # same R session. Fail before installing into an environment that cannot be
+  # used, and tell the user exactly how to recover.
+  if (reticulate::py_available(initialize = FALSE)) {
+    active <- normalizePath(reticulate::py_config()$python, mustWork = FALSE)
+    requested <- normalizePath(python, mustWork = FALSE)
+    if (!identical(active, requested)) {
+      stop(
+        "reticulate has already initialized a different Python interpreter: ",
+        active, "\nRestart R and call setup_python_dependencies() before using ",
+        "reticulate or synapser.",
+        call. = FALSE
+      )
+    }
+  }
+
+  Sys.setenv(RETICULATE_PYTHON = python)
+  conda_packages <- c(
+    "numpy", "pandas", "scipy", "networkx", "joblib", "tqdm", "openpyxl",
+    "jinja2", "markupsafe", "kaleido"
+  )
+  if (isTRUE(include_graph_tool)) conda_packages <- c(conda_packages, "graph-tool")
+  python_modules <- .drugsignet_python_packages(
+    include_graph_tool = include_graph_tool
+  )
+  if (isTRUE(force) || !.drugsignet_python_has_modules(python, python_modules)) {
+    if (!quiet) message("Installing DrugSigNet Python dependencies from conda-forge.")
+    reticulate::conda_install(
+      envname = envname,
+      packages = conda_packages,
+      channel = "conda-forge",
+      pip = FALSE
+    )
+  }
+  invisible(python)
+}
+
+.drugsignet_python_has_modules <- function(python, modules) {
+  script <- tempfile(fileext = ".py")
+  on.exit(unlink(script), add = TRUE)
+  module_literal <- paste(sprintf("%s", encodeString(modules, quote = "\"")), collapse = ", ")
+  writeLines(
+    paste0(
+      "import importlib.util; assert all(importlib.util.find_spec(x) is not None for x in [",
+      module_literal, "])"
+    ),
+    script
+  )
+  status <- suppressWarnings(system2(python, script, stdout = FALSE, stderr = FALSE))
+  identical(status, 0L)
 }
 
 .drugsignet_python_packages <- function(include_graph_tool = FALSE) {
@@ -169,10 +253,7 @@ setup_python_dependencies <- function(
 }
 
 .drugsignet_install_synapser <- function(quiet = FALSE) {
-  repos <- c(
-    synapse = "http://ran.synapse.org",
-    CRAN = "https://cloud.r-project.org"
-  )
+  repos <- c(CRAN = "https://cloud.r-project.org")
 
   old_repos <- getOption("repos")
   old_timeout <- getOption("timeout")
@@ -180,68 +261,25 @@ setup_python_dependencies <- function(
   if (is.null(old_timeout) || is.na(old_timeout)) old_timeout <- 60
   options(repos = repos, timeout = max(1000, old_timeout))
 
-  # synapser 2.1.5.356 has a strict rjson <= 0.2.21 requirement. CRAN's normal
-  # dependency resolver selects the newer, incompatible release, so install the
-  # compatible archived source tarball directly. install.packages() installs a
-  # source-package archive without rebuilding its vignettes.
-  rjson_installed <- "rjson" %in% rownames(utils::installed.packages())
-  rjson_ok <- rjson_installed &&
-    .drugsignet_rjson_version_compatible(utils::packageVersion("rjson"))
-  if (!rjson_ok) {
-    if (isNamespaceLoaded("rjson")) {
-      tryCatch(
-        unloadNamespace("rjson"),
-        error = function(e) {
-          stop(
-            "The incompatible rjson namespace is already in use and cannot be ",
-            "replaced: ", conditionMessage(e),
-            "\nRestart R, load DrugSigNet, and call setup_synapser() again.",
-            call. = FALSE
-          )
-        }
-      )
-    }
-    if (!quiet) {
-      message("Installing Synapser-compatible rjson 0.2.21 from the CRAN archive.")
-    }
-    utils::install.packages(
-      "https://cloud.r-project.org/src/contrib/Archive/rjson/rjson_0.2.21.tar.gz",
-      repos = NULL,
-      type = "source",
-      quiet = quiet
+  if (!requireNamespace("remotes", quietly = TRUE)) {
+    utils::install.packages("remotes", repos = repos[["CRAN"]], quiet = quiet)
+  }
+  if (!quiet) {
+    message(
+      "Installing current 'synapser' from the official Sage Bionetworks repository."
     )
   }
-
-  tryCatch(
-    {
-      utils::install.packages(
-        "synapser", repos = repos, dependencies = FALSE, quiet = quiet
-      )
-    },
-    error = function(e) {
-      if (!quiet) {
-        message("Synapse R repository installation failed: ", conditionMessage(e))
-      }
-    }
+  # Do not try the legacy Synapse RAN release first. synapser 2.1.5.356 asks
+  # reticulate for numpy<=1.24.4 while modern reticulate may already have
+  # initialized a uv environment with NumPy 2, and its bootstrap assumes pip is
+  # present. The maintained 3.x package avoids that obsolete bootstrap path.
+  remotes::install_github(
+    "Sage-Bionetworks/synapser",
+    dependencies = TRUE,
+    upgrade = "never",
+    build_vignettes = FALSE,
+    quiet = quiet
   )
-
-  if (!.drugsignet_synapser_available()) {
-    if (!requireNamespace("remotes", quietly = TRUE)) {
-      utils::install.packages("remotes", repos = repos[["CRAN"]], quiet = quiet)
-    }
-    if (!quiet) {
-      message(
-        "Installing 'synapser' from its official Sage Bionetworks GitHub repository."
-      )
-    }
-    remotes::install_github(
-      "Sage-Bionetworks/synapser",
-      dependencies = FALSE,
-      upgrade = "never",
-      build_vignettes = FALSE,
-      quiet = quiet
-    )
-  }
   synapser_load <- tryCatch(
     {
       loadNamespace(.drugsignet_synapser_package())
@@ -269,9 +307,10 @@ setup_python_dependencies <- function(
 }
 
 .drugsignet_auto_install_enabled <- function() {
-  # Disabled by default to avoid surprising downloads or virtualenv creation
-  # during library(DrugSigNet). Users can opt in with an option/env var.
-  opt <- getOption("DrugSigNet.auto_install_python", FALSE)
+  # Network methods are core package functionality, so provision their Python
+  # environment on the first interactive attach unless the user explicitly
+  # opts out. Non-interactive checks/builds never start network downloads.
+  opt <- getOption("DrugSigNet.auto_install_python", interactive())
   env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_PYTHON", "")
 
   if (nzchar(env)) {

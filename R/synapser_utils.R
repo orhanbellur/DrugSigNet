@@ -5,7 +5,7 @@
     "Package 'synapser' is required for this Synapse-backed workflow.\n",
     "Install it with DrugSigNet's setup helper, then retry:\n",
     "  setup_synapser()\n",
-    "The helper installs the compatible rjson version before synapser."
+    "The helper installs the maintained synapser 3.x release from Sage's official GitHub repository."
   )
 }
 
@@ -14,9 +14,9 @@
 #' @description
 #' Installs and verifies the `synapser` R package used to download
 #' DrugSigNet networks, reference databases, and annotation resources. The
-#' package is installed from the Synapse R repository after its compatible
-#' `rjson` release is installed. A GitHub fallback is available when that
-#' repository is temporarily unavailable.
+#' package is installed from Sage Bionetworks' official GitHub repository. This
+#' deliberately avoids the obsolete Synapse RAN release and its incompatible
+#' Python bootstrap.
 #'
 #' DrugSigNet normally calls this helper automatically when a Synapse-backed
 #' function is first used. Call it directly to install and validate Synapse
@@ -50,7 +50,9 @@ setup_synapser <- function(quiet = FALSE) {
 }
 
 .drugsignet_synapser_available <- function() {
-  requireNamespace(.drugsignet_synapser_package(), quietly = TRUE)
+  package <- .drugsignet_synapser_package()
+  requireNamespace(package, quietly = TRUE) &&
+    utils::packageVersion(package) >= "3.0.0"
 }
 
 .drugsignet_require_synapser <- function(purpose) {

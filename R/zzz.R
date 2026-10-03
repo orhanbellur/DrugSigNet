@@ -28,11 +28,13 @@
   packageStartupMessage(paste(logo, message, sep = "\n"))
 
   if (.drugsignet_auto_install_enabled()) {
-    packageStartupMessage("DrugSigNet will attempt automatic Python dependency setup on attach (graph_tool is skipped by default).")
+    packageStartupMessage(
+      "DrugSigNet will ensure its conda Python environment, including graph_tool, is available."
+    )
     .drugsignet_maybe_auto_install_python()
   } else {
     packageStartupMessage(
-      "Python dependency auto setup is disabled by default. ",
+      "Python dependency auto setup has been disabled. ",
       "Run setup_python_dependencies() manually when you need Python-backed methods, ",
       "or set options(DrugSigNet.auto_install_python = TRUE) before library(DrugSigNet)."
     )

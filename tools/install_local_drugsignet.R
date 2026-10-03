@@ -20,7 +20,7 @@ truthy <- function(x) {
 pkg_dir <- normalizePath(Sys.getenv("DRUGSIGNET_PKG_DIR", "."), mustWork = TRUE)
 envname <- Sys.getenv("DRUGSIGNET_CONDA_ENV", "pyenv")
 install_graph_tool <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_GRAPH_TOOL", "true"))
-install_synapser <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_SYNAPSER", "false"))
+install_synapser <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_SYNAPSER", "true"))
 write_renviron <- truthy(Sys.getenv("DRUGSIGNET_WRITE_RENVIRON", "false"))
 
 repos <- c(
@@ -128,8 +128,13 @@ message("Installing DrugSigNet R dependencies from DESCRIPTION.")
 remotes::install_deps(pkg_dir, dependencies = TRUE, upgrade = "never", repos = repos)
 
 if (install_synapser) {
-  message("Installing optional synapser support.")
-  install.packages("synapser", repos = repos)
+  message("Installing current synapser from the official Sage repository.")
+  remotes::install_github(
+    "Sage-Bionetworks/synapser",
+    dependencies = TRUE,
+    upgrade = "never",
+    build_vignettes = FALSE
+  )
 }
 
 message("Installing DrugSigNet from ", pkg_dir)

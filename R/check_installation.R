@@ -88,7 +88,7 @@ check_drugsignet_installation <- function(check_python = TRUE,
 
   python_status <- data.frame(module = character(0), available = logical(0), stringsAsFactors = FALSE)
   if (isTRUE(check_python)) {
-    py_modules <- .drugsignet_python_packages(include_graph_tool = FALSE)
+    py_modules <- .drugsignet_python_packages(include_graph_tool = TRUE)
     if (requireNamespace("reticulate", quietly = TRUE)) {
       python_status <- data.frame(
         module = py_modules,

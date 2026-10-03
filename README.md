@@ -83,28 +83,38 @@ Load the package:
 library(DrugSigNet)
 ```
 
+On first interactive attach, DrugSigNet creates a dedicated `r-drugsignet` conda
+environment and installs all Python dependencies used by its network methods,
+including conda-forge's `graph-tool`. This intentionally happens before
+reticulate initializes Python, so a `uv`-managed interpreter cannot hide the
+graph environment. Restart R after the first setup if reticulate had already
+been used in the installation session. To opt out of automatic provisioning,
+set `options(DrugSigNet.auto_install_python = FALSE)` before loading DrugSigNet.
+
 ### Optional dependencies
 
 Some workflows require additional setup:
 
 - **Synapse-backed data** requires a Synapse personal access token and the
-  `synapser` package. DrugSigNet installs it automatically when a Synapse-backed
-  function is first called. Although `dependencies = TRUE` can install
-  `rjson 0.2.23` through optional `enrichR`, DrugSigNet loads `enrichR` only when
-  enrichment is requested. This allows the Synapser setup to replace `rjson`
-  with its compatible release before Synapser starts. To install and validate
+  `synapser` package. DrugSigNet installs the maintained 3.x release directly
+  from Sage Bionetworks' official GitHub repository when a Synapse-backed
+  function is first called. It deliberately skips the obsolete RAN release
+  (`2.1.5.356`), whose Python bootstrap is incompatible with modern
+  reticulate/uv environments. To install and validate
   Synapse support in advance, use:
 
   ```r
   DrugSigNet::setup_synapser()
   ```
 
-  The helper installs Synapser's required `rjson 0.2.21` directly from the CRAN
-  archive, installs Synapser without re-resolving that dependency, and verifies
-  that its namespace loads. Set
+  The helper installs the current Synapser release and verifies that its
+  namespace loads. Set
   `options(DrugSigNet.auto_install_synapser = FALSE)` before a Synapse call to
   disable automatic installation.
-- **Graph-tool-backed network methods** require a Python/conda environment with `graph-tool` available through `reticulate`.
+- **Graph-tool-backed network methods** use the automatically provisioned
+  `r-drugsignet` conda environment. You can repair or validate it explicitly
+  with `DrugSigNet::setup_python_dependencies()` and
+  `DrugSigNet::check_drugsignet_installation(stop_on_error = TRUE)`.
 - **Fully reproducible local execution** is supported through Docker.
 
 For local Python, Synapse, and Docker details, see [`DOCKER.md`](DOCKER.md), the vignettes, and the helper script `tools/install_local_drugsignet.R` in the repository.

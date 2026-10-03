@@ -16,9 +16,9 @@ namespace can be loaded.
 \description{
 Installs and verifies the \code{synapser} R package used to download
 DrugSigNet networks, reference databases, and annotation resources. The
-package is installed from the Synapse R repository after its compatible
-\code{rjson} release is installed. A GitHub fallback is available when that
-repository is temporarily unavailable.
+package is installed from Sage Bionetworks' official GitHub repository. This
+deliberately avoids the obsolete Synapse RAN release and its incompatible
+Python bootstrap.
 }
 \details{
 DrugSigNet normally calls this helper automatically when a Synapse-backed
