@@ -307,7 +307,8 @@ setup_python_dependencies <- function(
   writeLines(c(old, paste0("RETICULATE_PYTHON=", python)), renviron)
 }
 
-.drugsignet_install_synapser <- function(quiet = FALSE) {
+.drugsignet_install_synapser <- function(quiet = FALSE, verify = TRUE,
+                                         lib = NULL) {
   repos <- c(CRAN = "https://cloud.r-project.org")
 
   old_repos <- getOption("repos")
@@ -332,9 +333,12 @@ setup_python_dependencies <- function(
     "Sage-Bionetworks/synapser",
     dependencies = TRUE,
     upgrade = "never",
+    build = FALSE,
     build_vignettes = FALSE,
+    lib = lib,
     quiet = quiet
   )
+  if (!isTRUE(verify)) return(TRUE)
   synapser_load <- tryCatch(
     {
       loadNamespace(.drugsignet_synapser_package())

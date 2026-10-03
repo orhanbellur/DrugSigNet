@@ -7,7 +7,7 @@ set -eu
 
 case "${DRUGSIGNET_SKIP_RUNTIME_SETUP:-false}" in
   1|true|TRUE|yes|YES)
-    echo "DrugSigNet: skipping Python runtime setup by request"
+    echo "DrugSigNet: skipping Python/Synapser runtime setup by request"
     exit 0
     ;;
 esac

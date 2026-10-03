@@ -67,9 +67,9 @@ package rather than asking `remotes` to clone and rebuild the upstream
 
 During `R CMD INSTALL`, DrugSigNet's `configure` script also installs Miniconda
 when necessary, creates the `r-drugsignet` environment, installs the complete
-Python stack (including `graph-tool` on supported platforms). Synapser 3.x is a
-declared GitHub `Suggests` dependency, so `dependencies = TRUE` installs it
-before DrugSigNet rather than from inside the staged `configure` process. Thus
+Python stack (including `graph-tool` on supported platforms). The installer also
+installs Synapser 3.x directly from its checked-out GitHub source with upstream
+vignette rebuilding disabled. Thus
 the GitHub command above produces a ready-to-run installation
 rather than postponing external dependencies until the first analysis. Set
 `DRUGSIGNET_SKIP_RUNTIME_SETUP=true` before installation only when an image
@@ -107,8 +107,7 @@ graph environment. Restart R after the first setup if reticulate had already
 been used in the installation session. To opt out of automatic provisioning,
 set `options(DrugSigNet.auto_install_python = FALSE)` before loading DrugSigNet.
 Do not load `synapser` before DrugSigNet in an interactive R session: its
-`py_require()` call can initialize reticulate's separate `uv` interpreter. (The
-isolated dependency-install subprocess used by `remotes` is safe.) If that has already
+`py_require()` call can initialize reticulate's separate `uv` interpreter. If that has already
 happened, restart R and load DrugSigNet before running Synapse or network
 functions. DrugSigNet also verifies this environment immediately before its
 first graph-backed operation, so a missing `graph_tool` now produces recovery

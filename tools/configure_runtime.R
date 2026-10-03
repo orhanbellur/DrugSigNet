@@ -14,4 +14,31 @@ setup_python_dependencies(
   quiet = FALSE
 )
 
+installed <- utils::installed.packages()
+synapser_installed <- "synapser" %in% rownames(installed) &&
+  utils::compareVersion(installed["synapser", "Version"], "3.0.0") >= 0L
+if (!synapser_installed) {
+  # Staged vignette builds prepend a disposable temp_libpath. Install Synapser
+  # into the first writable persistent library so it survives that build and is
+  # available to the final DrugSigNet installation.
+  libraries <- .libPaths()
+  persistent <- libraries[!grepl("temp_libpath|/Rinst|/00LOCK", libraries)]
+  writable <- persistent[file.access(persistent, 2L) == 0L]
+  if (!length(writable)) {
+    user_library <- Sys.getenv("R_LIBS_USER")
+    if (!nzchar(user_library)) {
+      user_library <- file.path(path.expand("~"), "R", "library")
+    }
+    dir.create(user_library, recursive = TRUE, showWarnings = FALSE)
+    writable <- user_library
+  }
+
+  message("DrugSigNet: installing Synapser support into ", writable[[1L]], ".")
+  .drugsignet_install_synapser(
+    quiet = FALSE,
+    verify = FALSE,
+    lib = writable[[1L]]
+  )
+}
+
 message("DrugSigNet: external runtime setup is complete.")
