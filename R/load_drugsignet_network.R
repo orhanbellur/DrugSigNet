@@ -126,7 +126,7 @@ load_drugsignet_network <- function(network = c("drug_target", "gene_gene", "all
       )
     }
 
-    syn_meta <- .drugsignet_synapser_function("synGet")(synapse_data_id, downloadFile = FALSE)
+    syn_meta <- .drugsignet_syn_get(synapse_data_id, downloadFile = FALSE)
     remote_version <- as.integer(syn_meta$properties$versionNumber)
     remote_id <- as.character(syn_meta$properties$id)
     remote_name <- as.character(syn_meta$properties$name)
@@ -167,7 +167,7 @@ load_drugsignet_network <- function(network = c("drug_target", "gene_gene", "all
       unlink(local_file)
     }
 
-    syn_file <- .drugsignet_synapser_function("synGet")(
+    syn_file <- .drugsignet_syn_get(
       synapse_data_id,
       downloadLocation = cache_dir,
       ifcollision = "overwrite.local"
