@@ -20,7 +20,8 @@
 #'
 #' DrugSigNet normally calls this helper automatically when a Synapse-backed
 #' function is first used. Call it directly to install and validate Synapse
-#' support in advance.
+#' support in advance. The helper selects DrugSigNet's conda Python before
+#' loading Synapser so reticulate does not create a separate `uv` environment.
 #'
 #' @param quiet Logical; if `FALSE`, show package installation progress.
 #'
@@ -34,6 +35,11 @@
 #'
 #' @export
 setup_synapser <- function(quiet = FALSE) {
+  # Select DrugSigNet's Python before loading synapser. synapser declares its
+  # Python requirements with py_require(), which otherwise lets reticulate
+  # initialize a separate uv interpreter without graph_tool.
+  .drugsignet_prepare_synapser_python(quiet = quiet)
+
   if (.drugsignet_synapser_available()) {
     if (!isTRUE(quiet)) {
       message("Package 'synapser' is already installed and loadable.")
@@ -56,6 +62,8 @@ setup_synapser <- function(quiet = FALSE) {
 }
 
 .drugsignet_require_synapser <- function(purpose) {
+  .drugsignet_prepare_synapser_python(quiet = TRUE)
+
   if (!.drugsignet_synapser_available() && .drugsignet_auto_install_synapser_enabled()) {
     message("Installing Synapse support before attempting to ", purpose, ".")
     setup_synapser()
@@ -94,4 +102,38 @@ setup_synapser <- function(quiet = FALSE) {
 
 .drugsignet_synapser_function <- function(name) {
   getExportedValue(.drugsignet_synapser_package(), name)
+}
+
+.drugsignet_prepare_synapser_python <- function(quiet = TRUE) {
+  tryCatch(
+    setup_python_dependencies(
+      include_graph_tool = !.drugsignet_is_windows(),
+      quiet = quiet
+    ),
+    error = function(e) {
+      stop(
+        "Unable to select DrugSigNet's Python environment before loading synapser.\n",
+        conditionMessage(e),
+        "\nRestart R, load DrugSigNet first, and retry the Synapse operation.",
+        call. = FALSE
+      )
+    }
+  )
+  invisible(TRUE)
+}
+
+.drugsignet_syn_get <- function(entity, ...) {
+  syn_get <- .drugsignet_synapser_function("synGet")
+  requested <- list(...)
+  supported <- names(formals(syn_get))
+
+  # synapser 3.0.0's generated synGet wrapper accepts only `entity`, whereas
+  # 2.x exposes downloadFile/downloadLocation/ifcollision. Pass optional
+  # arguments only when the installed wrapper supports them. The 3.x default
+  # downloads files to Synapse's cache; callers subsequently copy that path to
+  # DrugSigNet's requested cache location.
+  if (!is.null(supported) && !"..." %in% supported) {
+    requested <- requested[names(requested) %in% supported]
+  }
+  do.call(syn_get, c(list(entity), requested))
 }

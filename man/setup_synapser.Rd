@@ -23,7 +23,8 @@ Python bootstrap.
 \details{
 DrugSigNet normally calls this helper automatically when a Synapse-backed
 function is first used. Call it directly to install and validate Synapse
-support in advance.
+support in advance. The helper selects DrugSigNet's conda Python before
+loading Synapser so reticulate does not create a separate \code{uv} environment.
 }
 \examples{
 \dontrun{

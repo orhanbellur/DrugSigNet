@@ -1,5 +1,6 @@
 test_that("setup_synapser does not reinstall an available package", {
   local_mocked_bindings(
+    .drugsignet_prepare_synapser_python = function(...) invisible(TRUE),
     .drugsignet_synapser_available = function() TRUE,
     .drugsignet_install_synapser = function(...) {
       stop("installer should not be called")
@@ -13,6 +14,7 @@ test_that("setup_synapser does not reinstall an available package", {
 test_that("setup_synapser installs missing optional support", {
   installed <- FALSE
   local_mocked_bindings(
+    .drugsignet_prepare_synapser_python = function(...) invisible(TRUE),
     .drugsignet_synapser_available = function() FALSE,
     .drugsignet_install_synapser = function(...) {
       installed <<- TRUE
@@ -27,6 +29,7 @@ test_that("setup_synapser installs missing optional support", {
 
 test_that("missing synapser error points to the setup helper", {
   local_mocked_bindings(
+    .drugsignet_prepare_synapser_python = function(...) invisible(TRUE),
     .drugsignet_synapser_available = function() FALSE,
     .drugsignet_auto_install_synapser_enabled = function() FALSE,
     .package = "DrugSigNet"
@@ -41,6 +44,7 @@ test_that("missing synapser error points to the setup helper", {
 test_that("Synapse requirements install support on first use", {
   available <- FALSE
   local_mocked_bindings(
+    .drugsignet_prepare_synapser_python = function(...) invisible(TRUE),
     .drugsignet_synapser_available = function() available,
     .drugsignet_auto_install_synapser_enabled = function() TRUE,
     setup_synapser = function(...) {
@@ -55,6 +59,49 @@ test_that("Synapse requirements install support on first use", {
     "Installing Synapse support"
   )
   expect_true(available)
+})
+
+test_that("synGet compatibility wrapper filters unsupported 3.x arguments", {
+  received <- NULL
+  local_mocked_bindings(
+    .drugsignet_synapser_function = function(name) {
+      function(entity) {
+        received <<- list(entity = entity)
+        "entity"
+      }
+    },
+    .package = "DrugSigNet"
+  )
+
+  expect_identical(
+    DrugSigNet:::.drugsignet_syn_get(
+      "syn123", downloadFile = FALSE, downloadLocation = tempdir()
+    ),
+    "entity"
+  )
+  expect_identical(received, list(entity = "syn123"))
+})
+
+test_that("synGet compatibility wrapper retains supported 2.x arguments", {
+  received <- NULL
+  local_mocked_bindings(
+    .drugsignet_synapser_function = function(name) {
+      function(entity, downloadFile = TRUE) {
+        received <<- list(entity = entity, downloadFile = downloadFile)
+        "entity"
+      }
+    },
+    .package = "DrugSigNet"
+  )
+
+  expect_identical(
+    DrugSigNet:::.drugsignet_syn_get("syn123", downloadFile = FALSE),
+    "entity"
+  )
+  expect_identical(
+    received,
+    list(entity = "syn123", downloadFile = FALSE)
+  )
 })
 
 test_that("Synapser rjson compatibility accepts only supported versions", {

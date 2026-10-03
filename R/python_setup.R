@@ -229,6 +229,34 @@ setup_python_dependencies <- function(
   pkgs
 }
 
+.drugsignet_require_graph_tool <- function() {
+  if (reticulate::py_available(initialize = FALSE) &&
+      reticulate::py_module_available("graph_tool")) {
+    return(invisible(TRUE))
+  }
+
+  tryCatch(
+    setup_python_dependencies(quiet = TRUE),
+    error = function(e) {
+      stop(
+        "DrugSigNet network methods require the conda graph-tool environment.\n",
+        conditionMessage(e),
+        "\nIf synapser or reticulate was used in this R session, restart R, ",
+        "load DrugSigNet first, and retry the network pipeline.",
+        call. = FALSE
+      )
+    }
+  )
+  if (!reticulate::py_module_available("graph_tool")) {
+    stop(
+      "DrugSigNet provisioned Python, but graph_tool is still unavailable. ",
+      "Run setup_python_dependencies(force = TRUE) and retry.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 .drugsignet_selected_python <- function(envname, method) {
   if (identical(method, "conda")) {
     py <- tryCatch(reticulate::conda_python(envname), error = function(e) "")

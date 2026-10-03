@@ -94,6 +94,12 @@ reticulate initializes Python, so a `uv`-managed interpreter cannot hide the
 graph environment. Restart R after the first setup if reticulate had already
 been used in the installation session. To opt out of automatic provisioning,
 set `options(DrugSigNet.auto_install_python = FALSE)` before loading DrugSigNet.
+Do not install or load `synapser` first in the same R session: its `py_require()`
+call can initialize reticulate's separate `uv` interpreter. If that has already
+happened, restart R and load DrugSigNet before running Synapse or network
+functions. DrugSigNet also verifies this environment immediately before its
+first graph-backed operation, so a missing `graph_tool` now produces recovery
+instructions rather than a Python `ModuleNotFoundError`.
 
 ### Optional dependencies
 
@@ -112,7 +118,9 @@ Some workflows require additional setup:
   ```
 
   The helper installs the current Synapser release and verifies that its
-  namespace loads. Set
+  namespace loads. Synapser is intentionally not an `Enhances` dependency:
+  `dependencies = TRUE` would otherwise install and initialize Synapser before
+  DrugSigNet can select the graph-tool conda environment. Set
   `options(DrugSigNet.auto_install_synapser = FALSE)` before a Synapse call to
   disable automatic installation.
 - **Graph-tool-backed network methods** use the automatically provisioned

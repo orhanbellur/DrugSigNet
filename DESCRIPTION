@@ -58,8 +58,6 @@ Suggests:
     tinytex,
     webr,
     wordcloud
-Enhances:
-    synapser
 VignetteBuilder: 
     knitr
 Config/testthat/edition: 3
