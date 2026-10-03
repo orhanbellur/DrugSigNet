@@ -60,8 +60,10 @@ This command installs the declared dependencies (including optional packages
 available from their declared repositories), leaves already installed
 dependencies at their current versions, and builds the package vignettes in the
 same transaction. DrugSigNet declares `signatureSearch` as a Bioconductor
-remote, so `remotes`/`devtools` can resolve it even when the active repository
-option contains only CRAN or Posit Package Manager.
+dependency, so keep `options(repos = BiocManager::repositories())` in the same
+R session as `install_github()`. This installs Bioconductor's published source
+package rather than asking `remotes` to clone and rebuild the upstream
+`signatureSearch` Git repository and its vignettes.
 
 Alternatively, install with `pak`:
 
