@@ -12,21 +12,19 @@
 #' Install optional Synapse support
 #'
 #' @description
-#' Installs and verifies the `synapser` R package used to download
-#' DrugSigNet networks, reference databases, and annotation resources. The
-#' package is installed from Sage Bionetworks' official GitHub repository. This
-#' deliberately avoids the obsolete Synapse RAN release and its incompatible
-#' Python bootstrap.
+#' Installs and verifies the isolated Python `synapseclient` used to download
+#' DrugSigNet networks, reference databases, and annotation resources. Synapse
+#' operations run in a child Python process so conda's OpenSSL libraries never
+#' collide with libraries already loaded into the R/RStudio process.
 #'
 #' DrugSigNet normally calls this helper automatically when a Synapse-backed
 #' function is first used. Call it directly to install and validate Synapse
 #' support in advance. The helper selects DrugSigNet's conda Python before
-#' loading Synapser so reticulate does not create a separate `uv` environment.
+#' running the client so reticulate does not create a separate `uv` environment.
 #'
 #' @param quiet Logical; if `FALSE`, show package installation progress.
 #'
-#' @return Invisibly returns `TRUE` after `synapser` has been installed and its
-#'   namespace can be loaded.
+#' @return Invisibly returns `TRUE` after `synapseclient` is available.
 #'
 #' @examples
 #' \dontrun{
@@ -35,19 +33,14 @@
 #'
 #' @export
 setup_synapser <- function(quiet = FALSE) {
-  # Select DrugSigNet's Python before loading synapser. synapser declares its
-  # Python requirements with py_require(), which otherwise lets reticulate
-  # initialize a separate uv interpreter without graph_tool.
+  # Keep the historical public helper name, but validate the out-of-process
+  # Python client rather than loading the Synapser R namespace.
   .drugsignet_prepare_synapser_python(quiet = quiet)
-
-  if (.drugsignet_synapser_available()) {
-    if (!isTRUE(quiet)) {
-      message("Package 'synapser' is already installed and loadable.")
-    }
-    return(invisible(TRUE))
+  python <- Sys.getenv("RETICULATE_PYTHON")
+  if (!nzchar(python) || !.drugsignet_python_has_modules(python, "synapseclient")) {
+    stop("Python Synapse client installation failed.", call. = FALSE)
   }
-
-  .drugsignet_install_synapser(quiet = quiet)
+  if (!isTRUE(quiet)) message("DrugSigNet's isolated Synapse client is ready.")
   invisible(TRUE)
 }
 
@@ -63,28 +56,12 @@ setup_synapser <- function(quiet = FALSE) {
 
 .drugsignet_require_synapser <- function(purpose) {
   .drugsignet_prepare_synapser_python(quiet = TRUE)
-
-  if (!.drugsignet_synapser_available() && .drugsignet_auto_install_synapser_enabled()) {
-    message("Installing Synapse support before attempting to ", purpose, ".")
-    setup_synapser()
-  }
-
-  load_result <- tryCatch(
-    {
-      available <- .drugsignet_synapser_available()
-      if (!isTRUE(available)) {
-        stop("there is no package called 'synapser'", call. = FALSE)
-      }
-      TRUE
-    },
-    error = function(e) e
-  )
-
-  if (!isTRUE(load_result)) {
+  python <- Sys.getenv("RETICULATE_PYTHON")
+  if (!nzchar(python) ||
+      !.drugsignet_python_has_modules(python, "synapseclient")) {
     stop(
-      "Package 'synapser' is required to ", purpose, ".\n",
-      "Load error: ", conditionMessage(load_result), "\n",
-      .drugsignet_synapser_install_message(),
+      "Python package 'synapseclient' is required to ", purpose, ".\n",
+      "Run setup_python_dependencies(force = TRUE) and retry.",
       call. = FALSE
     )
   }
@@ -101,6 +78,12 @@ setup_synapser <- function(quiet = FALSE) {
 }
 
 .drugsignet_synapser_function <- function(name) {
+  if (identical(name, "synLogin")) {
+    return(function(authToken) {
+      options(DrugSigNet.synapse_auth_token = authToken)
+      invisible(TRUE)
+    })
+  }
   getExportedValue(.drugsignet_synapser_package(), name)
 }
 
@@ -123,17 +106,34 @@ setup_synapser <- function(quiet = FALSE) {
 }
 
 .drugsignet_syn_get <- function(entity, ...) {
-  syn_get <- .drugsignet_synapser_function("synGet")
-  requested <- list(...)
-  supported <- names(formals(syn_get))
+  args <- list(...)
+  python <- Sys.getenv("RETICULATE_PYTHON")
+  script <- system.file("Python", "synapse_client.py", package = "DrugSigNet")
+  token <- getOption("DrugSigNet.synapse_auth_token", Sys.getenv("SYNAPSE_AUTH_TOKEN"))
+  old_token <- Sys.getenv("SYNAPSE_AUTH_TOKEN", unset = NA_character_)
+  on.exit({
+    if (is.na(old_token)) Sys.unsetenv("SYNAPSE_AUTH_TOKEN") else Sys.setenv(SYNAPSE_AUTH_TOKEN = old_token)
+  }, add = TRUE)
+  Sys.setenv(SYNAPSE_AUTH_TOKEN = token)
 
-  # synapser 3.0.0's generated synGet wrapper accepts only `entity`, whereas
-  # 2.x exposes downloadFile/downloadLocation/ifcollision. Pass optional
-  # arguments only when the installed wrapper supports them. The 3.x default
-  # downloads files to Synapse's cache; callers subsequently copy that path to
-  # DrugSigNet's requested cache location.
-  if (!is.null(supported) && !"..." %in% supported) {
-    requested <- requested[names(requested) %in% supported]
+  download <- !identical(args$downloadFile, FALSE)
+  location <- args$downloadLocation %||% ""
+  output <- system2(
+    python,
+    c(shQuote(script), shQuote(entity), if (download) "true" else "false", shQuote(location)),
+    stdout = TRUE,
+    stderr = TRUE
+  )
+  status <- attr(output, "status") %||% 0L
+  if (!identical(as.integer(status), 0L)) {
+    stop("Synapse Python client failed: ", paste(output, collapse = "\n"), call. = FALSE)
   }
-  do.call(syn_get, c(list(entity), requested))
+  json_lines <- output[grepl("^\\{", output)]
+  if (!length(json_lines)) {
+    stop("Synapse Python client returned no result: ", paste(output, collapse = "\n"), call. = FALSE)
+  }
+  result <- jsonlite::fromJSON(tail(json_lines, 1L), simplifyVector = TRUE)
+  list(properties = result$properties, path = result$path)
 }
+
+`%||%` <- function(x, y) if (is.null(x) || !length(x)) y else x

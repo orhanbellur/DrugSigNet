@@ -10,21 +10,19 @@ setup_synapser(quiet = FALSE)
 \item{quiet}{Logical; if \code{FALSE}, show package installation progress.}
 }
 \value{
-Invisibly returns \code{TRUE} after \code{synapser} has been installed and its
-namespace can be loaded.
+Invisibly returns \code{TRUE} after \code{synapseclient} is available.
 }
 \description{
-Installs and verifies the \code{synapser} R package used to download
-DrugSigNet networks, reference databases, and annotation resources. The
-package is installed from Sage Bionetworks' official GitHub repository. This
-deliberately avoids the obsolete Synapse RAN release and its incompatible
-Python bootstrap.
+Installs and verifies the isolated Python \code{synapseclient} used to download
+DrugSigNet networks, reference databases, and annotation resources. Synapse
+operations run in a child Python process so conda's OpenSSL libraries never
+collide with libraries already loaded into the R/RStudio process.
 }
 \details{
 DrugSigNet normally calls this helper automatically when a Synapse-backed
 function is first used. Call it directly to install and validate Synapse
 support in advance. The helper selects DrugSigNet's conda Python before
-loading Synapser so reticulate does not create a separate \code{uv} environment.
+running the client so reticulate does not create a separate \code{uv} environment.
 }
 \examples{
 \dontrun{

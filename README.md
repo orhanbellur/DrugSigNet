@@ -106,10 +106,9 @@ reticulate initializes Python, so a `uv`-managed interpreter cannot hide the
 graph environment. Restart R after the first setup if reticulate had already
 been used in the installation session. To opt out of automatic provisioning,
 set `options(DrugSigNet.auto_install_python = FALSE)` before loading DrugSigNet.
-Do not load `synapser` before DrugSigNet in an interactive R session: its
-`py_require()` call can initialize reticulate's separate `uv` interpreter. If that has already
-happened, restart R and load DrugSigNet before running Synapse or network
-functions. DrugSigNet also verifies this environment immediately before its
+DrugSigNet runs Synapse operations through an isolated child Python process;
+the R process never imports `synapseclient` or its OpenSSL bindings. DrugSigNet
+also verifies this environment immediately before its
 first graph-backed operation, so a missing `graph_tool` now produces recovery
 instructions rather than a Python `ModuleNotFoundError`.
 
@@ -117,22 +116,20 @@ instructions rather than a Python `ModuleNotFoundError`.
 
 Some workflows require additional setup:
 
-- **Synapse-backed data** requires a Synapse personal access token and the
-  `synapser` package. DrugSigNet installs the maintained 3.x release directly
-  from Sage Bionetworks' official GitHub repository when a Synapse-backed
-  function is first called. It deliberately skips the obsolete RAN release
-  (`2.1.5.356`), whose Python bootstrap is incompatible with modern
-  reticulate/uv environments. To install and validate
+- **Synapse-backed data** requires a Synapse personal access token. DrugSigNet
+  installs the maintained Python `synapseclient` into its conda environment and
+  invokes it out of process. This avoids the OpenSSL collision caused by loading
+  conda's SSL extension inside an RStudio process that already loaded Ubuntu's
+  `libcrypto`. To validate
   Synapse support in advance, use:
 
   ```r
   DrugSigNet::setup_synapser()
   ```
 
-  The helper installs the current Synapser release and verifies that its
-  namespace loads. Set
-  `options(DrugSigNet.auto_install_synapser = FALSE)` before a Synapse call to
-  disable automatic installation.
+  The legacy function name is retained for compatibility; the helper now
+  validates the isolated Python client rather than loading the Synapser R
+  namespace.
 - **Graph-tool-backed network methods** use the automatically provisioned
   `r-drugsignet` conda environment. You can repair or validate it explicitly
   with `DrugSigNet::setup_python_dependencies()` and

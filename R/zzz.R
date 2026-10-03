@@ -40,10 +40,7 @@
     )
   }
 
-  if (!.drugsignet_synapser_available()) {
-    packageStartupMessage(
-      "Synapse support will be installed on first use. Run setup_synapser() now, ",
-      "or set options(DrugSigNet.auto_install_synapser = FALSE) to disable this."
-    )
-  }
+  packageStartupMessage(
+    "Synapse operations use the isolated Python client in the DrugSigNet conda environment."
+  )
 }

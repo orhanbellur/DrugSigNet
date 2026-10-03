@@ -20,7 +20,7 @@ truthy <- function(x) {
 pkg_dir <- normalizePath(Sys.getenv("DRUGSIGNET_PKG_DIR", "."), mustWork = TRUE)
 envname <- Sys.getenv("DRUGSIGNET_CONDA_ENV", "pyenv")
 install_graph_tool <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_GRAPH_TOOL", "true"))
-install_synapser <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_SYNAPSER", "true"))
+install_synapser <- truthy(Sys.getenv("DRUGSIGNET_INSTALL_SYNAPSER", "false"))
 write_renviron <- truthy(Sys.getenv("DRUGSIGNET_WRITE_RENVIRON", "false"))
 
 repos <- c(
