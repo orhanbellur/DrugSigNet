@@ -59,7 +59,9 @@ devtools::install_github(
 This command installs the declared dependencies (including optional packages
 available from their declared repositories), leaves already installed
 dependencies at their current versions, and builds the package vignettes in the
-same transaction.
+same transaction. DrugSigNet declares `signatureSearch` as a Bioconductor
+remote, so `remotes`/`devtools` can resolve it even when the active repository
+option contains only CRAN or Posit Package Manager.
 
 Alternatively, install with `pak`:
 

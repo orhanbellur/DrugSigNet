@@ -13,6 +13,8 @@ Description: R package to conduct in silico drug repurposing analysis by
 License: MIT + file LICENSE
 URL: https://github.com/compneurobio/DrugSigNet
 BugReports: https://github.com/compneurobio/DrugSigNet/issues
+Remotes:
+    bioc::release/signatureSearch
 Imports: 
     BoutrosLab.plotting.general,
     rcdk,
