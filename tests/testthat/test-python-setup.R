@@ -5,6 +5,16 @@ test_that("complete conda graph environment is the setup default", {
   expect_true(eval(defaults$include_graph_tool))
 })
 
+test_that("conda transaction excludes pip-only kaleido", {
+  packages <- DrugSigNet:::.drugsignet_conda_packages(
+    include_graph_tool = TRUE
+  )
+
+  expect_true("graph-tool" %in% packages)
+  expect_false("kaleido" %in% packages)
+  expect_true("kaleido" %in% DrugSigNet:::.drugsignet_python_packages())
+})
+
 test_that("automatic Python setup follows interactivity unless overridden", {
   with_clean_python_setup <- function(code) {
     old_env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_PYTHON", unset = NA_character_)

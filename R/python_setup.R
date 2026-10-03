@@ -203,11 +203,9 @@ setup_python_dependencies <- function(
   }
 
   Sys.setenv(RETICULATE_PYTHON = python)
-  conda_packages <- c(
-    "numpy", "pandas", "scipy", "networkx", "joblib", "tqdm", "openpyxl",
-    "jinja2", "markupsafe", "kaleido"
+  conda_packages <- .drugsignet_conda_packages(
+    include_graph_tool = include_graph_tool
   )
-  if (isTRUE(include_graph_tool)) conda_packages <- c(conda_packages, "graph-tool")
   python_modules <- .drugsignet_python_packages(
     include_graph_tool = include_graph_tool
   )
@@ -221,6 +219,18 @@ setup_python_dependencies <- function(
     )
   }
   invisible(python)
+}
+
+.drugsignet_conda_packages <- function(include_graph_tool = TRUE) {
+  # kaleido is intentionally absent: current conda-forge repositories do not
+  # publish it for all supported platforms. setup_python_dependencies() detects
+  # it after this conda transaction and installs it with pip into the same env.
+  packages <- c(
+    "numpy", "pandas", "scipy", "networkx", "joblib", "tqdm", "openpyxl",
+    "jinja2", "markupsafe"
+  )
+  if (isTRUE(include_graph_tool)) packages <- c(packages, "graph-tool")
+  packages
 }
 
 .drugsignet_python_has_modules <- function(python, modules) {
