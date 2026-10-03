@@ -152,10 +152,27 @@ setup_python_dependencies <- function(
 
 .drugsignet_prepare_conda_environment <- function(envname, include_graph_tool,
                                                    force = FALSE, quiet = FALSE) {
-  conda <- reticulate::conda_binary()
+  # conda_binary() raises an error (rather than returning NULL) when conda is
+  # absent in recent reticulate releases. Treat both outcomes as "not found"
+  # so a clean Rocker/RStudio image reaches the Miniconda bootstrap below.
+  conda <- tryCatch(
+    reticulate::conda_binary(),
+    error = function(e) NULL
+  )
   if (is.null(conda) || !nzchar(conda)) {
     if (!quiet) message("Installing Miniconda for DrugSigNet.")
     reticulate::install_miniconda()
+    conda <- tryCatch(
+      reticulate::conda_binary(),
+      error = function(e) NULL
+    )
+  }
+  if (is.null(conda) || !nzchar(conda)) {
+    stop(
+      "Miniconda installation completed, but reticulate still cannot find its ",
+      "conda binary. Restart R and run setup_python_dependencies() again.",
+      call. = FALSE
+    )
   }
 
   python <- tryCatch(reticulate::conda_python(envname), error = function(e) "")
