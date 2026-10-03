@@ -65,6 +65,15 @@ R session as `install_github()`. This installs Bioconductor's published source
 package rather than asking `remotes` to clone and rebuild the upstream
 `signatureSearch` Git repository and its vignettes.
 
+During `R CMD INSTALL`, DrugSigNet's `configure` script also installs Miniconda
+when necessary, creates the `r-drugsignet` environment, installs the complete
+Python stack (including `graph-tool` on supported platforms), and installs
+Synapser 3.x. Thus the GitHub command above produces a ready-to-run installation
+rather than postponing external dependencies until the first analysis. Set
+`DRUGSIGNET_SKIP_RUNTIME_SETUP=true` before installation only when an image
+builder or administrator will provide those dependencies separately. External
+downloads are automatically disabled during `R CMD check`.
+
 Alternatively, install with `pak`:
 
 ```r
@@ -87,9 +96,10 @@ Load the package:
 library(DrugSigNet)
 ```
 
-On first interactive attach, DrugSigNet creates a dedicated `r-drugsignet` conda
-environment and installs all Python dependencies used by its network methods,
-including conda-forge's `graph-tool`. This intentionally happens before
+The installer creates a dedicated `r-drugsignet` conda environment containing
+all Python dependencies used by the network methods, including conda-forge's
+`graph-tool`. Interactive attach verifies and repairs this environment when
+needed. Provisioning intentionally happens before
 reticulate initializes Python, so a `uv`-managed interpreter cannot hide the
 graph environment. Restart R after the first setup if reticulate had already
 been used in the installation session. To opt out of automatic provisioning,
