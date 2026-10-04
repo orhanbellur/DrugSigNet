@@ -238,6 +238,7 @@ createNodeToEdge <- function(ppi_network, drug_target_network) {
 #' @param gene_node Gene node data.
 #' @param file_name Output file name for the graph network.
 createGraphNetwork <- function(drug_node_edge, gene_node_edge, drug_node, gene_node, file_name) {
+  .drugsignet_require_graph_tool()
   python_graph_script <- system.file("Python", "make_graphs.py", package = "DrugSigNet")
   if (!file.exists(python_graph_script)) {
     stop("Unable to find Python script: make_graphs.py in the package directory.")

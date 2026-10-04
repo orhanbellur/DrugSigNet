@@ -10,20 +10,19 @@ setup_synapser(quiet = FALSE)
 \item{quiet}{Logical; if \code{FALSE}, show package installation progress.}
 }
 \value{
-Invisibly returns \code{TRUE} after \code{synapser} has been installed and its
-namespace can be loaded.
+Invisibly returns \code{TRUE} after \code{synapseclient} is available.
 }
 \description{
-Installs and verifies the \code{synapser} R package used to download
-DrugSigNet networks, reference databases, and annotation resources. The
-package is installed from the Synapse R repository after its compatible
-\code{rjson} release is installed. A GitHub fallback is available when that
-repository is temporarily unavailable.
+Installs and verifies the isolated Python \code{synapseclient} used to download
+DrugSigNet networks, reference databases, and annotation resources. Synapse
+operations run in a child Python process so conda's OpenSSL libraries never
+collide with libraries already loaded into the R/RStudio process.
 }
 \details{
 DrugSigNet normally calls this helper automatically when a Synapse-backed
 function is first used. Call it directly to install and validate Synapse
-support in advance.
+support in advance. The helper selects DrugSigNet's conda Python before
+running the client so reticulate does not create a separate \code{uv} environment.
 }
 \examples{
 \dontrun{

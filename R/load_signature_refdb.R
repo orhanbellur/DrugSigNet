@@ -103,7 +103,7 @@ load_signature_refdb <- function(refdb = c("cmap", "lincs2"),
 
   .drugsignet_synapser_function("synLogin")(authToken = auth_token)
 
-  syn_meta <- .drugsignet_synapser_function("synGet")(synapse_data_id, downloadFile = FALSE)
+  syn_meta <- .drugsignet_syn_get(synapse_data_id, downloadFile = FALSE)
   remote_version <- as.integer(syn_meta$properties$versionNumber)
   remote_id <- as.character(syn_meta$properties$id)
 
@@ -147,7 +147,7 @@ load_signature_refdb <- function(refdb = c("cmap", "lincs2"),
     unlink(local_file)
   }
 
-  syn_file <- .drugsignet_synapser_function("synGet")(
+  syn_file <- .drugsignet_syn_get(
     synapse_data_id,
     downloadLocation = cache_dir,
     ifcollision = "overwrite.local"
