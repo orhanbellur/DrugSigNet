@@ -1,5 +1,7 @@
- # Importing graph_tool,pandas library for graph creation and manipulation
-import graph_tool.all as gt
+# Import only graph_tool's core module. graph_tool.all eagerly imports its GTK
+# drawing stack, which can collide with the system fontconfig/GTK libraries
+# already loaded by RStudio even though DrugSigNet never draws through Python.
+import graph_tool as gt
 import pandas as pd
 
 def _as_df(data, sheet_name=None):

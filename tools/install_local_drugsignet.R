@@ -128,8 +128,13 @@ message("Installing DrugSigNet R dependencies from DESCRIPTION.")
 remotes::install_deps(pkg_dir, dependencies = TRUE, upgrade = "never", repos = repos)
 
 if (install_synapser) {
-  message("Installing optional synapser support.")
-  install.packages("synapser", repos = repos)
+  message("Installing current synapser from the official Sage repository.")
+  remotes::install_github(
+    "Sage-Bionetworks/synapser",
+    dependencies = TRUE,
+    upgrade = "never",
+    build_vignettes = FALSE
+  )
 }
 
 message("Installing DrugSigNet from ", pkg_dir)

@@ -88,11 +88,20 @@ check_drugsignet_installation <- function(check_python = TRUE,
 
   python_status <- data.frame(module = character(0), available = logical(0), stringsAsFactors = FALSE)
   if (isTRUE(check_python)) {
-    py_modules <- .drugsignet_python_packages(include_graph_tool = FALSE)
+    py_modules <- .drugsignet_python_packages(include_graph_tool = TRUE)
     if (requireNamespace("reticulate", quietly = TRUE)) {
+      python <- Sys.getenv("RETICULATE_PYTHON")
       python_status <- data.frame(
         module = py_modules,
-        available = vapply(py_modules, reticulate::py_module_available, FUN.VALUE = logical(1)),
+        available = if (nzchar(python) && file.exists(python)) {
+          vapply(
+            py_modules,
+            function(module) .drugsignet_python_has_modules(python, module),
+            FUN.VALUE = logical(1)
+          )
+        } else {
+          vapply(py_modules, reticulate::py_module_available, FUN.VALUE = logical(1))
+        },
         stringsAsFactors = FALSE
       )
     } else {
