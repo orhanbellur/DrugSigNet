@@ -67,7 +67,10 @@ package rather than asking `remotes` to clone and rebuild the upstream
 
 During `R CMD INSTALL`, DrugSigNet's `configure` script also installs Miniconda
 when necessary, creates the `r-drugsignet` environment, installs the complete
-Python stack (including `graph-tool` on supported platforms). The installer also
+Python stack (including `graph-tool` on Linux and macOS). Native Windows
+installation provisions conda, Python, reticulate-backed modules, Kaleido, and
+the Synapse client but skips `graph-tool`, which is not available for Windows.
+The selected conda Python is persisted in `~/.Renviron`. The installer also
 installs Synapser 3.x directly from its checked-out GitHub source with upstream
 vignette rebuilding disabled. Thus
 the GitHub command above produces a ready-to-run installation
@@ -339,6 +342,29 @@ Users who prefer to build DrugSigNet from source can build the Linux image from 
 ```bash
 docker buildx build --load -f docker/linux/Dockerfile -t drugsignet:linux .
 ```
+
+The maintained image uses R 4.5.x with its matching Bioconductor release and
+checks the complete installation while building. Pulling
+`rocker/rstudio:4.5.2` only downloads the base image: it does not execute the
+`apt-get`, Java configuration, R-package, or Python-package installation steps
+in a Dockerfile that starts `FROM rocker/rstudio:4.5.2`. Therefore, the same R
+version can work in a derived image and fail in the bare Rocker image. Use the
+maintained build above, or build—not merely pull—your complete custom
+Dockerfile.
+
+For a custom Debian, Ubuntu, or Rocker image, a single root command installs
+the native prerequisites, R/Bioconductor dependencies, DrugSigNet, its Python
+runtime, and validates the result:
+
+```dockerfile
+COPY . /opt/DrugSigNet
+RUN /opt/DrugSigNet/tools/install_drugsignet_linux.sh
+```
+
+This must be an outer installation entry point rather than a package
+`configure` hook because R installs dependencies before running DrugSigNet's
+hook. The package's `SystemRequirements` field also records the native
+requirements; see [`DOCKER.md`](DOCKER.md) for the complete Rocker example.
 
 For platform-specific builds, configuration, and troubleshooting, see [`DOCKER.md`](DOCKER.md).
 The repository includes `docker/macos/build.sh` for Apple Silicon and Intel
