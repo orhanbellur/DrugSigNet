@@ -42,8 +42,10 @@
 #'   `"max"`, `"min"`, and `"dense"`. Default is `"max"`.
 #' @param prior Numeric prior used by CRank aggregation. Default is `0.093`.
 #' @param num_bin Number of bins used by CRank aggregation. Default is `200`.
-#' @param n_workers Number of parallel workers used for signature-search
-#'   methods. Default is `1`.
+#' @param n_workers Requested worker count. Signature-search methods currently
+#'   run sequentially because concurrent `signatureSearch` HDF5/cache access can
+#'   crash R workers. Values above one are accepted for API compatibility and
+#'   reduced to one with a message. Default is `1`.
 #' @param chunk_size Integer; number of reference signatures processed per
 #'   chunk by each signature-search method. Default is `5000`.
 #' @inheritParams get_drug_signature
@@ -133,7 +135,7 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
     stop("`top_k` must be a single positive integer value.")
   }
   top_k <- as.integer(top_k)
-  n_workers <- max(1L, as.integer(n_workers))
+  n_workers <- .resolve_signature_worker_count(n_workers)
   if (!is.null(trial_condition)) {
     if (!is.character(trial_condition) || length(trial_condition) != 1 || is.na(trial_condition) || !nzchar(trial_condition)) {
       stop("`trial_condition` must be NULL or a single non-empty character string.")
@@ -174,13 +176,6 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
       )
     }
 
-    resolve_signature_refdb <- function(refdb_key) {
-      if (!identical(signature_refdb_mode, "default")) {
-        return(signature_refdb_paths[[refdb_key]])
-      }
-      refdb_key
-    }
-
     ## --------------------------
     ## Drug synonym preprocessing
     ## --------------------------
@@ -203,59 +198,55 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
     ## --------------------------
     ## Process single method dispatcher
     ## --------------------------
-    signature_method_config <- .signature_method_config
-    process_method <- function(method, sig_input_edit) {
-      method_config <- signature_method_config(method, method_registry)
-      db_key <- method_config[["ref_db"]]
-      db_ref <- resolve_signature_refdb(db_key)
-      adjusted_padj <- if (db_key == "cmap") padj else NULL
-
-      if (method_config[["family"]] == "CMAP") {
-        cmap_method(upset = as.character(sig_input_edit$up[,1]), downset = as.character(sig_input_edit$down[,1]), ref_db = db_ref, chunk_size = chunk_size)
-      } else if (method_config[["family"]] == "LINCS") {
-        lincs_method(upset = as.character(sig_input_edit$up[,1]), downset = as.character(sig_input_edit$down[,1]), ref_db = db_ref, chunk_size = chunk_size)
-      } else if (method_config[["family"]] == "gCMAP") {
-        input_max <- min(sig_input_edit$exp[sig_input_edit$exp > 0])
-        input_min <- max(sig_input_edit$exp[sig_input_edit$exp < 0])
-        gcmap_method(signature_matrix = sig_input_edit$exp, ref_db = db_ref, higher = input_max, lower = input_min, padj = adjusted_padj, chunk_size = chunk_size)
-      } else if (method_config[["family"]] == "Correlation") {
-        correlation_method(signature_matrix = sig_input_edit$exp, ref_db = db_ref, chunk_size = chunk_size)
-      } else {
-        stop("Unknown processing method.")
-      }
-    }
-
     ## --------------------------
     ## Shared parallel task runner
     ## --------------------------
-    run_method_once <- function(method) {
-      tryCatch({
-        # Keep signatureSearch attached in both sequential execution and each
-        # parallel worker. Its annotation methods use unqualified data() calls,
-        # while the individual method wrapper provides the same protection when
-        # it is invoked outside this pipeline.
-        .with_signature_search_attached(
-          process_method(method, signature_input_edit)
-        )
-      }, error = function(e) {
-        structure(
-          list(method = method, message = conditionMessage(e)),
-          class = "DrugSigNetSignatureMethodError"
-        )
-      })
-    }
+    # Pass compact, self-contained task payloads to PSOCK workers instead of a
+    # nested closure that captures the complete pipeline frame. Keep reference
+    # databases in separate phases: finish all CMAP-reference methods before
+    # any LINCS2-reference method starts. Signature methods intentionally run
+    # sequentially because signatureSearch's HDF5/cache operations have crashed
+    # under both same-database and cross-database process concurrency.
+    method_names <- method_registry$method
+    names(method_names) <- method_names
+    signature_tasks <- lapply(method_names, function(method) {
+      config <- .signature_method_config(method, method_registry)
+      db_key <- config[["ref_db"]]
+      list(
+        method = method,
+        family = config[["family"]],
+        ref_db = if (identical(signature_refdb_mode, "default")) db_key else signature_refdb_paths[[db_key]],
+        db_key = db_key,
+        signature = signature_input_edit,
+        padj = padj,
+        chunk_size = chunk_size
+      )
+    })
+    names(signature_tasks) <- method_names
 
-    .pipeline_message("Signature", sprintf("Running %d signature search methods.", length(method_names)), 3, 10)
-    GESS_res <- run_pipeline_tasks(
-      tasks = method_names,
-      FUN = run_method_once,
-      n_workers = n_workers,
-      label = "Signature method",
-      task_label = identity,
-      psock_packages = c("DrugSigNet", "signatureSearch"),
-      fallback = TRUE,
-      progress = TRUE
+    task_groups <- .group_signature_tasks_by_refdb(
+      signature_tasks,
+      ref_order = unique(method_registry$ref_db)
     )
+    .pipeline_message("Signature", sprintf("Running %d signature search methods.", length(method_names)), 3, 10)
+    grouped_results <- lapply(names(task_groups), function(db_key) {
+      message(
+        "[DrugSigNet] Signature reference phase: ", db_key,
+        " (", length(task_groups[[db_key]]), " method(s))."
+      )
+      run_pipeline_tasks(
+        tasks = task_groups[[db_key]],
+        FUN = .run_signature_method_task,
+        n_workers = n_workers,
+        label = paste0("Signature method [", db_key, "]"),
+        task_label = function(task) task$method,
+        psock_packages = c("DrugSigNet", "signatureSearch"),
+        psock_outfile = "",
+        fallback = TRUE,
+        progress = TRUE
+      )
+    })
+    GESS_res <- do.call(c, unname(grouped_results))
 
     failed_methods <- vapply(
       GESS_res,

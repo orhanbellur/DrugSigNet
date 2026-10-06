@@ -16,7 +16,11 @@ BugReports: https://github.com/compneurobio/DrugSigNet/issues
 Imports: 
     BoutrosLab.plotting.general,
     rcdk,
+    data.table,
     dplyr,
+    enrichR,
+    ggalluvial,
+    ggforce,
     ggsci,
     ggplot2,
     ggraph,
@@ -26,6 +30,7 @@ Imports:
     methods,
     openxlsx,
     parallel,
+    plotly,
     purrr,
     reticulate,
     rlang,
@@ -37,17 +42,15 @@ Imports:
     tibble,
     tidyr,
     tidyselect,
-    utils
+    utils,
+    wordcloud
 Suggests: 
     AnnotationDbi,
     ExperimentHub,
     HDF5Array,
-    enrichR,
-    ggalluvial,
     httr,
     kableExtra,
     knitr,
-    plotly,
     pkgload,
     psych,
     readr,
@@ -57,13 +60,17 @@ Suggests:
     rmarkdown,
     testthat,
     tinytex,
-    webr,
-    wordcloud
+    webr
 VignetteBuilder: 
-    knitr
+    knitr,
+    rmarkdown
 Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
 Depends: 
-    R (>= 3.5)
+    R (>= 4.5.0)
+SystemRequirements: Java Development Kit, GNU make, C/C++ and Fortran
+    compilers, CMake, pkg-config, libcurl, OpenSSL, libxml2, ICU, SQLite,
+    zlib, bzip2, xz, GSL, GLPK, PNG, JPEG, TIFF, Cairo, Fontconfig,
+    FreeType, HarfBuzz, FriBidi, X11, libssh2, libgit2, udunits2, GMP, MPFR
 Config/roxygen2/version: 8.0.0

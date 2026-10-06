@@ -11,6 +11,7 @@ run_pipeline_tasks(
   label = "Pipeline task",
   task_label = NULL,
   psock_packages = character(),
+  psock_outfile = "/dev/null",
   allow_psock = TRUE,
   fallback = TRUE,
   progress = TRUE
@@ -29,11 +30,16 @@ run_pipeline_tasks(
 
 \item{psock_packages}{Character vector of packages loaded on PSOCK workers.}
 
+\item{psock_outfile}{File used for PSOCK worker output. The default discards
+worker output. Use \code{""} to stream worker messages to the current console.}
+
 \item{allow_psock}{Logical; whether PSOCK workers may be used when fork
 workers are unavailable. If `FALSE`, PSOCK-only environments run tasks
 sequentially to avoid separate-session namespace/version drift.}
 
-\item{fallback}{Logical; whether to retry sequentially on parallel failure.}
+\item{fallback}{Logical; whether to retry sequentially when PSOCK cluster
+setup fails before any task starts. A failure after task execution begins
+is never retried because doing so would execute expensive tasks twice.}
 
 \item{progress}{Logical; whether to show a text progress bar.}
 }
@@ -41,8 +47,8 @@ sequentially to avoid separate-session namespace/version drift.}
 A list of task results, preserving task names.
 }
 \description{
-Internal helper shared by pipeline functions to choose a fork/PSOCK backend,
-cap worker counts, show simple progress, and fall back to sequential
+Internal helper shared by pipeline functions to use portable base-R PSOCK
+workers, cap worker counts, show simple progress, and fall back to sequential
 execution if parallel execution fails.
 }
 \keyword{internal}
