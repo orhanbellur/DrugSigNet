@@ -1,5 +1,28 @@
 #!/bin/sh
 
-# Keep installation side-effect free; dependencies are resolved from
-# DESCRIPTION by the package manager before staged installation begins.
-exit 0
+# Provision the supported Python runtime during Windows source installation.
+# graph-tool is intentionally omitted because conda-forge does not provide a
+# supported native Windows build; all other Python modules are still installed.
+set -eu
+
+case "${DRUGSIGNET_SKIP_RUNTIME_SETUP:-false}" in
+  1|true|TRUE|yes|YES)
+    echo "DrugSigNet: skipping Python runtime setup by request"
+    exit 0
+    ;;
+esac
+
+if [ -n "${_R_CHECK_PACKAGE_NAME_:-}" ]; then
+  echo "DrugSigNet: skipping external runtime setup during R CMD check"
+  exit 0
+fi
+
+R_SCRIPT="${R_HOME}/bin/Rscript.exe"
+if [ ! -f "${R_SCRIPT}" ]; then
+  echo "DrugSigNet: Rscript.exe was not found at ${R_SCRIPT}" >&2
+  exit 1
+fi
+
+DRUGSIGNET_SOURCE_DIR="$(cd "${srcdir:-.}" && pwd)"
+export DRUGSIGNET_SOURCE_DIR
+"${R_SCRIPT}" "${DRUGSIGNET_SOURCE_DIR}/tools/configure_runtime.R"
