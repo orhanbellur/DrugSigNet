@@ -1,7 +1,7 @@
 #' Run pipeline tasks sequentially or in parallel
 #'
-#' Internal helper shared by pipeline functions to choose a fork/PSOCK backend,
-#' cap worker counts, show simple progress, and fall back to sequential
+#' Internal helper shared by pipeline functions to use portable base-R PSOCK
+#' workers, cap worker counts, show simple progress, and fall back to sequential
 #' execution if parallel execution fails.
 #'
 #' @param tasks A list or vector of task inputs.
@@ -10,6 +10,8 @@
 #' @param label Character label used in messages.
 #' @param task_label Optional function returning a printable task label.
 #' @param psock_packages Character vector of packages loaded on PSOCK workers.
+#' @param psock_outfile File used for PSOCK worker output. The default discards
+#'   worker output. Use `""` to stream worker messages to the current console.
 #' @param allow_psock Logical; whether PSOCK workers may be used when fork
 #'   workers are unavailable. If `FALSE`, PSOCK-only environments run tasks
 #'   sequentially to avoid separate-session namespace/version drift.
@@ -23,6 +25,7 @@ run_pipeline_tasks <- function(tasks,
                                label = "Pipeline task",
                                task_label = NULL,
                                psock_packages = character(),
+                               psock_outfile = "/dev/null",
                                allow_psock = TRUE,
                                fallback = TRUE,
                                progress = TRUE) {
@@ -99,22 +102,10 @@ run_pipeline_tasks <- function(tasks,
     names(out) <- names(tasks)
     done <- 0L
 
-    if (identical(backend_info$backend, "fork")) {
-      for (batch in batches) {
-        batch_res <- parallel::mclapply(
-          batch,
-          FUN = function(i) FUN(tasks[[i]]),
-          mc.cores = n_workers,
-          mc.preschedule = FALSE
-        )
-        out[batch] <- batch_res
-        done <- done + length(batch)
-        if (!is.null(pb)) utils::setTxtProgressBar(pb, done)
-      }
-      return(out)
-    }
-
-    cl <- parallel::makePSOCKcluster(n_workers)
+    # Worker stdout is normally discarded by makePSOCKcluster(). Signature
+    # searches opt into console output so long-running HDF5 operations do not
+    # look stalled while the master is blocked waiting for a batch.
+    cl <- parallel::makePSOCKcluster(n_workers, outfile = psock_outfile)
     on.exit(parallel::stopCluster(cl), add = TRUE)
     parallel::clusterCall(cl, function(paths, packages, work_dir) {
       .libPaths(paths)
@@ -195,7 +186,11 @@ detect_pipeline_parallel_backend <- function() {
     cgroup <- readLines("/proc/1/cgroup", warn = FALSE)
     is_docker <- any(grepl("docker|kubepods|containerd", cgroup, ignore.case = TRUE))
   }
-  backend <- if (is_windows || is_macos || is_hpc) "psock" else "fork"
+  # Use the same base-R backend everywhere. Fork workers are faster to create,
+  # but inherit native-library state (HDF5, Java, reticulate) from the parent
+  # and can deadlock or crash. PSOCK starts clean R sessions on Linux, macOS,
+  # Windows, containers, and scheduler-allocated HPC jobs.
+  backend <- "psock"
   list(
     backend = backend,
     is_hpc = is_hpc,
