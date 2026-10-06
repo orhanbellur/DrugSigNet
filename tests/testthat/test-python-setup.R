@@ -5,6 +5,29 @@ test_that("complete conda graph environment is the setup default", {
   expect_true(eval(defaults$include_graph_tool))
 })
 
+test_that("installation module checks omit graph_tool on Windows", {
+  local_mocked_bindings(
+    .drugsignet_is_windows = function() TRUE,
+    .package = "DrugSigNet"
+  )
+
+  modules <- DrugSigNet:::.drugsignet_installation_python_packages()
+
+  expect_true(all(c("numpy", "kaleido", "synapseclient") %in% modules))
+  expect_false("graph_tool" %in% modules)
+})
+
+test_that("installation module checks require graph_tool off Windows", {
+  local_mocked_bindings(
+    .drugsignet_is_windows = function() FALSE,
+    .package = "DrugSigNet"
+  )
+
+  expect_true(
+    "graph_tool" %in% DrugSigNet:::.drugsignet_installation_python_packages()
+  )
+})
+
 test_that("conda transaction excludes pip-only kaleido", {
   packages <- DrugSigNet:::.drugsignet_conda_packages(
     include_graph_tool = TRUE

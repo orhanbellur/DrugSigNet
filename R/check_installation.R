@@ -35,9 +35,9 @@ check_drugsignet_installation <- function(check_python = TRUE,
                                           stop_on_error = FALSE) {
   required_packages <- c(
     "dplyr", "ggplot2", "methods", "reticulate", "signatureSearch",
-    "tibble", "tidyr", "utils", "wordcloud"
+    "tibble", "tidyr", "utils"
   )
-  optional_packages <- c("kableExtra", "plotly", "tinytex")
+  optional_packages <- c("kableExtra", "plotly", "tinytex", "wordcloud")
   if (isTRUE(check_synapser)) {
     optional_packages <- c(optional_packages, "synapser")
   }
@@ -88,7 +88,7 @@ check_drugsignet_installation <- function(check_python = TRUE,
 
   python_status <- data.frame(module = character(0), available = logical(0), stringsAsFactors = FALSE)
   if (isTRUE(check_python)) {
-    py_modules <- .drugsignet_python_packages(include_graph_tool = TRUE)
+    py_modules <- .drugsignet_installation_python_packages()
     if (requireNamespace("reticulate", quietly = TRUE)) {
       python <- Sys.getenv("RETICULATE_PYTHON")
       python_status <- data.frame(
@@ -133,4 +133,10 @@ check_drugsignet_installation <- function(check_python = TRUE,
   }
 
   result
+}
+
+.drugsignet_installation_python_packages <- function() {
+  .drugsignet_python_packages(
+    include_graph_tool = !.drugsignet_is_windows()
+  )
 }
