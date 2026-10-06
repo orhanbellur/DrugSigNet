@@ -37,6 +37,18 @@ For a first test run, set `run_drug_annotation = FALSE` and `run_visualization =
 
 ## Installation
 
+DrugSigNet requires **R 4.5.0 or newer**. R 4.0.5 is tied to an obsolete
+Bioconductor release and cannot resolve the current `signatureSearch`
+dependency stack. Upgrade the R runtime before installing DrugSigNet; changing
+`build = FALSE` does not repair an incompatible Bioconductor dependency graph.
+
+Check the runtime before installation:
+
+```r
+R.version.string
+stopifnot(getRversion() >= "4.5.0")
+```
+
 Install the development version from GitHub:
 
 ```r
@@ -48,26 +60,32 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
 }
 
 options(repos = BiocManager::repositories())
+options(timeout = max(1200, getOption("timeout", 60)))
+options(Ncpus = 1L)
+
 devtools::install_github(
   "compneurobio/DrugSigNet",
-  dependencies = TRUE,
+  dependencies = c("Depends", "Imports"),
   upgrade = "never",
-  build_vignettes = TRUE
+  build_vignettes = FALSE
 )
 ```
 
-This command installs the declared dependencies (including optional packages
-available from their declared repositories), leaves already installed
-dependencies at their current versions, and builds the package vignettes in the
-same transaction. DrugSigNet declares `signatureSearch` as a Bioconductor
-dependency, so keep `options(repos = BiocManager::repositories())` in the same
-R session as `install_github()`. This installs Bioconductor's published source
-package rather than asking `remotes` to clone and rebuild the upstream
-`signatureSearch` Git repository and its vignettes.
+`signatureSearch` remains a declared DrugSigNet import and is installed
+automatically by `devtools`/`remotes`; no separate
+`BiocManager::install("signatureSearch")` call is required. The longer timeout
+prevents large annotation downloads from failing at R's 60-second default, and
+the single worker keeps the Bioconductor dependency order deterministic. The
+normal installation installs only `Depends` and `Imports`; build vignettes
+separately after installing optional `Suggests` packages when development
+documentation is required.
 
 During `R CMD INSTALL`, DrugSigNet's `configure` script also installs Miniconda
 when necessary, creates the `r-drugsignet` environment, installs the complete
-Python stack (including `graph-tool` on supported platforms). The installer also
+Python stack (including `graph-tool` on Linux and macOS). Native Windows
+installation provisions conda, Python, reticulate-backed modules, Kaleido, and
+the Synapse client but skips `graph-tool`, which is not available for Windows.
+The selected conda Python is persisted in `~/.Renviron`. The installer also
 installs Synapser 3.x directly from its checked-out GitHub source with upstream
 vignette rebuilding disabled. Thus
 the GitHub command above produces a ready-to-run installation
@@ -75,6 +93,13 @@ rather than postponing external dependencies until the first analysis. Set
 `DRUGSIGNET_SKIP_RUNTIME_SETUP=true` before installation only when an image
 builder or administrator will provide those dependencies separately. External
 downloads are automatically disabled during `R CMD check`.
+
+The three-platform `rworkflows` workflow performs a second, ordinary source
+installation after `R CMD check`. That installation provisions and imports the
+complete runtime on Ubuntu and macOS, and the complete supported runtime on
+Windows (where `graph_tool` is deliberately absent). This keeps network
+downloads out of `R CMD check` without leaving install-time provisioning
+untested.
 
 Alternatively, install with `pak`:
 
@@ -339,6 +364,29 @@ Users who prefer to build DrugSigNet from source can build the Linux image from 
 ```bash
 docker buildx build --load -f docker/linux/Dockerfile -t drugsignet:linux .
 ```
+
+The maintained image uses R 4.5.x with its matching Bioconductor release and
+checks the complete installation while building. Pulling
+`rocker/rstudio:4.5.2` only downloads the base image: it does not execute the
+`apt-get`, Java configuration, R-package, or Python-package installation steps
+in a Dockerfile that starts `FROM rocker/rstudio:4.5.2`. Therefore, the same R
+version can work in a derived image and fail in the bare Rocker image. Use the
+maintained build above, or build—not merely pull—your complete custom
+Dockerfile.
+
+For a custom Debian, Ubuntu, or Rocker image, a single root command installs
+the native prerequisites, R/Bioconductor dependencies, DrugSigNet, its Python
+runtime, and validates the result:
+
+```dockerfile
+COPY . /opt/DrugSigNet
+RUN /opt/DrugSigNet/tools/install_drugsignet_linux.sh
+```
+
+This must be an outer installation entry point rather than a package
+`configure` hook because R installs dependencies before running DrugSigNet's
+hook. The package's `SystemRequirements` field also records the native
+requirements; see [`DOCKER.md`](DOCKER.md) for the complete Rocker example.
 
 For platform-specific builds, configuration, and troubleshooting, see [`DOCKER.md`](DOCKER.md).
 The repository includes `docker/macos/build.sh` for Apple Silicon and Intel
