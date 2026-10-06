@@ -41,8 +41,8 @@ sequentially to avoid separate-session namespace/version drift.}
 A list of task results, preserving task names.
 }
 \description{
-Internal helper shared by pipeline functions to choose a fork/PSOCK backend,
-cap worker counts, show simple progress, and fall back to sequential
+Internal helper shared by pipeline functions to use portable base-R PSOCK
+workers, cap worker counts, show simple progress, and fall back to sequential
 execution if parallel execution fails.
 }
 \keyword{internal}
