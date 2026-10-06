@@ -3,6 +3,11 @@
 # Bioconductor system dependency stack from a plain rocker image.
 FROM bioconductor/bioconductor_docker:RELEASE_3_22
 
+# Matching R versions alone do not imply matching container dependencies. This
+# guard verifies the R/Bioconductor base before the system, R, and Python layers
+# below are installed and checked.
+RUN R -q -e "version <- getRversion(); if (version < '4.5.0' || version >= '4.6.0') stop('DrugSigNet image requires R 4.5.x; found ', version)"
+
 ARG INSTALL_SUGGESTS=false
 ARG BUILD_VIGNETTES=true
 ARG TARGETARCH
@@ -115,12 +120,12 @@ RUN test -f DESCRIPTION || \
        "  docker build -f docker/linux/Dockerfile -t drugsignet:linux ." >&2; \
      find /home/rstudio/DrugSigNet -maxdepth 2 -name DESCRIPTION -print >&2; \
      exit 1) \
-  && R -q -e "deps <- if (tolower(Sys.getenv('INSTALL_SUGGESTS')) %in% c('1', 'true', 'yes')) TRUE else c('Depends', 'Imports'); remotes::install_local('.', dependencies = deps, upgrade = 'never', build_vignettes = FALSE)" \
+  && R -q -e "deps <- if (tolower(Sys.getenv('INSTALL_SUGGESTS')) %in% c('1', 'true', 'yes')) TRUE else c('Depends', 'Imports'); build_vignettes <- tolower(Sys.getenv('BUILD_VIGNETTES')) %in% c('1', 'true', 'yes'); remotes::install_local('.', dependencies = deps, upgrade = 'never', build_vignettes = build_vignettes)" \
   && R -q -e "library(DrugSigNet); packageVersion('DrugSigNet')" \
+  && R -q -e "DrugSigNet::check_drugsignet_installation(check_python = TRUE, check_optional = FALSE, stop_on_error = TRUE)" \
+  && chmod -R a+rX "$(Rscript -e 'cat(system.file(package = "DrugSigNet"))')" \
   && if [ "$(printf '%s' "${BUILD_VIGNETTES}" | tr '[:upper:]' '[:lower:]')" = "true" ]; then \
-       R -q -e "tools::buildVignettes(dir = '.', tangle = TRUE)"; \
-     else \
-       echo "Skipping vignette build (BUILD_VIGNETTES=${BUILD_VIGNETTES})."; \
+       R -q -e "stopifnot(nzchar(system.file('doc', 'getting-started.html', package = 'DrugSigNet')))"; \
      fi
 
 EXPOSE 8787

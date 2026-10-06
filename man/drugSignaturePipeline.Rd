@@ -47,8 +47,10 @@ names across signature databases. Must contain `ID`, `Drug`,
 
 \item{num_bin}{Number of bins used by CRank aggregation. Default is `200`.}
 
-\item{n_workers}{Number of parallel workers used for signature-search
-methods. Default is `1`.}
+\item{n_workers}{Requested worker count. Values above one enable independent
+PSOCK workers. Execution is capped at two workers so each concurrent task reads
+a different reference database. Workers are recreated after every batch to
+release HDF5 state and memory. Default is `1`.}
 
 \item{chunk_size}{Integer; number of reference signatures processed per
 chunk by each signature-search method. Default is `5000`.}

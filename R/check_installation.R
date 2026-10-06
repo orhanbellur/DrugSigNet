@@ -10,8 +10,8 @@
 #'   DrugSigNet through `reticulate`.
 #' @param check_synapser Logical; if `TRUE`, require the optional `synapser`
 #'   package to be installed and loadable.
-#' @param check_optional Logical; if `TRUE`, check optional reporting and
-#'   plotting packages such as `plotly`, `kableExtra`, and `tinytex`.
+#' @param check_optional Logical; if `TRUE`, check optional report-generation
+#'   packages such as `kableExtra` and `tinytex`.
 #' @param install_missing_synapser Logical; if `TRUE` and `check_synapser = TRUE`,
 #'   attempt to install/load `synapser` through the DrugSigNet Synapse helper
 #'   before reporting check results.
@@ -34,10 +34,11 @@ check_drugsignet_installation <- function(check_python = TRUE,
                                           install_missing_synapser = FALSE,
                                           stop_on_error = FALSE) {
   required_packages <- c(
-    "dplyr", "ggplot2", "methods", "reticulate", "signatureSearch",
-    "tibble", "tidyr", "utils", "wordcloud"
+    "data.table", "dplyr", "enrichR", "ggalluvial", "ggforce", "ggplot2",
+    "methods", "plotly", "reticulate", "signatureSearch", "tibble", "tidyr",
+    "utils", "wordcloud"
   )
-  optional_packages <- c("kableExtra", "plotly", "tinytex")
+  optional_packages <- c("kableExtra", "tinytex")
   if (isTRUE(check_synapser)) {
     optional_packages <- c(optional_packages, "synapser")
   }
@@ -88,7 +89,7 @@ check_drugsignet_installation <- function(check_python = TRUE,
 
   python_status <- data.frame(module = character(0), available = logical(0), stringsAsFactors = FALSE)
   if (isTRUE(check_python)) {
-    py_modules <- .drugsignet_python_packages(include_graph_tool = TRUE)
+    py_modules <- .drugsignet_installation_python_packages()
     if (requireNamespace("reticulate", quietly = TRUE)) {
       python <- Sys.getenv("RETICULATE_PYTHON")
       python_status <- data.frame(
@@ -133,4 +134,10 @@ check_drugsignet_installation <- function(check_python = TRUE,
   }
 
   result
+}
+
+.drugsignet_installation_python_packages <- function() {
+  .drugsignet_python_packages(
+    include_graph_tool = !.drugsignet_is_windows()
+  )
 }
