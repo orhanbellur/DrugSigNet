@@ -66,4 +66,8 @@ Encoding: UTF-8
 LazyData: true
 Depends: 
     R (>= 3.5)
+SystemRequirements: Java Development Kit, GNU make, C/C++ and Fortran
+    compilers, CMake, pkg-config, libcurl, OpenSSL, libxml2, ICU, SQLite,
+    zlib, bzip2, xz, GSL, GLPK, PNG, JPEG, TIFF, Cairo, Fontconfig,
+    FreeType, HarfBuzz, FriBidi, X11, libssh2, libgit2, udunits2, GMP, MPFR
 Config/roxygen2/version: 8.0.0
