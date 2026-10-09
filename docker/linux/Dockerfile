@@ -3,8 +3,14 @@
 # Bioconductor system dependency stack from a plain rocker image.
 FROM bioconductor/bioconductor_docker:RELEASE_3_22
 
+# Matching R versions alone do not imply matching container dependencies. This
+# guard verifies the R/Bioconductor base before the system, R, and Python layers
+# below are installed and checked.
+RUN R -q -e "version <- getRversion(); if (version < '4.5.0' || version >= '4.6.0') stop('DrugSigNet image requires R 4.5.x; found ', version)"
+
 ARG INSTALL_SUGGESTS=false
 ARG BUILD_VIGNETTES=true
+ARG ENABLE_PASSWORDLESS_SUDO=false
 ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -18,17 +24,61 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 USER root
 
-# Keep apt additions minimal: the Bioconductor base image already includes most
-# R/Bioconductor system libraries. The headless JDK is needed for rJava/rcdk.
+# Install the complete declared native dependency layer explicitly. Do not rely
+# on incidental packages in the Bioconductor base: HPC runtimes must contain
+# development headers such as zlib.h before any R source package is compiled.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     bzip2 \
     ca-certificates \
+    cmake \
     default-jdk-headless \
+    gfortran \
     git \
+    libcairo2-dev \
+    libcurl4-openssl-dev \
+    libfontconfig1-dev \
+    libfreetype6-dev \
+    libfribidi-dev \
+    libgit2-dev \
+    libglpk-dev \
+    libgmp3-dev \
+    libgsl-dev \
+    libharfbuzz-dev \
+    libicu-dev \
+    libjpeg-dev \
+    liblzma-dev \
+    libmpfr-dev \
+    libpng-dev \
+    libsqlite3-dev \
+    libssh2-1-dev \
+    libssl-dev \
+    libtiff-dev \
+    libudunits2-dev \
+    libuv1-dev \
+    libx11-dev \
+    libxml2-dev \
+    libxt-dev \
+    pkg-config \
+    sudo \
     wget \
+    xz-utils \
+    zlib1g-dev \
   && R CMD javareconf \
+  && test -r /usr/include/zlib.h \
+  && pkg-config --exists libcurl libxml-2.0 \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Optional interactive-install mode. R and pak still run as the unprivileged
+# rstudio account, but apt commands can be elevated without a password. This is
+# appropriate only for a single-user Docker container; never enable it in a
+# shared or multi-tenant image.
+RUN if [ "${ENABLE_PASSWORDLESS_SUDO}" = "true" ]; then \
+      printf '%s\n' 'rstudio ALL=(ALL) NOPASSWD: ALL' \
+        > /etc/sudoers.d/drugsignet-rstudio; \
+      chmod 0440 /etc/sudoers.d/drugsignet-rstudio; \
+    fi
 
 # Install R build helpers and the Bioconductor dependency that remotes does not
 # reliably resolve from a local package install. Posit Package Manager provides
@@ -115,12 +165,12 @@ RUN test -f DESCRIPTION || \
        "  docker build -f docker/linux/Dockerfile -t drugsignet:linux ." >&2; \
      find /home/rstudio/DrugSigNet -maxdepth 2 -name DESCRIPTION -print >&2; \
      exit 1) \
-  && R -q -e "deps <- if (tolower(Sys.getenv('INSTALL_SUGGESTS')) %in% c('1', 'true', 'yes')) TRUE else c('Depends', 'Imports'); remotes::install_local('.', dependencies = deps, upgrade = 'never', build_vignettes = FALSE)" \
+  && R -q -e "deps <- if (tolower(Sys.getenv('INSTALL_SUGGESTS')) %in% c('1', 'true', 'yes')) TRUE else c('Depends', 'Imports'); build_vignettes <- tolower(Sys.getenv('BUILD_VIGNETTES')) %in% c('1', 'true', 'yes'); remotes::install_local('.', dependencies = deps, upgrade = 'never', build_vignettes = build_vignettes)" \
   && R -q -e "library(DrugSigNet); packageVersion('DrugSigNet')" \
+  && R -q -e "DrugSigNet::check_drugsignet_installation(check_python = TRUE, check_optional = FALSE, stop_on_error = TRUE)" \
+  && chmod -R a+rX "$(Rscript -e 'cat(system.file(package = "DrugSigNet"))')" \
   && if [ "$(printf '%s' "${BUILD_VIGNETTES}" | tr '[:upper:]' '[:lower:]')" = "true" ]; then \
-       R -q -e "tools::buildVignettes(dir = '.', tangle = TRUE)"; \
-     else \
-       echo "Skipping vignette build (BUILD_VIGNETTES=${BUILD_VIGNETTES})."; \
+       R -q -e "stopifnot(nzchar(system.file('doc', 'getting-started.html', package = 'DrugSigNet')))"; \
      fi
 
 EXPOSE 8787

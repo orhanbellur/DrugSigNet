@@ -37,37 +37,317 @@ For a first test run, set `run_drug_annotation = FALSE` and `run_visualization =
 
 ## Installation
 
-Install the development version from GitHub:
+DrugSigNet requires **R 4.5.0 or newer**. R 4.0.5 is tied to an obsolete
+Bioconductor release and cannot resolve the current `signatureSearch`
+dependency stack. Upgrade the R runtime before installing DrugSigNet; changing
+`build = FALSE` does not repair an incompatible Bioconductor dependency graph.
+
+Check the runtime before installation:
 
 ```r
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager", repos = "https://cloud.r-project.org")
-}
-if (!requireNamespace("devtools", quietly = TRUE)) {
-  install.packages("devtools", repos = "https://cloud.r-project.org")
+R.version.string
+stopifnot(getRversion() >= "4.5.0")
+```
+
+For a bare Debian/Ubuntu/Rocker container, install the development version as
+`root` with `pak`. On supported Linux distributions, `pak` resolves and installs
+system requirements such as `zlib1g-dev` before compiling the R dependencies:
+
+```r
+if (!requireNamespace("pak", quietly = TRUE)) {
+  install.packages("pak", repos = sprintf(
+    "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
+    .Platform$pkgType,
+    R.Version()$os,
+    R.Version()$arch
+  ))
 }
 
-options(repos = BiocManager::repositories())
-devtools::install_github(
-  "compneurobio/DrugSigNet",
-  dependencies = TRUE,
-  upgrade = "never",
-  build_vignettes = TRUE
+options(timeout = max(1200, getOption("timeout", 60)))
+options(pkg.sysreqs = TRUE, pkg.build_vignettes = TRUE)
+Sys.setenv(PKG_SYSREQS = "true", PKG_BUILD_VIGNETTES = "true")
+
+pak::pkg_install(
+  "orhanbellur/DrugSigNet",
+  dependencies = NA,
+  upgrade = FALSE,
+  ask = FALSE
 )
 ```
 
-This command installs the declared dependencies (including optional packages
-available from their declared repositories), leaves already installed
-dependencies at their current versions, and builds the package vignettes in the
-same transaction. DrugSigNet declares `signatureSearch` as a Bioconductor
-dependency, so keep `options(repos = BiocManager::repositories())` in the same
-R session as `install_github()`. This installs Bioconductor's published source
-package rather than asking `remotes` to clone and rebuild the upstream
-`signatureSearch` Git repository and its vignettes.
+`pkg.build_vignettes = TRUE` is required for GitHub/source installations made
+with `pak`. Without it, `browseVignettes("DrugSigNet")` can display an index
+derived from the source files even though the linked HTML files were not
+installed, resulting in an RStudio Server “requested page was not found” error.
+Reinstall with this option enabled if an existing installation has that symptom.
+
+To install a branch, append the branch after `@` while retaining the GitHub
+owner and repository. For example:
+
+```r
+pak::pkg_install(
+  "orhanbellur/DrugSigNet@codex/verify-drugsignet-installation-dependencies-etqtuy",
+  dependencies = NA,
+  upgrade = FALSE,
+  ask = FALSE
+)
+```
+
+Do not pass only `"codex/verify-drugsignet-installation-dependencies-etqtuy"`.
+`pak` interprets a two-component reference as `owner/repository`, so that value
+asks GitHub for an owner named `codex` and a repository named after the branch.
+
+`signatureSearch` remains a declared DrugSigNet import and is installed
+automatically; no separate dependency-install command is required.
+`dependencies = NA` installs the required dependencies without pulling every
+development `Suggests` package. The longer timeout prevents large annotation
+downloads from failing at R's 60-second default.
+
+Packages used automatically by annotation, enrichment, and the default
+visualization payload (`enrichR`, `data.table`, `ggalluvial`, `ggforce`,
+`plotly`, and `wordcloud`) are hard imports. Consequently, the normal
+installation includes them and a pipeline requested with
+`run_drug_annotation = TRUE` or `run_visualization = TRUE` does not fail later
+because an automatically invoked feature was classified as optional.
+
+Parallel R tasks use base R's PSOCK clusters on Linux, macOS, Windows,
+containers, and scheduler-allocated HPC sessions. Each worker is a clean R
+process with the parent library paths and required namespaces loaded explicitly.
+This intentionally avoids Unix fork workers, which inherit HDF5, Java, and
+reticulate native state and can block or crash. Worker counts are capped by the
+task count and physical cores; single-worker runs remain sequential. On an HPC
+system, request CPU cores from the scheduler first and set `n_workers` no higher
+than that allocation.
+
+The implementation uses `parallel::makeCluster(type = "PSOCK")` together with
+`parallel::parLapply()`. This is the portable base-R pattern on Linux, macOS,
+and Windows. It is equivalent in transport to `makePSOCKcluster()`; explicitly
+naming the type makes the cross-platform contract clear. Native-library or
+memory failures inside a task still require the checkpoint/recovery safeguards
+described below—the PSOCK transport alone cannot make an HDF5 backend
+process-safe.
+
+Signature methods execute in strict reference order: every CMAP-reference
+method completes before the LINCS2 phase starts. When `n_workers > 1`, both
+phases use independent PSOCK workers. The cluster is stopped and recreated
+after every batch, releasing HDF5 handles and resident memory before the next
+batch. A parallel request made with the default reference mode is automatically
+resolved to immutable local frozen reference files before workers start. This
+avoids concurrent ExperimentHub/cache initialization, which can kill a worker
+and break its PSOCK connection. Execution is capped at two workers. Because LINCS2 is approximately
+5.9 GB, the Docker container or HPC job must have enough memory for two LINCS2
+workers and their working matrices; otherwise the operating system can still
+terminate a worker with `error reading from connection`. Each completed method
+is atomically checkpointed before its result is returned over the PSOCK socket.
+If a worker exits, DrugSigNet reloads completed checkpoints and retries only the
+unfinished methods sequentially, rather than discarding the entire analysis or
+rerunning work that already finished.
+
+Automatic Linux system-package installation requires either a root R process
+or passwordless `sudo`. In a Dockerfile, run the command after `USER root`.
+When neither privilege is available, `pak` reports the required OS packages but
+cannot modify the host operating system.
+
+Native Windows does not provide the Python `graph-tool` dependency. Calling
+`drugNetworkPipeline()` or an individual network-search method on native
+Windows therefore issues a warning and returns without starting the analysis,
+rather than failing during Python initialization. Use the DrugSigNet Docker
+image or Windows Subsystem for Linux (WSL) for network-based analyses. Signature
+methods remain available on native Windows.
+
+For an interactive `rocker/rstudio` container, opt in to passwordless sudo when
+starting the container:
+
+```bash
+docker rm -f rstudio453 2>/dev/null || true
+docker run -d \
+  --name rstudio453 \
+  -p 8787:8787 \
+  -e PASSWORD=1234 \
+  -e ROOT=TRUE \
+  rocker/rstudio:4.5.3
+```
+
+Then sign in as `rstudio` and run the `pak::pkg_install()` command above. If an
+already-running container was started without `ROOT=TRUE`, recreate it with
+that setting or perform the installation as root with `docker exec --user root`.
+The message `Executing sudo ... apt-get` followed by `System command 'sudo'
+failed` means the RStudio user was not granted that privilege; it is not an R or
+Bioconductor dependency-resolution error.
+
+`ROOT=TRUE` does not make the RStudio session run as root. Rocker's startup
+script adds the normal `rstudio` account to passwordless sudoers. Confirm that
+the recreated container received the setting before starting a large install:
+
+```bash
+docker exec --user rstudio rstudio453 whoami
+docker exec --user rstudio rstudio453 sudo -n true
+```
+
+The first command must print `rstudio`, and the second must exit successfully.
+Environment variables cannot be added retroactively to an already-running
+container, so `docker restart rstudio453` is not sufficient; remove and recreate
+it. Also write `--name`, not `\--name`.
+
+If `ROOT=TRUE` and sudo are not allowed, a running stock
+`rocker/rstudio:4.5.3` container cannot install missing `apt` packages. Build a
+runtime base once, with the native dependencies included, and keep the running
+RStudio session unprivileged:
+
+```bash
+docker buildx build --load \
+  --file docker/linux/Dockerfile.runtime \
+  --tag drugsignet-runtime:4.5.3 .
+
+docker run -d \
+  --name rstudio453 \
+  -p 8787:8787 \
+  -e PASSWORD=1234 \
+  drugsignet-runtime:4.5.3
+```
+
+No `ROOT=TRUE` is used at runtime. In R, install to the user library with
+`pkg.sysreqs = FALSE`; DrugSigNet's R dependencies and user-owned Python/conda
+runtime are still installed by the package workflow, while the immutable OS
+layer is already present. This separation is required by Linux: neither an R
+package nor its configure script can grant itself permission to modify `/usr`.
+
+An existing stock Rocker container does not need to be discarded if the caller
+can use Docker. Copy the dependency helper into it and execute only that setup
+step as container root:
+
+```bash
+./tools/install_drugsignet_in_container.sh \
+  rstudio453 \
+  orhanbellur/DrugSigNet@codex/verify-drugsignet-installation-dependencies-cnvtok
+```
+
+This one command installs the native layer, then runs pak and the runtime health
+check as `rstudio`. The copied Bash file first uses `dpkg-query` to list only
+missing libraries; `apt-get` receives only that missing set. Detection is
+unprivileged, while installation is executed by the Docker daemon with
+`--user root`, so it does not depend on sudo inside the container. The
+equivalent manual native-dependency steps are:
+
+```bash
+docker cp tools/install_linux_system_dependencies.sh \
+  rstudio453:/tmp/install_drugsignet_system_dependencies.sh
+docker exec --user root rstudio453 \
+  bash /tmp/install_drugsignet_system_dependencies.sh
+docker exec --user rstudio rstudio453 \
+  test -r /usr/include/zlib.h
+```
+
+The RStudio session remains `rstudio` and the container was not started with
+`ROOT=TRUE`. This does use the Docker daemon's existing ability to execute one
+administrative command inside the container. Afterwards set
+`pkg.sysreqs = FALSE`, unset `DRUGSIGNET_SKIP_RUNTIME_SETUP`, and install
+DrugSigNet into the user library. Container filesystem changes disappear when
+the container is removed; use `docker commit` or build `Dockerfile.runtime` if
+the repaired environment must be reproducible.
+
+On an HPC cluster, Docker/Apptainer/Singularity containers commonly run as the
+calling user and deliberately provide neither root nor passwordless `sudo`. If
+the prebuilt image already contains DrugSigNet's operating-system and Python
+runtime dependencies, do **not** enable pak system-requirement installation.
+Install only the R package into a writable user library:
+
+```r
+user_lib <- path.expand(Sys.getenv(
+  "R_LIBS_USER",
+  unset = file.path("~", "R", paste0("library-", getRversion()))
+))
+dir.create(user_lib, recursive = TRUE, showWarnings = FALSE)
+.libPaths(c(user_lib, .libPaths()))
+
+options(
+  timeout = max(1200, getOption("timeout", 60)),
+  pkg.sysreqs = FALSE,
+  pkg.build_vignettes = TRUE
+)
+Sys.setenv(
+  PKG_SYSREQS = "false",
+  PKG_BUILD_VIGNETTES = "true",
+  DRUGSIGNET_SKIP_RUNTIME_SETUP = "true"
+)
+
+pak::pkg_install(
+  "orhanbellur/DrugSigNet@your-branch",
+  lib = user_lib,
+  dependencies = NA,
+  upgrade = FALSE,
+  ask = FALSE
+)
+```
+
+Use `dependencies = NA` for a runtime installation; `dependencies = TRUE`
+requests all development and optional `Suggests` packages, which explains the
+279-package/803 MB plan in the reported log. Only set
+`DRUGSIGNET_SKIP_RUNTIME_SETUP=true` when the prebuilt image already contains
+the validated conda/Python runtime. If native dependencies are genuinely
+missing, they must be added by the image builder or HPC administrator; an
+unprivileged R process cannot install them.
+
+The `pak` plan marks unavailable native packages with `✖`. Those entries are
+not harmless when a dependency must be built from source. For example,
+`Rhdf5lib` checks for `zlib.h` during its configure step, so
+`configure: error: couldn't find zlib library` proves that the running HPC image
+does **not** contain the required zlib development files. Disabling pak's
+system-requirement installer avoids the `sudo` error, but cannot manufacture a
+missing header. Verify the exact runtime image before installing:
+
+```bash
+test -r /usr/include/zlib.h || echo "missing zlib1g-dev"
+dpkg-query -W zlib1g-dev libxml2-dev libcurl4-openssl-dev default-jdk
+```
+
+If that check fails, rebuild the image from this repository. The maintained
+Dockerfile now installs the complete native dependency set explicitly rather
+than assuming it is inherited from the Bioconductor base:
+
+```bash
+docker buildx build --load \
+  --file docker/linux/Dockerfile \
+  --tag drugsignet:linux .
+```
+
+Then transfer that exact immutable image/digest to the cluster. Merely using the
+same R version or image name does not guarantee that the HPC runtime is running
+the locally built dependency layer.
+
+There is no way for an ordinary Linux process to install `apt` packages without
+root-equivalent privilege; allowing that would bypass the operating system's
+security boundary. If the environment is a single-user Docker container (not a
+restricted Apptainer/Singularity HPC job), the maintained image offers an
+explicit opt-in that keeps R/RStudio non-root while granting passwordless sudo
+for installation commands:
+
+```bash
+docker buildx build --load \
+  --build-arg ENABLE_PASSWORDLESS_SUDO=true \
+  --file docker/linux/Dockerfile \
+  --tag drugsignet:interactive .
+```
+
+Inside that container, leave `pkg.sysreqs = TRUE`; pak can then elevate only
+when it invokes the OS package manager. This is still root-equivalent access,
+even though the R process runs as `rstudio`, and must not be enabled in a shared
+or multi-tenant image. Apptainer/Singularity commonly removes or blocks setuid
+escalation, so this option cannot override an HPC security policy. In that case,
+the only supported solution is to preinstall native dependencies in the image
+or ask the administrator to provide them.
+
+The bootstrap uses pak's self-contained pre-built repository rather than the
+CRAN source tarball. This is necessary on a bare Rocker image: compiling pak's
+embedded `curl` package from source already needs `libcurl4-openssl-dev`, while
+the pre-built pak binary has no system-library bootstrap dependency.
 
 During `R CMD INSTALL`, DrugSigNet's `configure` script also installs Miniconda
 when necessary, creates the `r-drugsignet` environment, installs the complete
-Python stack (including `graph-tool` on supported platforms). The installer also
+Python stack (including `graph-tool` on Linux and macOS). Native Windows
+installation provisions conda, Python, reticulate-backed modules, Kaleido, and
+the Synapse client but skips `graph-tool`, which is not available for Windows.
+The selected conda Python is persisted in `~/.Renviron`. The installer also
 installs Synapser 3.x directly from its checked-out GitHub source with upstream
 vignette rebuilding disabled. Thus
 the GitHub command above produces a ready-to-run installation
@@ -76,14 +356,28 @@ rather than postponing external dependencies until the first analysis. Set
 builder or administrator will provide those dependencies separately. External
 downloads are automatically disabled during `R CMD check`.
 
-Alternatively, install with `pak`:
+The three-platform `rworkflows` workflow performs a second, ordinary source
+installation after `R CMD check`. That installation provisions and imports the
+complete runtime on Ubuntu and macOS, and the complete supported runtime on
+Windows (where `graph_tool` is deliberately absent). This keeps network
+downloads out of `R CMD check` without leaving install-time provisioning
+untested.
+
+For an environment whose system requirements are already provisioned, `pak`
+can also install all optional development dependencies:
 
 ```r
 if (!requireNamespace("pak", quietly = TRUE)) {
-  install.packages("pak", repos = "https://cloud.r-project.org")
+  install.packages("pak", repos = sprintf(
+    "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
+    .Platform$pkgType,
+    R.Version()$os,
+    R.Version()$arch
+  ))
 }
 
 options(pkg.build_vignettes = TRUE)
+Sys.setenv(PKG_BUILD_VIGNETTES = "true")
 
 pak::pak(
   "compneurobio/DrugSigNet",
@@ -249,6 +543,20 @@ After installation, open the package vignettes with:
 browseVignettes("DrugSigNet")
 ```
 
+If RStudio Server shows the vignette index but its `/library/DrugSigNet/doc/`
+links return HTTP 404, the files may still be installed correctly while the
+server refuses that system-library route. Open a session-local copy instead:
+
+```r
+browse_drugsignet_vignette()                  # vignette index
+browse_drugsignet_vignette("getting-started") # one vignette
+```
+
+This copies the installed documentation and its assets to the R session's
+temporary directory before passing it to the configured RStudio viewer.
+The maintained Linux installer also makes the root-installed package directory
+world-readable and traversable for the unprivileged RStudio Server session.
+
 Recommended reading order:
 
 1. [Getting started](vignettes/getting-started.Rmd)
@@ -339,6 +647,29 @@ Users who prefer to build DrugSigNet from source can build the Linux image from 
 ```bash
 docker buildx build --load -f docker/linux/Dockerfile -t drugsignet:linux .
 ```
+
+The maintained image uses R 4.5.x with its matching Bioconductor release and
+checks the complete installation while building. Pulling
+`rocker/rstudio:4.5.2` only downloads the base image: it does not execute the
+`apt-get`, Java configuration, R-package, or Python-package installation steps
+in a Dockerfile that starts `FROM rocker/rstudio:4.5.2`. Therefore, the same R
+version can work in a derived image and fail in the bare Rocker image. Use the
+maintained build above, or build—not merely pull—your complete custom
+Dockerfile.
+
+For a custom Debian, Ubuntu, or Rocker image, a single root command installs
+the native prerequisites, R/Bioconductor dependencies, DrugSigNet, its Python
+runtime, and validates the result:
+
+```dockerfile
+COPY . /opt/DrugSigNet
+RUN /opt/DrugSigNet/tools/install_drugsignet_linux.sh
+```
+
+This must be an outer installation entry point rather than a package
+`configure` hook because R installs dependencies before running DrugSigNet's
+hook. The package's `SystemRequirements` field also records the native
+requirements; see [`DOCKER.md`](DOCKER.md) for the complete Rocker example.
 
 For platform-specific builds, configuration, and troubleshooting, see [`DOCKER.md`](DOCKER.md).
 The repository includes `docker/macos/build.sh` for Apple Silicon and Intel
