@@ -16,7 +16,11 @@ BugReports: https://github.com/compneurobio/DrugSigNet/issues
 Imports: 
     BoutrosLab.plotting.general,
     rcdk,
+    data.table,
     dplyr,
+    enrichR,
+    ggalluvial,
+    ggforce,
     ggsci,
     ggplot2,
     ggraph,
@@ -26,28 +30,26 @@ Imports:
     methods,
     openxlsx,
     parallel,
+    plotly,
     purrr,
     reticulate,
     rlang,
     RobustRankAggreg,
     scales,
-    signatureSearch,
     stats,
     stringr,
     tibble,
     tidyr,
     tidyselect,
-    utils
+    utils,
+    wordcloud
 Suggests: 
     AnnotationDbi,
     ExperimentHub,
     HDF5Array,
-    enrichR,
-    ggalluvial,
     httr,
     kableExtra,
     knitr,
-    plotly,
     pkgload,
     psych,
     readr,
@@ -55,15 +57,18 @@ Suggests:
     rhdf5,
     remotes,
     rmarkdown,
+    signatureSearch,
     testthat,
     tinytex,
-    webr,
-    wordcloud
+    webr
 VignetteBuilder: 
-    knitr
+    knitr,
+    rmarkdown
 Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
 Depends: 
-    R (>= 3.5)
+    R (>= 4.5.0)
+SystemRequirements: Python (>= 3.10); graph-tool (required for network-based
+    methods on supported platforms)
 Config/roxygen2/version: 8.0.0

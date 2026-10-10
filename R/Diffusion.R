@@ -84,6 +84,7 @@
 #' @export
 setGeneric("Diffusion", function(object = NULL, ppi_network = NULL, drug_target_network = NULL, disease_genes, include_indirect_drugs = TRUE, include_non_approved_drugs = TRUE, ties_method = "max", output_dir = tempdir(),
                                  force = FALSE, auth_token = NULL) {
+  if (!.drugsignet_network_methods_available()) return(NULL)
   network_inputs <- resolve_network_inputs(ppi_network, drug_target_network, force = force, auth_token = auth_token)
   ppi_network <- network_inputs$ppi_network
   drug_target_network <- network_inputs$drug_target_network
@@ -113,6 +114,7 @@ setGeneric("Diffusion", function(object = NULL, ppi_network = NULL, drug_target_
 
 #' @rdname Diffusion
 setMethod("Diffusion", signature = "NetworkBased", function(object) {
+  if (!.drugsignet_network_methods_available()) return(object)
   validateInputs(object)
   work_dir <- create_temp_work_dir()
   on.exit(unlink(work_dir, recursive = TRUE, force = TRUE), add = TRUE)
