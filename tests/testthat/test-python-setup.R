@@ -5,6 +5,29 @@ test_that("complete conda graph environment is the setup default", {
   expect_true(eval(defaults$include_graph_tool))
 })
 
+test_that("installation module checks omit graph_tool on Windows", {
+  local_mocked_bindings(
+    .drugsignet_is_windows = function() TRUE,
+    .package = "DrugSigNet"
+  )
+
+  modules <- DrugSigNet:::.drugsignet_installation_python_packages()
+
+  expect_true(all(c("numpy", "kaleido", "synapseclient") %in% modules))
+  expect_false("graph_tool" %in% modules)
+})
+
+test_that("installation module checks require graph_tool off Windows", {
+  local_mocked_bindings(
+    .drugsignet_is_windows = function() FALSE,
+    .package = "DrugSigNet"
+  )
+
+  expect_true(
+    "graph_tool" %in% DrugSigNet:::.drugsignet_installation_python_packages()
+  )
+})
+
 test_that("conda transaction excludes pip-only kaleido", {
   packages <- DrugSigNet:::.drugsignet_conda_packages(
     include_graph_tool = TRUE
@@ -15,7 +38,7 @@ test_that("conda transaction excludes pip-only kaleido", {
   expect_true("kaleido" %in% DrugSigNet:::.drugsignet_python_packages())
 })
 
-test_that("automatic Python setup follows interactivity unless overridden", {
+test_that("automatic Python setup is opt-in", {
   with_clean_python_setup <- function(code) {
     old_env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_PYTHON", unset = NA_character_)
     old_option <- getOption("DrugSigNet.auto_install_python")
@@ -34,13 +57,10 @@ test_that("automatic Python setup follows interactivity unless overridden", {
   }
 
   with_clean_python_setup({
-    expect_identical(
-      DrugSigNet:::.drugsignet_auto_install_enabled(),
-      interactive()
-    )
-
-    options(DrugSigNet.auto_install_python = FALSE)
     expect_false(DrugSigNet:::.drugsignet_auto_install_enabled())
+
+    options(DrugSigNet.auto_install_python = TRUE)
+    expect_true(DrugSigNet:::.drugsignet_auto_install_enabled())
   })
 })
 
