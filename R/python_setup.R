@@ -4,7 +4,9 @@
 #' Installs required Python modules for DrugSigNet using `reticulate`.
 #'
 #' By default, this creates a dedicated conda environment containing the core
-#' Python modules, `kaleido`, and `graph_tool`. A dedicated environment is
+#' Python modules, `kaleido`, and, on supported operating systems, `graph_tool`.
+#' Native Windows installations skip `graph_tool` because it is unavailable.
+#' A dedicated environment is
 #' necessary because `graph_tool` is distributed by conda-forge rather than
 #' PyPI. It also prevents reticulate's `uv` environment from being initialized
 #' before the graph stack has been selected.
@@ -14,7 +16,8 @@
 #'   One of `"conda"`, `"auto"`, or `"virtualenv"`. The default is `"conda"`.
 #' @param include_graph_tool Logical; whether to attempt installing `graph_tool`.
 #'   The default is `TRUE`. If `TRUE`, `method` must be `"conda"`; DrugSigNet
-#'   installs the `graph-tool` package from the `conda-forge` channel.
+#'   installs the `graph-tool` package from the `conda-forge` channel. This is
+#'   automatically changed to `FALSE` on Windows.
 #' @param force Logical; if `TRUE`, reinstall requested modules even if already available.
 #' @param install_synapser Logical; if `TRUE`, install optional Synapse support
 #'   after configuring Python. This mirrors `DRUGSIGNET_INSTALL_SYNAPSER=true`
@@ -263,6 +266,25 @@ setup_python_dependencies <- function(
   pkgs
 }
 
+.drugsignet_network_methods_available <- function(os_type = .Platform$OS.type,
+                                                   warn = TRUE) {
+  if (!identical(os_type, "windows")) return(TRUE)
+  if (isTRUE(warn)) {
+    warning(
+      paste(
+        "Network-based methods require the Python graph-tool library,",
+        "which is not available for native Windows installations.",
+        "",
+        "Please use the DrugSigNet Docker image or Windows Subsystem",
+        "for Linux (WSL) to access network-based analyses.",
+        sep = "\n"
+      ),
+      call. = FALSE
+    )
+  }
+  FALSE
+}
+
 .drugsignet_require_graph_tool <- function() {
   if (reticulate::py_available(initialize = FALSE) &&
       reticulate::py_module_available("graph_tool")) {
@@ -373,10 +395,9 @@ setup_python_dependencies <- function(
 }
 
 .drugsignet_auto_install_enabled <- function() {
-  # Network methods are core package functionality, so provision their Python
-  # environment on the first interactive attach unless the user explicitly
-  # opts out. Non-interactive checks/builds never start network downloads.
-  opt <- getOption("DrugSigNet.auto_install_python", interactive())
+  # Loading an R package must not unexpectedly download or mutate an external
+  # runtime. Users can explicitly opt in or call setup_python_dependencies().
+  opt <- getOption("DrugSigNet.auto_install_python", FALSE)
   env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_PYTHON", "")
 
   if (nzchar(env)) {
