@@ -79,7 +79,6 @@
 #' )
 #' }
 #'
-#' @importFrom signatureSearch qSig gess_cor result
 #' @importFrom magrittr %>%
 #' @export
 setGeneric(

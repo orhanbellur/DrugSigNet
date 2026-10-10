@@ -3,8 +3,14 @@
 # Bioconductor system dependency stack from a plain rocker image.
 FROM bioconductor/bioconductor_docker:RELEASE_3_22
 
+# Matching R versions alone do not imply matching container dependencies. This
+# guard verifies the R/Bioconductor base before the system, R, and Python layers
+# below are installed and checked.
+RUN R -q -e "version <- getRversion(); if (version < '4.5.0' || version >= '4.6.0') stop('DrugSigNet image requires R 4.5.x; found ', version)"
+
 ARG INSTALL_SUGGESTS=false
 ARG BUILD_VIGNETTES=true
+ARG ENABLE_PASSWORDLESS_SUDO=false
 ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -18,17 +24,26 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 USER root
 
-# Keep apt additions minimal: the Bioconductor base image already includes most
-# R/Bioconductor system libraries. The headless JDK is needed for rJava/rcdk.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bzip2 \
-    ca-certificates \
-    default-jdk-headless \
-    git \
-    wget \
-  && R CMD javareconf \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+COPY tools/install_linux_system_dependencies.sh \
+     tools/runtime-dependencies.tsv \
+  /usr/local/lib/drugsignet/
+
+# Install the native layer from the same manifest used by local/HPC installs.
+RUN chmod 0755 /usr/local/lib/drugsignet/install_linux_system_dependencies.sh \
+  && /usr/local/lib/drugsignet/install_linux_system_dependencies.sh \
+  && test -r /usr/include/zlib.h \
+  && pkg-config --exists libcurl libxml-2.0 \
+  && rm -rf /tmp/* /var/tmp/*
+
+# Optional interactive-install mode. R and pak still run as the unprivileged
+# rstudio account, but apt commands can be elevated without a password. This is
+# appropriate only for a single-user Docker container; never enable it in a
+# shared or multi-tenant image.
+RUN if [ "${ENABLE_PASSWORDLESS_SUDO}" = "true" ]; then \
+      printf '%s\n' 'rstudio ALL=(ALL) NOPASSWD: ALL' \
+        > /etc/sudoers.d/drugsignet-rstudio; \
+      chmod 0440 /etc/sudoers.d/drugsignet-rstudio; \
+    fi
 
 # Install R build helpers and the Bioconductor dependency that remotes does not
 # reliably resolve from a local package install. Posit Package Manager provides
@@ -115,12 +130,12 @@ RUN test -f DESCRIPTION || \
        "  docker build -f docker/linux/Dockerfile -t drugsignet:linux ." >&2; \
      find /home/rstudio/DrugSigNet -maxdepth 2 -name DESCRIPTION -print >&2; \
      exit 1) \
-  && R -q -e "deps <- if (tolower(Sys.getenv('INSTALL_SUGGESTS')) %in% c('1', 'true', 'yes')) TRUE else c('Depends', 'Imports'); remotes::install_local('.', dependencies = deps, upgrade = 'never', build_vignettes = FALSE)" \
+  && R -q -e "deps <- if (tolower(Sys.getenv('INSTALL_SUGGESTS')) %in% c('1', 'true', 'yes')) TRUE else c('Depends', 'Imports'); build_vignettes <- tolower(Sys.getenv('BUILD_VIGNETTES')) %in% c('1', 'true', 'yes'); remotes::install_local('.', dependencies = deps, upgrade = 'never', build_vignettes = build_vignettes)" \
   && R -q -e "library(DrugSigNet); packageVersion('DrugSigNet')" \
+  && R -q -e "DrugSigNet::check_drugsignet_installation(check_python = TRUE, check_optional = FALSE, stop_on_error = TRUE)" \
+  && chmod -R a+rX "$(Rscript -e 'cat(system.file(package = "DrugSigNet"))')" \
   && if [ "$(printf '%s' "${BUILD_VIGNETTES}" | tr '[:upper:]' '[:lower:]')" = "true" ]; then \
-       R -q -e "tools::buildVignettes(dir = '.', tangle = TRUE)"; \
-     else \
-       echo "Skipping vignette build (BUILD_VIGNETTES=${BUILD_VIGNETTES})."; \
+       R -q -e "stopifnot(nzchar(system.file('doc', 'getting-started.html', package = 'DrugSigNet')))"; \
      fi
 
 EXPOSE 8787
