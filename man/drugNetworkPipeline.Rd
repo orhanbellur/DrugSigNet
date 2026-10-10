@@ -110,7 +110,7 @@ plots. Default is `TRUE`.}
 \value{
 A `DrugSearchingPipeline` S4 object containing raw network-search results,
 processed rankings, rank aggregation results, and optionally annotation and
-visualization sections.
+visualization sections. Returns `NULL` with a warning on native Windows.
 }
 \description{
 Runs a complete network-based drug prioritization workflow using centrality,
@@ -131,6 +131,10 @@ TRUE`, it additionally runs network proximity and diffusion-based methods.
 Method-specific rankings are integrated using CRank, Dowdall, and Robust Rank
 Aggregation (RRA). The final harmonized network ranking is stored in the
 `Network_Harmonized` section of the returned object.
+
+Native Windows installations do not support the Python `graph-tool`
+dependency. On native Windows this function warns, recommends Docker or WSL,
+and returns `NULL` without starting the analysis.
 
 If `run_drug_annotation = TRUE`, ranked drugs are annotated and target set
 enrichment analysis is performed on targets of top-ranked drugs. If
