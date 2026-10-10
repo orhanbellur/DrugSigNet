@@ -90,7 +90,6 @@
 #' )
 #' }
 #'
-#' @importFrom signatureSearch qSig gess_gcmap result
 #' @importFrom magrittr %>%
 #' @export
 setGeneric(
