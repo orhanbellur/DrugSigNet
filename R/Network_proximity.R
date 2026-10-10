@@ -86,6 +86,7 @@
 setGeneric("Network_proximity", function(object = NULL, ppi_network = NULL, drug_target_network = NULL, disease_genes,
                                          include_indirect_drugs = TRUE, include_non_approved_drugs = TRUE, n_simulations = 1000L, n_workers = 1L,
                                          result_size = NULL, random_seed = 42L, force = FALSE, auth_token = NULL) {
+  if (!.drugsignet_network_methods_available()) return(NULL)
   network_inputs <- resolve_network_inputs(ppi_network, drug_target_network, force = force, auth_token = auth_token)
   ppi_network <- network_inputs$ppi_network
   drug_target_network <- network_inputs$drug_target_network
@@ -139,6 +140,7 @@ setGeneric("Network_proximity", function(object = NULL, ppi_network = NULL, drug
 #'
 #' @export
 setMethod("Network_proximity", signature = "NetworkBased", function(object) {
+  if (!.drugsignet_network_methods_available()) return(object)
   # Validate inputs
   validateInputs(object)
   work_dir <- create_temp_work_dir()

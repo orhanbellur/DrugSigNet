@@ -1,7 +1,7 @@
 #' Run pipeline tasks sequentially or in parallel
 #'
-#' Internal helper shared by pipeline functions to choose a fork/PSOCK backend,
-#' cap worker counts, show simple progress, and fall back to sequential
+#' Internal helper shared by pipeline functions to use portable base-R PSOCK
+#' workers, cap worker counts, show simple progress, and fall back to sequential
 #' execution if parallel execution fails.
 #'
 #' @param tasks A list or vector of task inputs.
@@ -10,10 +10,16 @@
 #' @param label Character label used in messages.
 #' @param task_label Optional function returning a printable task label.
 #' @param psock_packages Character vector of packages loaded on PSOCK workers.
+#' @param psock_outfile File used for PSOCK worker output. The default discards
+#'   worker output. Use `""` to stream worker messages to the current console.
+#' @param recycle_psock_workers Logical; recreate the PSOCK cluster after every
+#'   task batch to release worker-native state and memory.
 #' @param allow_psock Logical; whether PSOCK workers may be used when fork
 #'   workers are unavailable. If `FALSE`, PSOCK-only environments run tasks
 #'   sequentially to avoid separate-session namespace/version drift.
-#' @param fallback Logical; whether to retry sequentially on parallel failure.
+#' @param fallback Logical; whether to retry sequentially when PSOCK cluster
+#'   setup fails before any task starts. A failure after task execution begins
+#'   is never retried because doing so would execute expensive tasks twice.
 #' @param progress Logical; whether to show a text progress bar.
 #' @return A list of task results, preserving task names.
 #' @keywords internal
@@ -23,6 +29,8 @@ run_pipeline_tasks <- function(tasks,
                                label = "Pipeline task",
                                task_label = NULL,
                                psock_packages = character(),
+                               psock_outfile = "/dev/null",
+                               recycle_psock_workers = FALSE,
                                allow_psock = TRUE,
                                fallback = TRUE,
                                progress = TRUE) {
@@ -35,6 +43,7 @@ run_pipeline_tasks <- function(tasks,
 
   backend_info <- detect_pipeline_parallel_backend()
   n_workers <- resolve_pipeline_n_workers_count(n_workers, length(tasks))
+  parallel_tasks_started <- FALSE
 
   if (identical(label, "Network centrality method") && n_workers > 1L) {
     message(
@@ -99,53 +108,61 @@ run_pipeline_tasks <- function(tasks,
     names(out) <- names(tasks)
     done <- 0L
 
-    if (identical(backend_info$backend, "fork")) {
-      for (batch in batches) {
-        batch_res <- parallel::mclapply(
-          batch,
-          FUN = function(i) FUN(tasks[[i]]),
-          mc.cores = n_workers,
-          mc.preschedule = FALSE
-        )
-        out[batch] <- batch_res
-        done <- done + length(batch)
-        if (!is.null(pb)) utils::setTxtProgressBar(pb, done)
-      }
-      return(out)
+    # Use base R's explicit cross-platform PSOCK API. Signature searches opt
+    # into console output so long-running HDF5 operations do not look stalled
+    # while the master is blocked waiting for a batch.
+    initialize_cluster <- function() {
+      cl <- parallel::makeCluster(
+        n_workers,
+        type = "PSOCK",
+        outfile = psock_outfile
+      )
+      initialized <- FALSE
+      on.exit(if (!initialized) parallel::stopCluster(cl), add = TRUE)
+      parallel::clusterCall(cl, function(paths, packages, work_dir) {
+        .libPaths(paths)
+
+        local_pkg <- NULL
+        desc_file <- file.path(work_dir, "DESCRIPTION")
+        if (file.exists(desc_file)) {
+          desc <- tryCatch(base::read.dcf(desc_file), error = function(e) NULL)
+          if (!is.null(desc) && "Package" %in% colnames(desc)) {
+            local_pkg <- desc[1, "Package"]
+          }
+        }
+
+        for (pkg in packages) {
+          loaded_from_source <- FALSE
+          if (!is.null(local_pkg) && identical(pkg, local_pkg) && requireNamespace("pkgload", quietly = TRUE)) {
+            loaded_from_source <- tryCatch({
+              pkgload::load_all(work_dir, quiet = TRUE)
+              TRUE
+            }, error = function(e) FALSE)
+          }
+
+          if (!isTRUE(loaded_from_source)) {
+            loadNamespace(pkg)
+          }
+        }
+        NULL
+      }, .libPaths(), psock_packages, getwd())
+      initialized <- TRUE
+      cl
     }
 
-    cl <- parallel::makePSOCKcluster(n_workers)
-    on.exit(parallel::stopCluster(cl), add = TRUE)
-    parallel::clusterCall(cl, function(paths, packages, work_dir) {
-      .libPaths(paths)
-
-      local_pkg <- NULL
-      desc_file <- file.path(work_dir, "DESCRIPTION")
-      if (file.exists(desc_file)) {
-        desc <- tryCatch(base::read.dcf(desc_file), error = function(e) NULL)
-        if (!is.null(desc) && "Package" %in% colnames(desc)) {
-          local_pkg <- desc[1, "Package"]
-        }
-      }
-
-      for (pkg in packages) {
-        loaded_from_source <- FALSE
-        if (!is.null(local_pkg) && identical(pkg, local_pkg) && requireNamespace("pkgload", quietly = TRUE)) {
-          loaded_from_source <- tryCatch({
-            pkgload::load_all(work_dir, quiet = TRUE)
-            TRUE
-          }, error = function(e) FALSE)
-        }
-
-        if (!isTRUE(loaded_from_source)) {
-          loadNamespace(pkg)
-        }
-      }
-      NULL
-    }, .libPaths(), psock_packages, getwd())
+    cl <- NULL
+    if (!isTRUE(recycle_psock_workers)) {
+      cl <- initialize_cluster()
+      on.exit(parallel::stopCluster(cl), add = TRUE)
+    }
 
     for (batch in batches) {
-      batch_res <- parallel::parLapplyLB(cl, batch, function(i) FUN(tasks[[i]]))
+      if (isTRUE(recycle_psock_workers)) cl <- initialize_cluster()
+      parallel_tasks_started <<- TRUE
+      batch_res <- tryCatch(
+        parallel::parLapply(cl, batch, function(i) FUN(tasks[[i]])),
+        finally = if (isTRUE(recycle_psock_workers)) parallel::stopCluster(cl)
+      )
       out[batch] <- batch_res
       done <- done + length(batch)
       if (!is.null(pb)) utils::setTxtProgressBar(pb, done)
@@ -165,9 +182,23 @@ run_pipeline_tasks <- function(tasks,
         parallel_out
       },
       error = function(e) {
+        if (isTRUE(parallel_tasks_started)) {
+          stop(
+            sprintf(
+              paste0(
+                "Parallel execution stopped after worker tasks began; tasks were not retried ",
+                "sequentially to avoid duplicate execution. Original error: %s. ",
+                "This commonly means a worker was terminated because the container ran out of memory; ",
+                "retry with fewer workers or more memory."
+              ),
+              conditionMessage(e)
+            ),
+            call. = FALSE
+          )
+        }
         warning(
           sprintf(
-            "Parallel execution failed/interrupted; retrying sequentially. Original error: %s",
+            "Parallel cluster setup failed; retrying sequentially. Original error: %s",
             conditionMessage(e)
           ),
           call. = FALSE
@@ -195,7 +226,11 @@ detect_pipeline_parallel_backend <- function() {
     cgroup <- readLines("/proc/1/cgroup", warn = FALSE)
     is_docker <- any(grepl("docker|kubepods|containerd", cgroup, ignore.case = TRUE))
   }
-  backend <- if (is_windows || is_macos || is_hpc) "psock" else "fork"
+  # Use the same base-R backend everywhere. Fork workers are faster to create,
+  # but inherit native-library state (HDF5, Java, reticulate) from the parent
+  # and can deadlock or crash. PSOCK starts clean R sessions on Linux, macOS,
+  # Windows, containers, and scheduler-allocated HPC jobs.
+  backend <- "psock"
   list(
     backend = backend,
     is_hpc = is_hpc,
