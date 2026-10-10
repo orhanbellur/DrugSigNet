@@ -22,7 +22,8 @@ One of `"conda"`, `"auto"`, or `"virtualenv"`. The default is `"conda"`.}
 
 \item{include_graph_tool}{Logical; whether to attempt installing `graph_tool`.
 The default is `TRUE`. If `TRUE`, `method` must be `"conda"`; DrugSigNet
-installs the `graph-tool` package from the `conda-forge` channel.}
+installs the `graph-tool` package from the `conda-forge` channel. This is
+automatically changed to `FALSE` on Windows.}
 
 \item{force}{Logical; if `TRUE`, reinstall requested modules even if already available.}
 
@@ -43,8 +44,15 @@ Invisibly returns a list with requested packages, missing packages prior
 Installs required Python modules for DrugSigNet using `reticulate`.
 
 By default, this creates a dedicated conda environment containing the core
-Python modules, `kaleido`, and `graph_tool`. A dedicated environment is
-necessary because `graph_tool` is distributed by conda-forge rather than
-PyPI. It also prevents reticulate's `uv` environment from being initialized
-before the graph stack has been selected.
+Python modules, `kaleido`, and, on supported operating systems, `graph_tool`.
+Native Windows installations skip `graph_tool` because it is unavailable.
+A dedicated environment is necessary because `graph_tool` is distributed by
+conda-forge rather than PyPI. It also prevents reticulate's `uv` environment
+from being initialized before the graph stack has been selected.
+
+If `RETICULATE_PYTHON` already names an interpreter containing every requested
+module (for example the generated Pixi environment), that runtime is selected
+directly and no Conda or Micromamba environment is created.
+Incomplete dedicated Conda environments left by interrupted installations are
+detected and safely recreated before packages are installed.
 }
