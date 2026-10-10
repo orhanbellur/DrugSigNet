@@ -28,9 +28,16 @@
   packageStartupMessage(paste(logo, message, sep = "\n"))
 
   if (.drugsignet_auto_install_enabled()) {
-    packageStartupMessage(
-      "DrugSigNet will ensure its conda Python environment, including graph_tool, is available."
-    )
+    if (.drugsignet_is_windows()) {
+      packageStartupMessage(
+        "DrugSigNet will ensure its supported conda Python environment is available; ",
+        "graph_tool and network-based methods are unavailable on native Windows."
+      )
+    } else {
+      packageStartupMessage(
+        "DrugSigNet will ensure its conda Python environment, including graph_tool, is available."
+      )
+    }
     .drugsignet_maybe_auto_install_python()
   } else {
     packageStartupMessage(
@@ -41,6 +48,7 @@
   }
 
   packageStartupMessage(
-    "Synapse operations use the isolated Python client in the DrugSigNet conda environment."
+    "Synapse operations use RETICULATE_PYTHON, an existing DrugSigNet Pixi runtime, ",
+    "or the dedicated DrugSigNet conda environment (in that order)."
   )
 }
