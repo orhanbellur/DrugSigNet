@@ -6,7 +6,20 @@
 # (the normal state while DrugSigNet is running) is not sufficient.  Keep this
 # compatibility workaround local to the operation and restore the caller's
 # search path afterwards.
+.drugsignet_require_signature_search <- function() {
+  if (!requireNamespace("signatureSearch", quietly = TRUE)) {
+    stop(
+      "Package 'signatureSearch' is required only for signature-based methods. ",
+      "Install it with BiocManager::install('signatureSearch'), then retry. ",
+      "Network-based DrugSigNet methods do not require this package.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 .with_signature_search_attached <- function(code) {
+  .drugsignet_require_signature_search()
   was_attached <- "package:signatureSearch" %in% search()
 
   if (!was_attached) {
