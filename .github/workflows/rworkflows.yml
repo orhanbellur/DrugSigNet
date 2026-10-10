@@ -69,6 +69,18 @@ jobs:
         # namespace; retain the stable cache for Ubuntu and macOS.
         cache_version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || 'cache-v1' }}
         docker_registry: ghcr.io
+    - id: runtime-install
+      name: Install package and provision complete runtime
+      if: ${{ always() }}
+      env:
+        DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
+      run: >-
+        Rscript -e "remotes::install_local('.', dependencies=FALSE,
+        upgrade='never', build_vignettes=TRUE, force=TRUE);
+        DrugSigNet::setup_python_dependencies(write_renviron=TRUE)"
+    - name: Validate OS-specific runtime
+      if: ${{ steps.runtime-install.outcome == 'success' }}
+      run: Rscript .github/scripts/validate-runtime-install.R
     - name: Validate R CMD check result
       if: ${{ always() }}
       env:

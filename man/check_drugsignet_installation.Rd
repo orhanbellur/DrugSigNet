@@ -19,8 +19,8 @@ DrugSigNet through `reticulate`.}
 \item{check_synapser}{Logical; if `TRUE`, require the optional `synapser`
 package to be installed and loadable.}
 
-\item{check_optional}{Logical; if `TRUE`, check optional reporting and
-plotting packages such as `plotly`, `kableExtra`, and `tinytex`.}
+\item{check_optional}{Logical; if `TRUE`, check optional report-generation
+packages such as `kableExtra` and `tinytex`.}
 
 \item{install_missing_synapser}{Logical; if `TRUE` and `check_synapser = TRUE`,
 attempt to install/load `synapser` through the DrugSigNet Synapse helper
