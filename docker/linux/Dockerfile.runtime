@@ -1,0 +1,20 @@
+# Runtime base for installing DrugSigNet interactively without ROOT=TRUE.
+# Native dependencies are installed while the image is built; the running
+# RStudio session remains the unprivileged rstudio user.
+FROM rocker/rstudio:4.5.3
+
+USER root
+
+COPY tools/install_linux_system_dependencies.sh \
+     tools/runtime-dependencies.tsv \
+  /usr/local/lib/drugsignet/
+
+RUN chmod 0755 /usr/local/lib/drugsignet/install_linux_system_dependencies.sh \
+  && /usr/local/lib/drugsignet/install_linux_system_dependencies.sh \
+  && test -r /usr/include/zlib.h \
+  && pkg-config --exists libcurl libxml-2.0
+
+WORKDIR /home/rstudio
+
+EXPOSE 8787
+CMD ["/init"]

@@ -1,30 +1,10 @@
 #!/bin/sh
 
-# Provision the non-R runtime while installing a source checkout. This makes a
-# normal remotes/devtools installation complete: users do not have to discover
-# graph-tool only when the first network method runs.
+# Package installation must not mutate the user's external runtime. In
+# particular, configure may run while pak is creating a source package, where
+# creating a conda environment is both surprising and unreliable. Python is
+# provisioned explicitly after installation with setup_python_dependencies(),
+# or as part of the fully rootless Micromamba installer.
 set -eu
 
-case "${DRUGSIGNET_SKIP_RUNTIME_SETUP:-false}" in
-  1|true|TRUE|yes|YES)
-    echo "DrugSigNet: skipping Python runtime setup by request"
-    exit 0
-    ;;
-esac
-
-# R CMD check must be reproducible and must not download external runtimes.
-# Ordinary R CMD INSTALL/remotes installations take the provisioning path.
-if [ -n "${_R_CHECK_PACKAGE_NAME_:-}" ]; then
-  echo "DrugSigNet: skipping external runtime setup during R CMD check"
-  exit 0
-fi
-
-R_SCRIPT="${R_HOME}/bin/Rscript"
-if [ ! -x "${R_SCRIPT}" ]; then
-  echo "DrugSigNet: Rscript was not found at ${R_SCRIPT}" >&2
-  exit 1
-fi
-
-DRUGSIGNET_SOURCE_DIR="$(cd "${srcdir:-.}" && pwd)"
-export DRUGSIGNET_SOURCE_DIR
-"${R_SCRIPT}" "${DRUGSIGNET_SOURCE_DIR}/tools/configure_runtime.R"
+echo "DrugSigNet: external Python setup is deferred until after installation"
