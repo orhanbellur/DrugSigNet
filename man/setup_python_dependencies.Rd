@@ -6,8 +6,8 @@
 \usage{
 setup_python_dependencies(
   envname = "r-drugsignet",
-  method = c("auto", "virtualenv", "conda"),
-  include_graph_tool = NULL,
+  method = c("conda", "auto", "virtualenv"),
+  include_graph_tool = TRUE,
   force = FALSE,
   install_synapser = FALSE,
   write_renviron = FALSE,
@@ -18,17 +18,15 @@ setup_python_dependencies(
 \item{envname}{Name of the Python environment to install into.}
 
 \item{method}{Installation backend passed to [reticulate::py_install()].
-One of `"auto"`, `"virtualenv"`, or `"conda"`.}
+One of `"conda"`, `"auto"`, or `"virtualenv"`. The default is `"conda"`.}
 
 \item{include_graph_tool}{Logical; whether to attempt installing `graph_tool`.
-If `NULL` (default), DrugSigNet treats it as `FALSE`. Install `graph_tool`
-separately with conda or a system package manager when needed. If `TRUE`
-and `method = "conda"`, DrugSigNet installs the conda package
-`graph-tool` from the `conda-forge` channel.}
+The default is `TRUE`. If `TRUE`, `method` must be `"conda"`; DrugSigNet
+installs the `graph-tool` package from the `conda-forge` channel.}
 
 \item{force}{Logical; if `TRUE`, reinstall requested modules even if already available.}
 
-\item{install_synapser}{Logical; if `TRUE`, install optional Synapse RAN support
+\item{install_synapser}{Logical; if `TRUE`, install optional Synapse support
 after configuring Python. This mirrors `DRUGSIGNET_INSTALL_SYNAPSER=true`
 in `tools/install_local_drugsignet.R`.}
 
@@ -44,8 +42,10 @@ Invisibly returns a list with requested packages, missing packages prior
 \description{
 Installs required Python modules for DrugSigNet using `reticulate`.
 
-By default, this installs core Python modules plus `kaleido`, which Plotly
-uses for static sunburst/image export. `graph_tool` is not installed
-automatically because it is not available from PyPI and usually needs conda
-or a system package manager.
+By default, this downloads a rootless micromamba executable into the user's
+data directory and creates a dedicated conda environment containing the core
+Python modules, `kaleido`, and `graph_tool`. A dedicated environment is
+necessary because `graph_tool` is distributed by conda-forge rather than
+PyPI. It also prevents reticulate's `uv` environment from being initialized
+before the graph stack has been selected.
 }

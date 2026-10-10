@@ -72,7 +72,7 @@ load_synapse_annotations <- function(force = FALSE, auth_token = NULL) {
   .drugsignet_synapser_function("synLogin")(authToken = auth_token)
 
   # Check latest Synapse metadata without downloading the file
-  syn_meta <- .drugsignet_synapser_function("synGet")(
+  syn_meta <- .drugsignet_syn_get(
     synapse_data_id,
     downloadFile = FALSE
   )
@@ -121,7 +121,7 @@ load_synapse_annotations <- function(force = FALSE, auth_token = NULL) {
   }
 
   # Download newest version
-  syn_file <- .drugsignet_synapser_function("synGet")(
+  syn_file <- .drugsignet_syn_get(
     synapse_data_id,
     downloadLocation = cache_dir,
     ifcollision = "overwrite.local"
