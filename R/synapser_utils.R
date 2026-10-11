@@ -122,7 +122,8 @@ setup_synapser <- function(quiet = FALSE) {
     python,
     c(shQuote(script), shQuote(entity), if (download) "true" else "false", shQuote(location)),
     stdout = TRUE,
-    stderr = TRUE
+    stderr = TRUE,
+    env = .drugsignet_python_process_env(python)
   )
   status <- attr(output, "status") %||% 0L
   if (!identical(as.integer(status), 0L)) {

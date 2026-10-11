@@ -20,6 +20,10 @@
 #' Aggregation (RRA). The final harmonized network ranking is stored in the
 #' `Network_Harmonized` section of the returned object.
 #'
+#' Native Windows installations do not support the Python `graph-tool`
+#' dependency. On native Windows this function warns, recommends Docker or WSL,
+#' and returns `NULL` without starting the analysis.
+#'
 #' If `run_drug_annotation = TRUE`, ranked drugs are annotated and target set
 #' enrichment analysis is performed on targets of top-ranked drugs. If
 #' `run_visualization = TRUE`, visualization-ready outputs are included in the
@@ -82,7 +86,7 @@
 #' @return
 #' A `DrugSearchingPipeline` S4 object containing raw network-search results,
 #' processed rankings, rank aggregation results, and optionally annotation and
-#' visualization sections.
+#' visualization sections. Returns `NULL` with a warning on native Windows.
 #'
 #' @examples
 #' \dontrun{
@@ -161,6 +165,7 @@ drugNetworkPipeline <- function(
 ) {
   pipeline_builder <- build_pipeline_object
   .pipeline_message("Network", "Validating inputs and options.", 1, 9)
+  if (!.drugsignet_network_methods_available()) return(invisible(NULL))
   run_all_network_methods <- .pipeline_flag(run_all_network_methods, "run_all_network_methods")
   run_drug_annotation <- .pipeline_flag(run_drug_annotation, "run_drug_annotation")
   run_visualization <- .pipeline_flag(run_visualization, "run_visualization")
