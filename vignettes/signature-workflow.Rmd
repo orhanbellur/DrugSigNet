@@ -475,22 +475,13 @@ method-family consensus is calculated.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Review the method-level outputs and reference-specific rankings before drawing conclusions from the final signature consensus. Document query selection, reference versions, and score harmonization.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Understand individual signature methods | `signature-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize signature rankings | `visualization.Rmd` |
-| Run the network workflow | `network-workflow.Rmd` |
-| Integrate signature and network evidence | `complete-case-study.Rmd` |
+For scoring details, see [Signature methods](signature-methods.Rmd); to combine evidence layers, see the [Integrated case study](complete-case-study.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
