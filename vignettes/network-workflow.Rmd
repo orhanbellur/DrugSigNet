@@ -601,22 +601,13 @@ those inputs and computational requirements are appropriate.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Inspect the separate topology, proximity, and diffusion contributions before interpreting the final network consensus. Preserve network provenance, seed-gene coverage, method settings, and ranking outputs.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Understand individual network methods | `network-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize network rankings | `visualization.Rmd` |
-| Compare with the signature workflow | `signature-workflow.Rmd` |
-| Integrate signature and network evidence | `complete-case-study.Rmd` |
+For algorithm definitions, see [Network methods](network-methods.Rmd); for combined signature–network evidence, see the [Integrated case study](complete-case-study.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
