@@ -1,5 +1,8 @@
 #!/bin/sh
 
-# Keep installation side-effect free; dependencies are resolved from
-# DESCRIPTION by the package manager before staged installation begins.
-exit 0
+# Do not download or modify an external runtime from an R package configure
+# hook. Users can explicitly call setup_python_dependencies() after the package
+# has been installed. Native Windows will then omit graph-tool.
+set -eu
+
+echo "DrugSigNet: external Python setup is deferred until after installation"
