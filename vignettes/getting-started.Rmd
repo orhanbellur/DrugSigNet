@@ -309,12 +309,8 @@ Check internet access, authentication, and local cache permissions. If the
 resource requires Synapse authentication, also confirm that a valid token is
 available in `SYNAPSE_AUTH_TOKEN`.
 
-If the error says that `synapser` is unavailable, run
-`DrugSigNet::setup_synapser()`. The helper falls back to the official Sage
-Bionetworks GitHub repository when the legacy Synapse R package index cannot be
-reached and disables dependency-vignette rebuilding, so a LaTeX installation is
-not needed. Set `options(DrugSigNet.auto_install_synapser = FALSE)` to disable
-installation on first use.
+If Synapse access fails, run `DrugSigNet::setup_synapser()` to check the
+configured client and authentication. See the authentication guidance above.
 
 ## Network methods are slow
 
@@ -330,11 +326,9 @@ annotation workflow and its resource requirements.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Begin with the analysis supported by your available disease evidence. After validating a minimal run, inspect the result structure and add annotation, visualization, and reporting as needed.
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
