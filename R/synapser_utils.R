@@ -37,7 +37,9 @@ setup_synapser <- function(quiet = FALSE) {
   # Python client rather than loading the Synapser R namespace.
   .drugsignet_prepare_synapser_python(quiet = quiet)
   python <- Sys.getenv("RETICULATE_PYTHON")
-  if (!nzchar(python) || !.drugsignet_python_has_modules(python, "synapseclient")) {
+  if (!nzchar(python) ||
+      (!.drugsignet_python_runtime_validated(python) &&
+       !.drugsignet_python_has_modules(python, "synapseclient"))) {
     stop("Python Synapse client installation failed.", call. = FALSE)
   }
   if (!isTRUE(quiet)) message("DrugSigNet's isolated Synapse client is ready.")
@@ -58,7 +60,8 @@ setup_synapser <- function(quiet = FALSE) {
   .drugsignet_prepare_synapser_python(quiet = TRUE)
   python <- Sys.getenv("RETICULATE_PYTHON")
   if (!nzchar(python) ||
-      !.drugsignet_python_has_modules(python, "synapseclient")) {
+      (!.drugsignet_python_runtime_validated(python) &&
+       !.drugsignet_python_has_modules(python, "synapseclient"))) {
     stop(
       "Python package 'synapseclient' is required to ", purpose, ".\n",
       "Run setup_python_dependencies(force = TRUE) and retry.",
@@ -118,7 +121,7 @@ setup_synapser <- function(quiet = FALSE) {
 
   download <- !identical(args$downloadFile, FALSE)
   location <- args$downloadLocation %||% ""
-  output <- system2(
+  output <- .drugsignet_python_system2(
     python,
     c(shQuote(script), shQuote(entity), if (download) "true" else "false", shQuote(location)),
     stdout = TRUE,
