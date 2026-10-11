@@ -1,5 +1,5 @@
 ---
-title: "Integrated DrugSigNet workflow and complete case study"
+title: "Integrated drug repurposing with DrugSigNet"
 author: "DrugSigNet authors"
 date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
 output:
@@ -8,7 +8,7 @@ output:
     toc_depth: 3
     number_sections: true
 vignette: >
-  %\VignetteIndexEntry{10. Integrated DrugSigNet workflow and complete case study}
+  %\VignetteIndexEntry{10. Integrated drug repurposing with DrugSigNet}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -38,46 +38,35 @@ integrated, and how to inspect the resulting signature-network consensus.
 
 # Integrated workflow overview
 
-With `mode = "both"`, `drugRepurposingPipeline()`:
+With `mode = "both"`, `drugRepurposingPipeline()` runs the signature
+and network branches, combines their method-level rankings using
+`integrateSignatureNetwork()`, and returns all three evidence layers in a
+single `DrugSearchingPipeline` object.
 
-1. runs `drugSignaturePipeline()`;
-2. runs `drugNetworkPipeline()`;
-3. validates that usable signature rankings are available;
-4. passes the two completed pipeline objects to `integrateSignatureNetwork()`;
-5. computes integrated CRank, Dowdall, and RRA rankings; and
-6. returns the signature, network, and integrated sections in one
-   `DrugSearchingPipeline` object.
+<div style="max-width:760px;margin:1.3rem auto 1.5rem;font-family:Arial,sans-serif;" role="img" aria-label="Two evidence streams converge: a disease expression signature enters signature analysis to generate signature-family ranks, while disease seed genes enter network analysis to generate network-method ranks. Both streams feed integrated consensus ranking with CRank, Dowdall and RRA.">
+  <div style="display:flex;gap:12px;align-items:stretch;text-align:center;">
+    <div style="flex:1;min-width:0;">
+      <div style="background:#e9f3ff;border:1px solid #8bb6df;border-radius:8px;padding:12px 6px;font-weight:600;">Disease expression signature</div>
+      <div style="font-size:22px;line-height:1.5;color:#486681;">↓</div>
+      <div style="background:#f1f6fc;border:1px solid #9bb8d0;border-radius:8px;padding:12px 6px;">Signature workflow</div>
+      <div style="font-size:22px;line-height:1.5;color:#486681;">↓</div>
+      <div style="background:#e9f3ff;border:1px solid #8bb6df;border-radius:8px;padding:12px 6px;font-weight:600;">Signature-family ranks</div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="background:#e8f4ee;border:1px solid #91bca5;border-radius:8px;padding:12px 6px;font-weight:600;">Disease seed genes</div>
+      <div style="font-size:22px;line-height:1.5;color:#48735c;">↓</div>
+      <div style="background:#f0f7f3;border:1px solid #a1c5ae;border-radius:8px;padding:12px 6px;">Network workflow</div>
+      <div style="font-size:22px;line-height:1.5;color:#48735c;">↓</div>
+      <div style="background:#e8f4ee;border:1px solid #91bca5;border-radius:8px;padding:12px 6px;font-weight:600;">Network-method ranks</div>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:21px;line-height:1.5;color:#626b78;">↘ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↙</div>
+  <div style="background:#f0edfa;border:1px solid #ad9ad4;border-radius:8px;text-align:center;padding:15px 10px;font-weight:600;">Integrated consensus ranking<br><span style="font-weight:400;font-size:0.9em;">CRank · Dowdall · RRA</span></div>
+</div>
 
-Conceptually:
-
-```text
-Disease expression signature
-          |
-          v
- Signature workflow
-          |
-          |  Pairwise signature-family ranks
-          |
-          +-------------------+
-                              |
-                              v
-                    Signature-network
-                      integration
-                              ^
-                              |
-          +-------------------+
-          |
-          |  Network method ranks
-          |
-    Network workflow
-          ^
-          |
-   Disease seed genes
-```
-
-The integrated analysis does **not** simply combine
-`Signature_CRank` with `Network_CRank`. Instead, it integrates the underlying
-signature-family consensus ranks with the available network method ranks.
+**Integration uses signature-family ranks and available network-method ranks,
+not merely the two branch-level consensus columns.** The exact inputs and
+handling of rank direction are described below.
 
 # Prepare inputs
 
@@ -125,23 +114,9 @@ integrated_res <- drugRepurposingPipeline(
 )
 ```
 
-With:
-
-```r
-run_all_network_methods = FALSE
-```
-
-the network branch runs only:
-
-```text
-TrustRank
-Harmonic_centrality
-Degree_centrality
-```
-
-Network proximity and diffusion are not run. Consequently, the integrated
-ranking uses only those three network-derived ranks together with the
-signature-family ranks.
+With `run_all_network_methods = FALSE`, the network contribution is limited
+to TrustRank, harmonic centrality, and degree centrality; proximity and
+diffusion are excluded. The integration inputs are detailed below.
 
 # Reproducible case-study run
 
@@ -287,54 +262,16 @@ For integration, DrugSigNet uses the **pairwise signature-family rankings**
 rather than only the final `Signature_CRank`, `Signature_Dowdall`, and
 `Signature_RRA` columns.
 
-For CRank integration, the signature contribution is:
-
-```text
-CMAP_CRank
-LINCS_CRank
-gCMAP_CRank
-Correlation_CRank
-```
-
-For Dowdall integration:
-
-```text
-CMAP_Dowdall
-LINCS_Dowdall
-gCMAP_Dowdall
-Correlation_Dowdall
-```
-
-For RRA integration:
-
-```text
-CMAP_RRA
-LINCS_RRA
-gCMAP_RRA
-Correlation_RRA
-```
-
-Each of these columns already summarizes the CMAP- and LINCS2-reference results
-within one signature-search family.
+Each aggregation method uses the corresponding `CMAP_*`, `LINCS_*`,
+`gCMAP_*`, and `Correlation_*` family-level ranks (where `*` is
+`CRank`, `Dowdall`, or `RRA`). Each family rank has already combined
+its CMAP and LINCS2 reference-specific results.
 
 ## Network contribution when `run_all_network_methods = FALSE`
 
-With the case-study setting:
-
-```r
-run_all_network_methods = FALSE
-```
-
-the network contribution is:
-
-```text
-TrustRank
-Harmonic_centrality
-Degree_centrality
-```
-
-The native centrality scores are converted to smaller-is-better ranks before
-integration.
+For this case study, the network inputs are TrustRank, harmonic-centrality,
+and degree-centrality ranks, converted to a smaller-is-better orientation
+before integration.
 
 Therefore, the three integrated aggregation inputs are conceptually:
 
