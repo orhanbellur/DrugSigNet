@@ -42,7 +42,6 @@ DrugSigNet requires **R 4.5.0 or newer**. Choose an installation method based on
 | Environment | Recommended method | Notes |
 |---|---|---|
 | Linux or Linux-based RStudio without sudo | [Project-local Pixi](#project-local-pixi-recommended-for-rootless-setup) | Isolated R, Python, and native dependencies |
-| Linux/HPC with a user-owned runtime | [Micromamba](#rootless-linuxhpc-with-micromamba) | Requires no system package manager access |
 | R with preinstalled system libraries | [Standard R installation](#standard-r-installation) | Install Python dependencies separately for network methods |
 | Docker Desktop or a reproducible container | [Docker](#docker) | Use the maintained image, not bare Rocker |
 
@@ -103,32 +102,10 @@ BiocManager::install("signatureSearch")
 
 Do not use a plain `rocker/rstudio` image as a substitute for the maintained DrugSigNet image: the base image alone does not contain all required OS and Python dependencies.
 
-### Rootless Linux/HPC with Micromamba
-
-For Linux/HPC environments where system libraries cannot be installed, the Micromamba installer creates a separate, user-owned R 4.5+ runtime:
-
-```bash
-./install.sh orhanbellur/DrugSigNet@codex/verify-drugsignet-installation-dependencies-na2z9t
-~/.local/bin/drugsignet-R
-```
-
-Alternatively, from a host RStudio Console:
-
-```r
-branch <- "codex/verify-drugsignet-installation-dependencies-na2z9t"
-source(paste0(
-  "https://raw.githubusercontent.com/orhanbellur/DrugSigNet/",
-  branch, "/install.R"
-))
-install_drugsignet(paste0("orhanbellur/DrugSigNet@", branch))
-```
-
-The installed package belongs to the Micromamba R environment; select its R executable in RStudio or use the terminal launcher above. It does not change the system R installation.
-
 ### Platform and troubleshooting notes
 
 - **Windows:** Native Windows supports signature-based methods, but network methods requiring Python `graph-tool` need WSL or Docker. Docker Desktop on macOS/Windows runs the Linux-based runtime.
-- **HPC/containers:** No unprivileged R command can install missing Debian packages. Use a preconfigured image or one of the rootless runtimes above; see [`DOCKER.md`](DOCKER.md).
+- **HPC/containers:** No unprivileged R command can install missing Debian packages. Use a preconfigured image or the Pixi environment above; see [`DOCKER.md`](DOCKER.md).
 - **Parallel execution:** DrugSigNet uses PSOCK workers across platforms. Signature-method batches are checkpointed for recovery; large LINCS2 workloads still require sufficient memory. Respect HPC CPU and memory allocations.
 - **Vignettes:** Build source vignettes during installation when you need `browseVignettes("DrugSigNet")`. See [Documentation](#documentation) for an RStudio Server fallback.
 - **Validation:** Run `DrugSigNet::check_drugsignet_installation(stop_on_error = TRUE)` to identify missing dependencies; `DrugSigNet::setup_synapser()` checks Synapse client support.
