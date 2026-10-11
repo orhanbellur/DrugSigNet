@@ -142,7 +142,7 @@ remotes::install_local(
   pkg_dir,
   dependencies = FALSE,
   upgrade = "never",
-  build_vignettes = FALSE,
+  build_vignettes = TRUE,
   force = TRUE
 )
 

@@ -118,7 +118,7 @@ setup_synapser <- function(quiet = FALSE) {
 
   download <- !identical(args$downloadFile, FALSE)
   location <- args$downloadLocation %||% ""
-  output <- system2(
+  output <- .drugsignet_python_system2(
     python,
     c(shQuote(script), shQuote(entity), if (download) "true" else "false", shQuote(location)),
     stdout = TRUE,
