@@ -531,60 +531,15 @@ For a reproducible DrugSigNet rank-aggregation analysis, report:
 - the top-k rule used for downstream prioritization; and
 - agreement or overlap across CRank, Dowdall, and RRA outputs.
 
-# Common pitfalls
-
-## Using the wrong `reverse` setting
-
-The `reverse` convention differs between CRank and Dowdall/RRA. Always determine
-whether the input is smaller-is-better or larger-is-better before calling the
-method.
-
-## Interpreting `head()` as the top-ranked drugs
-
-CRank and Dowdall outputs are not guaranteed to be returned in final-rank order.
-Explicitly arrange by `CRank`, `Dowdall_rank`, or `RRA_rank` before interpreting
-the leading candidates.
-
-## Mixing scores and ranks
-
-A larger-is-better score and a smaller-is-better rank require different
-direction handling. Do not aggregate them without first confirming their
-semantics.
-
-## Ignoring missing-value conventions
-
-CRank and Dowdall convert numeric missing values to zero, whereas RRA preserves
-missingness during rank conversion. This can matter when input lists have
-different coverage.
-
-## Aggregating incompatible drug universes
-
-Harmonize drug names and identifiers before aggregation. Differences caused only
-by inconsistent naming can create artificial disagreement or missingness.
-
-## Treating consensus as validation
-
-Consensus ranking summarizes agreement among computational methods; it does not
-establish therapeutic efficacy.
-
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Consensus ranking summarizes agreement between input methods; it does not independently validate candidate efficacy. Document ranking direction, missing-value treatment, the drug universe, and aggregation parameters.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Choose an overall DrugSigNet strategy | `choosing-analysis-strategy.Rmd` |
-| Understand signature-search inputs to aggregation | `signature-methods.Rmd` |
-| Understand network-method inputs to aggregation | `network-methods.Rmd` |
-| Run the complete signature workflow | `signature-workflow.Rmd` |
-| Run the complete network workflow | `network-workflow.Rmd` |
-| Run integrated signature-network prioritization | `complete-case-study.Rmd` |
+See the [Signature workflow](signature-workflow.Rmd), [Network workflow](network-workflow.Rmd), and [Integrated case study](complete-case-study.Rmd) for aggregation within full analyses.
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()

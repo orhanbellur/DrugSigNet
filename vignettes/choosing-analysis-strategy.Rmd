@@ -170,24 +170,13 @@ for experimental or clinical evidence.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Choose signature analysis for signed expression evidence, network analysis for disease-gene evidence, and an integrated workflow when both are available. The chosen strategy should follow input quality and biological coverage, rather than an assumed universal advantage of any single method.
 
-# Next steps
+# Further reading
 
-Continue with the vignette that matches the selected strategy:
-
-| Selected task | Recommended vignette |
-|---|---|
-| Understand signature-based methods | `signature-methods.Rmd` |
-| Run a signature-based workflow | `signature-workflow.Rmd` |
-| Understand network-based methods | `network-methods.Rmd` |
-| Run a network-based workflow | `network-workflow.Rmd` |
-| Compare consensus methods | `rank-aggregation.Rmd` |
-| Run an integrated example | `complete-case-study.Rmd` |
+For implementation, continue with [Signature workflow](signature-workflow.Rmd), [Network workflow](network-workflow.Rmd), or the [Integrated case study](complete-case-study.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()

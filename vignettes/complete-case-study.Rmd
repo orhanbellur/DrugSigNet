@@ -1,5 +1,5 @@
 ---
-title: "Integrated DrugSigNet workflow and complete case study"
+title: "Integrated drug repurposing with DrugSigNet"
 author: "DrugSigNet authors"
 date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
 output:
@@ -8,7 +8,7 @@ output:
     toc_depth: 3
     number_sections: true
 vignette: >
-  %\VignetteIndexEntry{10. Integrated DrugSigNet workflow and complete case study}
+  %\VignetteIndexEntry{10. Integrated drug repurposing with DrugSigNet}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -38,46 +38,27 @@ integrated, and how to inspect the resulting signature-network consensus.
 
 # Integrated workflow overview
 
-With `mode = "both"`, `drugRepurposingPipeline()`:
+With `mode = "both"`, `drugRepurposingPipeline()` runs the signature
+and network branches, combines their method-level rankings using
+`integrateSignatureNetwork()`, and returns all three evidence layers in a
+single `DrugSearchingPipeline` object.
 
-1. runs `drugSignaturePipeline()`;
-2. runs `drugNetworkPipeline()`;
-3. validates that usable signature rankings are available;
-4. passes the two completed pipeline objects to `integrateSignatureNetwork()`;
-5. computes integrated CRank, Dowdall, and RRA rankings; and
-6. returns the signature, network, and integrated sections in one
-   `DrugSearchingPipeline` object.
+The two evidence streams converge at the rank-integration step:
 
-Conceptually:
+| Signature evidence | Network evidence |
+|:---:|:---:|
+| **Disease expression signature** | **Disease seed genes** |
+| ↓ | ↓ |
+| `drugSignaturePipeline()` | `drugNetworkPipeline()` |
+| ↓ | ↓ |
+| **Signature-family ranks** | **Network-method ranks** |
+| ↘ | ↙ |
 
-```text
-Disease expression signature
-          |
-          v
- Signature workflow
-          |
-          |  Pairwise signature-family ranks
-          |
-          +-------------------+
-                              |
-                              v
-                    Signature-network
-                      integration
-                              ^
-                              |
-          +-------------------+
-          |
-          |  Network method ranks
-          |
-    Network workflow
-          ^
-          |
-   Disease seed genes
-```
+**Both evidence streams → Integrated consensus ranking (CRank · Dowdall · RRA)**
 
-The integrated analysis does **not** simply combine
-`Signature_CRank` with `Network_CRank`. Instead, it integrates the underlying
-signature-family consensus ranks with the available network method ranks.
+**Integration uses signature-family ranks and available network-method ranks,
+not merely the two branch-level consensus columns.** The exact inputs and
+handling of rank direction are described below.
 
 # Prepare inputs
 
@@ -125,23 +106,9 @@ integrated_res <- drugRepurposingPipeline(
 )
 ```
 
-With:
-
-```r
-run_all_network_methods = FALSE
-```
-
-the network branch runs only:
-
-```text
-TrustRank
-Harmonic_centrality
-Degree_centrality
-```
-
-Network proximity and diffusion are not run. Consequently, the integrated
-ranking uses only those three network-derived ranks together with the
-signature-family ranks.
+With `run_all_network_methods = FALSE`, the network contribution is limited
+to TrustRank, harmonic centrality, and degree centrality; proximity and
+diffusion are excluded. The integration inputs are detailed below.
 
 # Reproducible case-study run
 
@@ -287,54 +254,16 @@ For integration, DrugSigNet uses the **pairwise signature-family rankings**
 rather than only the final `Signature_CRank`, `Signature_Dowdall`, and
 `Signature_RRA` columns.
 
-For CRank integration, the signature contribution is:
-
-```text
-CMAP_CRank
-LINCS_CRank
-gCMAP_CRank
-Correlation_CRank
-```
-
-For Dowdall integration:
-
-```text
-CMAP_Dowdall
-LINCS_Dowdall
-gCMAP_Dowdall
-Correlation_Dowdall
-```
-
-For RRA integration:
-
-```text
-CMAP_RRA
-LINCS_RRA
-gCMAP_RRA
-Correlation_RRA
-```
-
-Each of these columns already summarizes the CMAP- and LINCS2-reference results
-within one signature-search family.
+Each aggregation method uses the corresponding `CMAP_*`, `LINCS_*`,
+`gCMAP_*`, and `Correlation_*` family-level ranks (where `*` is
+`CRank`, `Dowdall`, or `RRA`). Each family rank has already combined
+its CMAP and LINCS2 reference-specific results.
 
 ## Network contribution when `run_all_network_methods = FALSE`
 
-With the case-study setting:
-
-```r
-run_all_network_methods = FALSE
-```
-
-the network contribution is:
-
-```text
-TrustRank
-Harmonic_centrality
-Degree_centrality
-```
-
-The native centrality scores are converted to smaller-is-better ranks before
-integration.
+For this case study, the network inputs are TrustRank, harmonic-centrality,
+and degree-centrality ranks, converted to a smaller-is-better orientation
+before integration.
 
 Therefore, the three integrated aggregation inputs are conceptually:
 
@@ -667,23 +596,13 @@ permissions, and HDF5 validation.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+The integrated workflow combines complementary evidence rather than replacing the underlying method-specific results. Interpret consensus candidates alongside their signature and network contributions, input coverage, and any missing evidence.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Review individual signature methods | `signature-methods.Rmd` |
-| Review individual network methods | `network-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate integrated candidates | `drug-annotation.Rmd` |
-| Visualize integrated rankings | `visualization.Rmd` |
-| Review the signature branch in detail | `signature-workflow.Rmd` |
-| Review the network branch in detail | `network-workflow.Rmd` |
+For individual evidence layers, see [Signature methods](signature-methods.Rmd), [Network methods](network-methods.Rmd), and [Rank aggregation](rank-aggregation.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()

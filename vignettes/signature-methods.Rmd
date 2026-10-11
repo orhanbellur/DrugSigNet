@@ -518,60 +518,15 @@ For reproducible runs against a fixed HDF5 database, replace the named
 See `signature-workflow.Rmd` for the full pipeline-level reference-database
 workflow.
 
-# Common pitfalls
-
-## Too few mapped genes
-
-Very small or poorly mapped signatures can produce unstable enrichment or
-correlation results. Inspect gene overlap with the selected reference database
-before interpreting rankings.
-
-## Arbitrary query thresholds
-
-CMAP and LINCS depend on the up/down query sets, while gCMAP depends on
-thresholds used to construct reference gene sets. Arbitrary cutoffs can change
-the information supplied to the search and should be justified or evaluated in
-sensitivity analyses.
-
-## Strong technical effects
-
-Batch effects, inappropriate normalization, or compositional differences can
-dominate the disease signature and consequently the connectivity search.
-Quality control and suitable differential-expression analysis should be
-completed before DrugSigNet is applied.
-
-## Mixing score semantics
-
-The native scores are not numerically interchangeable across methods:
-`scaled_score`, `WTCS`, `effect`, and `cor_score` arise from different
-statistical formulations. Compare ranks or appropriately harmonized downstream
-results rather than treating equal numeric values from different methods as
-equivalent evidence.
-
-## Overinterpreting reference context
-
-CMAP and LINCS2 signatures were generated in specific cellular and perturbation
-contexts. A highly ranked compound does not imply that the same transcriptional
-response will occur in the disease-relevant cell type, dose, exposure time, or
-organism.
-
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+The methods use different scoring scales and reference contexts. Interpret native scores within each method before comparing standardized ranks, and report query composition and reference database provenance.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
-| Run the complete signature workflow | `signature-workflow.Rmd` |
-| Understand consensus ranking | `rank-aggregation.Rmd` |
-| Annotate prioritized compounds | `drug-annotation.Rmd` |
-| Visualize signature and consensus results | `visualization.Rmd` |
+Continue with the [Signature workflow](signature-workflow.Rmd); see [Rank aggregation](rank-aggregation.Rmd) for consensus methods.
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()

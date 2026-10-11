@@ -536,22 +536,13 @@ informative than relying heavily on proximity or diffusion alone.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Topology, network proximity, and diffusion capture different properties of the same interaction network. Compare their outputs with attention to network coverage, hub effects, and drug–target evidence.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
-| Run the complete network workflow | `network-workflow.Rmd` |
-| Understand rank aggregation | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize network and consensus results | `visualization.Rmd` |
-| Run an integrated example | `complete-case-study.Rmd` |
+Next, run the [Network workflow](network-workflow.Rmd) and consult [Rank aggregation](rank-aggregation.Rmd) for combining method rankings.
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()

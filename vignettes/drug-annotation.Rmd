@@ -322,7 +322,7 @@ For example:
 moa_res@result
 names(moa_res@parameters)
 
-# Typical fields:
+# Example fields:
 #> [1] "input_data" "source" "force" "auth_token"
 ```
 
@@ -332,8 +332,7 @@ The exact parameter fields depend on the annotation function. For example,
 ```{r inspect-trial-parameters}
 names(trial_condition_res@parameters)
 
-# Includes:
-# input_data, condition, ignore_case, force, auth_token
+# Expected fields include input_data, condition, ignore_case, force, and auth_token.
 ```
 
 Keeping `@parameters` with an individual annotation result makes it possible to
@@ -515,58 +514,15 @@ saveRDS(moa_res, file = "inst/extdata/example_moa_annotation.rds")
 saveRDS(tsea, file = "inst/extdata/example_tsea.rds")
 ```
 
-# Common pitfalls
-
-## Passing drugs directly to `TSEA()`
-
-`TSEA()` expects gene targets in `targetList`. Obtain or construct the target
-set first, then run enrichment.
-
-## Drug names do not map
-
-Drug matching depends on the available annotation names and synonyms. Use
-`get_drug_synonyms()` to inspect alternative names when expected annotations are
-missing.
-
-## Assuming every source supports every annotation layer
-
-Annotation-source support differs by helper. Use the source choices documented
-for the individual function rather than assuming that all sources are
-interchangeable.
-
-## Annotation is incomplete
-
-No single resource covers every compound. Report missing annotation fields
-transparently and avoid treating missing values as negative biological evidence.
-
-## Clinical evidence is ambiguous
-
-A trial involving a drug is evidence that the drug has been investigated in that
-clinical context, not evidence that the intervention was effective.
-
-## Cached resources are stale or unavailable
-
-Use `force = TRUE` when a supported resource should be refreshed and ensure that
-the required Synapse authentication is available when the requested dataset is
-not already cached locally.
-
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Annotations provide context for candidate interpretation, not evidence of therapeutic efficacy. Report data sources, retrieval settings, identifier mapping, and relevant clinical or biological uncertainties.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Understand how candidates were ranked | `rank-aggregation.Rmd` |
-| Visualize ranking and annotation results | `visualization.Rmd` |
-| Run a complete signature analysis | `signature-workflow.Rmd` |
-| Run a complete network analysis | `network-workflow.Rmd` |
-| Run integrated prioritization and interpretation | `complete-case-study.Rmd` |
+For presenting these results, see [Visualization](visualization.Rmd); for the upstream candidate selection, see the [Integrated case study](complete-case-study.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
