@@ -667,23 +667,13 @@ permissions, and HDF5 validation.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+The integrated workflow combines complementary evidence rather than replacing the underlying method-specific results. Interpret consensus candidates alongside their signature and network contributions, input coverage, and any missing evidence.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Review individual signature methods | `signature-methods.Rmd` |
-| Review individual network methods | `network-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate integrated candidates | `drug-annotation.Rmd` |
-| Visualize integrated rankings | `visualization.Rmd` |
-| Review the signature branch in detail | `signature-workflow.Rmd` |
-| Review the network branch in detail | `network-workflow.Rmd` |
+For individual evidence layers, see [Signature methods](signature-methods.Rmd), [Network methods](network-methods.Rmd), and [Rank aggregation](rank-aggregation.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
