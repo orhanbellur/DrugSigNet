@@ -583,21 +583,13 @@ ggplot2::ggsave(
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Choose plots based on the scientific question and the available data. Display ranking agreement and annotation coverage explicitly, and avoid interpreting a visualization as independent biological validation.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Understand consensus rankings | `rank-aggregation.Rmd` |
-| Prepare annotations and TSEA results | `drug-annotation.Rmd` |
-| Run the complete signature workflow | `signature-workflow.Rmd` |
-| Run the complete network workflow | `network-workflow.Rmd` |
-| Run an integrated analysis | `complete-case-study.Rmd` |
+For source tables and biological context, see [Drug annotation](drug-annotation.Rmd) and the [Integrated case study](complete-case-study.Rmd).
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
