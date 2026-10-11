@@ -58,7 +58,14 @@ prioritization, as well as an integrated workflow that combines both evidence
 types. The schematic below summarizes the required inputs, major analysis
 stages, and optional interpretation steps.
 
-![Overview of the DrugSigNet workflow. A signed disease expression signature is used by `drugSignaturePipeline()`, disease genes are used by `drugNetworkPipeline()`, and both evidence types can be integrated with `drugRepurposingPipeline(mode = "both")`.](images/DrugSigNet_workflow.png){width=100%}
+<!-- Embed the diagram so it remains visible in installed HTML vignettes. -->
+```{r workflow-diagram, echo=FALSE, results='asis', eval=TRUE}
+diagram_uri <- knitr::image_uri("images/DrugSigNet_workflow.png")
+cat(sprintf(
+  '<img src="%s" alt="DrugSigNet workflow: signature-based, network-based, and integrated prioritization" style="width:100%%;height:auto;" />',
+  diagram_uri
+))
+```
 
 # Installation
 
