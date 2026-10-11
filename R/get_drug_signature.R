@@ -99,6 +99,8 @@ get_drug_signature <- function(drug,
                                n_up = NULL,
                                n_down = NULL) {
 
+  .drugsignet_require_signature_search()
+
   refdb <- match.arg(refdb)
   signature_refdb_mode <- match.arg(signature_refdb_mode)
   validate_signature_refdb <- .pipeline_flag(validate_signature_refdb, "validate_signature_refdb")

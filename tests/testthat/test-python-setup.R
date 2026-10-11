@@ -5,6 +5,29 @@ test_that("complete conda graph environment is the setup default", {
   expect_true(eval(defaults$include_graph_tool))
 })
 
+test_that("installation module checks omit graph_tool on Windows", {
+  local_mocked_bindings(
+    .drugsignet_is_windows = function() TRUE,
+    .package = "DrugSigNet"
+  )
+
+  modules <- DrugSigNet:::.drugsignet_installation_python_packages()
+
+  expect_true(all(c("numpy", "kaleido", "synapseclient") %in% modules))
+  expect_false("graph_tool" %in% modules)
+})
+
+test_that("installation module checks require graph_tool off Windows", {
+  local_mocked_bindings(
+    .drugsignet_is_windows = function() FALSE,
+    .package = "DrugSigNet"
+  )
+
+  expect_true(
+    "graph_tool" %in% DrugSigNet:::.drugsignet_installation_python_packages()
+  )
+})
+
 test_that("conda transaction excludes pip-only kaleido", {
   packages <- DrugSigNet:::.drugsignet_conda_packages(
     include_graph_tool = TRUE
@@ -15,7 +38,7 @@ test_that("conda transaction excludes pip-only kaleido", {
   expect_true("kaleido" %in% DrugSigNet:::.drugsignet_python_packages())
 })
 
-test_that("automatic Python setup follows interactivity unless overridden", {
+test_that("automatic Python setup is opt-in", {
   with_clean_python_setup <- function(code) {
     old_env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_PYTHON", unset = NA_character_)
     old_option <- getOption("DrugSigNet.auto_install_python")
@@ -34,13 +57,10 @@ test_that("automatic Python setup follows interactivity unless overridden", {
   }
 
   with_clean_python_setup({
-    expect_identical(
-      DrugSigNet:::.drugsignet_auto_install_enabled(),
-      interactive()
-    )
-
-    options(DrugSigNet.auto_install_python = FALSE)
     expect_false(DrugSigNet:::.drugsignet_auto_install_enabled())
+
+    options(DrugSigNet.auto_install_python = TRUE)
+    expect_true(DrugSigNet:::.drugsignet_auto_install_enabled())
   })
 })
 
@@ -52,6 +72,209 @@ test_that("module probe does not initialize reticulate", {
   expect_false(DrugSigNet:::.drugsignet_python_has_modules(
     python, "a_drugsignet_module_that_does_not_exist"
   ))
+})
+
+test_that("Pixi Python subprocesses receive their prefix runtime paths", {
+  prefix <- tempfile("drugsignet-pixi-prefix-")
+  python <- file.path(prefix, "bin", "python")
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  on.exit(unlink(prefix, recursive = TRUE), add = TRUE)
+
+  environment <- DrugSigNet:::.drugsignet_python_process_env(python)
+
+  expect_true(any(startsWith(environment, paste0("PATH=", file.path(prefix, "bin")))))
+  expect_true("PYTHONNOUSERSITE=1" %in% environment)
+  if (.Platform$OS.type != "windows") {
+    expect_true(any(startsWith(
+      environment, paste0("LD_LIBRARY_PATH=", file.path(prefix, "lib"))
+    )))
+  }
+})
+
+test_that("Pixi Python is associated with its project manifest", {
+  project <- tempfile("DrugSigNet-test-")
+  python <- file.path(project, ".pixi", "envs", "default", "bin", "python")
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  file.create(file.path(project, "pixi.toml"))
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+
+  expect_identical(
+    DrugSigNet:::.drugsignet_pixi_project_from_python(python),
+    normalizePath(project, mustWork = FALSE)
+  )
+
+  resolved_python <- file.path(dirname(python), "python3.10")
+  file.create(resolved_python)
+  expect_identical(
+    DrugSigNet:::.drugsignet_pixi_project_from_python(resolved_python),
+    normalizePath(project, mustWork = FALSE)
+  )
+  expect_identical(
+    DrugSigNet:::.drugsignet_pixi_project_from_python(Sys.which("python3")),
+    ""
+  )
+})
+
+test_that("Python runner recognizes an already active Pixi prefix", {
+  implementation <- paste(deparse(
+    body(DrugSigNet:::.drugsignet_python_system2)
+  ), collapse = "\n")
+
+  expect_match(implementation, 'Sys.getenv("CONDA_PREFIX")', fixed = TRUE)
+  expect_match(implementation, "python_prefix", fixed = TRUE)
+  expect_match(implementation, "return(system2", fixed = TRUE)
+})
+
+test_that("validated runtime marker belongs to the Python prefix", {
+  prefix <- tempfile("drugsignet-validated-prefix-")
+  python <- file.path(prefix, "bin", "python")
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  on.exit(unlink(prefix, recursive = TRUE), add = TRUE)
+
+  expect_false(DrugSigNet:::.drugsignet_python_runtime_validated(python))
+  file.create(file.path(prefix, ".drugsignet-runtime-validated"))
+  expect_true(DrugSigNet:::.drugsignet_python_runtime_validated(python))
+
+  linked_python <- file.path(prefix, "bin", "python-link")
+  expect_true(file.symlink(python, linked_python))
+  expect_true(DrugSigNet:::.drugsignet_python_runtime_validated(linked_python))
+})
+
+test_that("persisted Pixi configuration identifies a validated runtime", {
+  project <- tempfile("drugsignet-validated-project-")
+  python <- file.path(project, ".pixi", "envs", "default", "bin", "python")
+  marker <- file.path(
+    project, ".pixi", "envs", "default", ".drugsignet-runtime-validated"
+  )
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  file.create(marker)
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  local_envvar(c(
+    DRUGSIGNET_PIXI_PROJECT = project,
+    RETICULATE_PYTHON = python,
+    DRUGSIGNET_PIXI_VALIDATION_MARKER = marker
+  ))
+
+  expect_true(DrugSigNet:::.drugsignet_validated_pixi_runtime())
+  unlink(marker)
+  expect_false(DrugSigNet:::.drugsignet_validated_pixi_runtime())
+})
+
+test_that("Synapse preparation bypasses Conda for validated Pixi", {
+  project <- tempfile("drugsignet-synapse-project-")
+  python <- file.path(project, ".pixi", "envs", "default", "bin", "python")
+  marker <- file.path(
+    project, ".pixi", "envs", "default", ".drugsignet-runtime-validated"
+  )
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  file.create(marker)
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  local_envvar(c(
+    DRUGSIGNET_PIXI_PROJECT = project,
+    RETICULATE_PYTHON = python
+  ))
+  local_mocked_bindings(
+    .drugsignet_discover_pixi_python = function() python,
+    setup_python_dependencies = function(...) stop("Conda fallback was called"),
+    .package = "DrugSigNet"
+  )
+
+  expect_true(DrugSigNet:::.drugsignet_prepare_synapser_python())
+})
+
+test_that("graph-tool preflight selects configured Python before Conda", {
+  implementation <- paste(deparse(
+    body(DrugSigNet:::.drugsignet_require_graph_tool)
+  ), collapse = "\n")
+  configured <- regexpr(
+    ".drugsignet_discover_pixi_python()", implementation, fixed = TRUE
+  )[[1L]]
+  fallback <- regexpr(
+    "setup_python_dependencies(quiet = TRUE)", implementation, fixed = TRUE
+  )[[1L]]
+
+  expect_gt(configured, 0L)
+  expect_gt(fallback, configured)
+  first_active_check <- regexpr(
+    "reticulate::py_available(initialize = FALSE)", implementation, fixed = TRUE
+  )[[1L]]
+  expect_gt(first_active_check, configured)
+  expect_match(implementation, "reticulate::use_python", fixed = TRUE)
+  expect_match(
+    implementation,
+    'reticulate::import("graph_tool", delay_load = FALSE)',
+    fixed = TRUE
+  )
+  expect_false(grepl(
+    ".drugsignet_validated_pixi_runtime()", implementation, fixed = TRUE
+  ))
+})
+
+test_that("network pipeline initializes graph-tool before network resolution", {
+  implementation <- paste(deparse(
+    body(DrugSigNet::drugNetworkPipeline)
+  ), collapse = "\n")
+  graph_tool <- regexpr(
+    ".drugsignet_require_graph_tool()", implementation, fixed = TRUE
+  )[[1L]]
+  network_resolution <- regexpr(
+    "resolve_network_inputs(", implementation, fixed = TRUE
+  )[[1L]]
+
+  expect_gt(graph_tool, 0L)
+  expect_gt(network_resolution, graph_tool)
+})
+
+test_that("setup honors an already complete configured Python runtime", {
+  python <- Sys.which("python3")
+  skip_if(!nzchar(python), "python3 is unavailable")
+  old_python <- Sys.getenv("RETICULATE_PYTHON", unset = NA_character_)
+  on.exit(if (is.na(old_python)) Sys.unsetenv("RETICULATE_PYTHON") else
+    Sys.setenv(RETICULATE_PYTHON = old_python), add = TRUE)
+  Sys.setenv(RETICULATE_PYTHON = python)
+
+  local_mocked_bindings(
+    .drugsignet_python_packages = function(include_graph_tool = FALSE) "sys",
+    .package = "DrugSigNet"
+  )
+  result <- setup_python_dependencies(include_graph_tool = FALSE, quiet = TRUE)
+
+  expect_identical(result$method, "configured")
+  expect_identical(result$selected_python, python)
+  expect_length(result$missing, 0L)
+})
+
+test_that("conda prefix validation rejects partial environments", {
+  prefix <- tempfile("drugsignet-conda-prefix-")
+  python <- file.path(prefix, "bin", "python")
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  on.exit(unlink(prefix, recursive = TRUE), add = TRUE)
+
+  expect_false(DrugSigNet:::.drugsignet_conda_prefix_is_valid(python))
+  dir.create(file.path(prefix, "conda-meta"))
+  file.create(file.path(prefix, "conda-meta", "history"))
+  expect_true(DrugSigNet:::.drugsignet_conda_prefix_is_valid(python))
+})
+
+test_that("default Pixi project is discovered without a launcher command", {
+  project <- tempfile("DrugSigNet-test-")
+  python <- file.path(project, ".pixi", "envs", "default", "bin", "python")
+  dir.create(dirname(python), recursive = TRUE)
+  file.create(python)
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+
+  local_envvar(c(RETICULATE_PYTHON = NA, DRUGSIGNET_PIXI_PROJECT = project))
+  discovered <- DrugSigNet:::.drugsignet_discover_pixi_python()
+
+  expect_identical(discovered, normalizePath(python))
+  expect_identical(Sys.getenv("RETICULATE_PYTHON"), normalizePath(python))
+  expect_identical(Sys.getenv("DRUGSIGNET_PIXI_PROJECT"), normalizePath(project))
 })
 
 test_that("graph construction avoids graph_tool.all drawing imports", {

@@ -75,6 +75,8 @@ setGeneric(
            force = FALSE,
            auth_token = NULL) {
 
+    if (!.drugsignet_network_methods_available()) return(NULL)
+
     if (is.null(object)) {
       network_inputs <- resolve_network_inputs(ppi_network, drug_target_network, force = force, auth_token = auth_token)
       ppi_network <- network_inputs$ppi_network
@@ -257,6 +259,8 @@ setMethod(
   "TrustRank",
   signature = "NetworkBased",
   function(object) {
+
+    if (!.drugsignet_network_methods_available()) return(object)
 
     validateInputs(object)
     cat("Running TrustRank network-based drug search method...\n")
