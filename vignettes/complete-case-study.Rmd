@@ -43,26 +43,18 @@ and network branches, combines their method-level rankings using
 `integrateSignatureNetwork()`, and returns all three evidence layers in a
 single `DrugSearchingPipeline` object.
 
-<div style="max-width:760px;margin:1.3rem auto 1.5rem;font-family:Arial,sans-serif;" role="img" aria-label="Two evidence streams converge: a disease expression signature enters signature analysis to generate signature-family ranks, while disease seed genes enter network analysis to generate network-method ranks. Both streams feed integrated consensus ranking with CRank, Dowdall and RRA.">
-  <div style="display:flex;gap:12px;align-items:stretch;text-align:center;">
-    <div style="flex:1;min-width:0;">
-      <div style="background:#e9f3ff;border:1px solid #8bb6df;border-radius:8px;padding:12px 6px;font-weight:600;">Disease expression signature</div>
-      <div style="font-size:22px;line-height:1.5;color:#486681;">↓</div>
-      <div style="background:#f1f6fc;border:1px solid #9bb8d0;border-radius:8px;padding:12px 6px;">Signature workflow</div>
-      <div style="font-size:22px;line-height:1.5;color:#486681;">↓</div>
-      <div style="background:#e9f3ff;border:1px solid #8bb6df;border-radius:8px;padding:12px 6px;font-weight:600;">Signature-family ranks</div>
-    </div>
-    <div style="flex:1;min-width:0;">
-      <div style="background:#e8f4ee;border:1px solid #91bca5;border-radius:8px;padding:12px 6px;font-weight:600;">Disease seed genes</div>
-      <div style="font-size:22px;line-height:1.5;color:#48735c;">↓</div>
-      <div style="background:#f0f7f3;border:1px solid #a1c5ae;border-radius:8px;padding:12px 6px;">Network workflow</div>
-      <div style="font-size:22px;line-height:1.5;color:#48735c;">↓</div>
-      <div style="background:#e8f4ee;border:1px solid #91bca5;border-radius:8px;padding:12px 6px;font-weight:600;">Network-method ranks</div>
-    </div>
-  </div>
-  <div style="text-align:center;font-size:21px;line-height:1.5;color:#626b78;">↘ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↙</div>
-  <div style="background:#f0edfa;border:1px solid #ad9ad4;border-radius:8px;text-align:center;padding:15px 10px;font-weight:600;">Integrated consensus ranking<br><span style="font-weight:400;font-size:0.9em;">CRank · Dowdall · RRA</span></div>
-</div>
+The two evidence streams converge at the rank-integration step:
+
+| Signature evidence | Network evidence |
+|:---:|:---:|
+| **Disease expression signature** | **Disease seed genes** |
+| ↓ | ↓ |
+| `drugSignaturePipeline()` | `drugNetworkPipeline()` |
+| ↓ | ↓ |
+| **Signature-family ranks** | **Network-method ranks** |
+| ↘ | ↙ |
+
+**Both evidence streams → Integrated consensus ranking (CRank · Dowdall · RRA)**
 
 **Integration uses signature-family ranks and available network-method ranks,
 not merely the two branch-level consensus columns.** The exact inputs and
