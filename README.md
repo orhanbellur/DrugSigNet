@@ -64,13 +64,7 @@ install_drugsignet_pixi(
 
 The installer provisions the environment, installs DrugSigNet, and validates it. It reuses `pixi.lock` and the existing environment on subsequent runs. HTML vignettes are omitted by default for faster installation; use `build_vignettes = TRUE` if needed.
 
-Start an isolated R session with:
-
-```bash
-~/.pixi/bin/pixi run --manifest-path ~/DrugSigNet-test/pixi.toml R
-```
-
-The installer also configures access from host RStudio sessions. Restart R if a different Python interpreter was already initialized. Keep the generated `.pixi/` directory and lock file together for reproducibility.
+The installer configures access from RStudio as well. Restart R if a different Python interpreter was already initialized, and retain the generated `.pixi/` directory and lock file for reproducibility.
 
 ### Standard R installation
 
