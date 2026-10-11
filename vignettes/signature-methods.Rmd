@@ -557,21 +557,13 @@ organism.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+The methods use different scoring scales and reference contexts. Interpret native scores within each method before comparing standardized ranks, and report query composition and reference database provenance.
 
-# Next steps
+# Further reading
 
-| Goal | Recommended vignette |
-|---|---|
-| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
-| Run the complete signature workflow | `signature-workflow.Rmd` |
-| Understand consensus ranking | `rank-aggregation.Rmd` |
-| Annotate prioritized compounds | `drug-annotation.Rmd` |
-| Visualize signature and consensus results | `visualization.Rmd` |
+Continue with the [Signature workflow](signature-workflow.Rmd); see [Rank aggregation](rank-aggregation.Rmd) for consensus methods.
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
