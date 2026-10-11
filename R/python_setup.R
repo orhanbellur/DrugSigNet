@@ -4,17 +4,28 @@
 #' Installs required Python modules for DrugSigNet using `reticulate`.
 #'
 #' By default, this creates a dedicated conda environment containing the core
-#' Python modules, `kaleido`, and `graph_tool`. A dedicated environment is
+#' Python modules, `kaleido`, and, on supported operating systems, `graph_tool`.
+#' Native Windows installations skip `graph_tool` because it is unavailable.
+#' A dedicated environment is
 #' necessary because `graph_tool` is distributed by conda-forge rather than
 #' PyPI. It also prevents reticulate's `uv` environment from being initialized
 #' before the graph stack has been selected.
+#'
+#' If `RETICULATE_PYTHON` already names an interpreter containing every
+#' requested module (for example the generated Pixi environment), that runtime
+#' is selected directly and no Conda or Micromamba environment is created.
+#' The default `~/DrugSigNet-test` Pixi project, `DRUGSIGNET_PIXI_PROJECT`, and
+#' `options(DrugSigNet.pixi_project = ...)` are discovered automatically.
+#' Incomplete dedicated Conda environments left by interrupted installations
+#' are detected and safely recreated before packages are installed.
 #'
 #' @param envname Name of the Python environment to install into.
 #' @param method Installation backend passed to [reticulate::py_install()].
 #'   One of `"conda"`, `"auto"`, or `"virtualenv"`. The default is `"conda"`.
 #' @param include_graph_tool Logical; whether to attempt installing `graph_tool`.
 #'   The default is `TRUE`. If `TRUE`, `method` must be `"conda"`; DrugSigNet
-#'   installs the `graph-tool` package from the `conda-forge` channel.
+#'   installs the `graph-tool` package from the `conda-forge` channel. This is
+#'   automatically changed to `FALSE` on Windows.
 #' @param force Logical; if `TRUE`, reinstall requested modules even if already available.
 #' @param install_synapser Logical; if `TRUE`, install optional Synapse support
 #'   after configuring Python. This mirrors `DRUGSIGNET_INSTALL_SYNAPSER=true`
@@ -41,6 +52,49 @@ setup_python_dependencies <- function(
   if (is_windows && isTRUE(include_graph_tool)) {
     warning("graph_tool is not supported on Windows and was skipped.", call. = FALSE)
     include_graph_tool <- FALSE
+  }
+
+  configured_python <- .drugsignet_discover_pixi_python()
+  requested_modules <- .drugsignet_python_packages(
+    include_graph_tool = isTRUE(include_graph_tool)
+  )
+  runtime_validated <- .drugsignet_validated_pixi_runtime() ||
+    .drugsignet_python_runtime_validated(configured_python)
+  if (!isTRUE(force) && nzchar(configured_python) &&
+      file.exists(configured_python) &&
+      (runtime_validated ||
+       .drugsignet_python_has_modules(configured_python, requested_modules))) {
+    if (reticulate::py_available(initialize = FALSE)) {
+      active_python <- normalizePath(reticulate::py_config()$python, mustWork = FALSE)
+      requested_python <- normalizePath(configured_python, mustWork = FALSE)
+      if (!identical(active_python, requested_python)) {
+        stop(
+          "reticulate has already initialized a different Python interpreter: ",
+          active_python, "\nRestart R before using the configured Pixi runtime: ",
+          requested_python,
+          call. = FALSE
+        )
+      }
+    } else {
+      reticulate::use_python(configured_python, required = TRUE)
+    }
+    if (!quiet) {
+      message("Using the complete Python runtime from RETICULATE_PYTHON: ", configured_python)
+    }
+    return(invisible(list(
+      packages = requested_modules,
+      missing = character(0),
+      method = "configured",
+      envname = NULL,
+      selected_python = configured_python,
+      wrote_renviron = FALSE,
+      install_synapser = isTRUE(install_synapser),
+      synapser_installed = runtime_validated ||
+        .drugsignet_python_has_modules(configured_python, "synapseclient"),
+      graph_tool_requested = isTRUE(include_graph_tool),
+      graph_tool_installed = runtime_validated ||
+        .drugsignet_python_has_modules(configured_python, "graph_tool")
+    )))
   }
   if (isTRUE(include_graph_tool) && !identical(method, "conda")) {
     stop(
@@ -157,6 +211,36 @@ setup_python_dependencies <- function(
   ))
 }
 
+.drugsignet_discover_pixi_python <- function() {
+  configured <- Sys.getenv("RETICULATE_PYTHON")
+  if (nzchar(configured) && file.exists(configured)) return(configured)
+
+  projects <- unique(c(
+    Sys.getenv("DRUGSIGNET_PIXI_PROJECT"),
+    getOption("DrugSigNet.pixi_project", ""),
+    file.path(path.expand("~"), "DrugSigNet-test")
+  ))
+  projects <- projects[nzchar(projects)]
+  if (!length(projects)) return("")
+
+  candidates <- file.path(
+    path.expand(projects), ".pixi", "envs", "default", "bin", "python"
+  )
+  available <- candidates[file.exists(candidates)]
+  if (!length(available)) return("")
+
+  python <- normalizePath(available[[1]], mustWork = TRUE)
+  project <- normalizePath(
+    dirname(dirname(dirname(dirname(dirname(python))))),
+    mustWork = TRUE
+  )
+  Sys.setenv(
+    DRUGSIGNET_PIXI_PROJECT = project,
+    RETICULATE_PYTHON = python
+  )
+  python
+}
+
 .drugsignet_prepare_conda_environment <- function(envname, include_graph_tool,
                                                    force = FALSE, quiet = FALSE) {
   # conda_binary() raises an error (rather than returning NULL) when conda is
@@ -183,7 +267,19 @@ setup_python_dependencies <- function(
   }
 
   python <- tryCatch(reticulate::conda_python(envname), error = function(e) "")
-  if (!length(python) || !nzchar(python) || !file.exists(python)) {
+  prefix_valid <- .drugsignet_conda_prefix_is_valid(python)
+  if (!prefix_valid) {
+    stale_prefix <- if (length(python) == 1L && nzchar(python)) {
+      dirname(dirname(python))
+    } else {
+      ""
+    }
+    if (nzchar(stale_prefix) && dir.exists(stale_prefix) &&
+        identical(basename(stale_prefix), envname) &&
+        identical(basename(dirname(stale_prefix)), "envs")) {
+      if (!quiet) message("Removing incomplete DrugSigNet conda environment: ", stale_prefix)
+      unlink(stale_prefix, recursive = TRUE, force = TRUE)
+    }
     if (!quiet) message("Creating DrugSigNet conda environment: ", envname)
     reticulate::conda_create(
       envname = envname,
@@ -228,6 +324,15 @@ setup_python_dependencies <- function(
   invisible(python)
 }
 
+.drugsignet_conda_prefix_is_valid <- function(python) {
+  if (length(python) != 1L || is.na(python) || !nzchar(python) ||
+      !file.exists(python)) {
+    return(FALSE)
+  }
+  prefix <- dirname(dirname(python))
+  file.exists(file.path(prefix, "conda-meta", "history"))
+}
+
 .drugsignet_conda_packages <- function(include_graph_tool = TRUE) {
   # kaleido is intentionally absent: current conda-forge repositories do not
   # publish it for all supported platforms. setup_python_dependencies() detects
@@ -251,8 +356,173 @@ setup_python_dependencies <- function(
     ),
     script
   )
-  status <- suppressWarnings(system2(python, script, stdout = FALSE, stderr = FALSE))
+  status <- suppressWarnings(.drugsignet_python_system2(
+    python,
+    shQuote(script),
+    stdout = FALSE,
+    stderr = FALSE
+  ))
   identical(status, 0L)
+}
+
+.drugsignet_python_system2 <- function(python, args, stdout = FALSE,
+                                        stderr = FALSE) {
+  python_prefix <- dirname(dirname(normalizePath(python, mustWork = FALSE)))
+  active_prefix <- Sys.getenv("CONDA_PREFIX")
+  if (nzchar(active_prefix) && identical(
+      normalizePath(active_prefix, mustWork = FALSE), python_prefix
+  )) {
+    return(system2(
+      python,
+      args,
+      stdout = stdout,
+      stderr = stderr,
+      env = .drugsignet_python_process_env(python)
+    ))
+  }
+
+  project <- if (.drugsignet_validated_pixi_runtime()) {
+    normalizePath(Sys.getenv("DRUGSIGNET_PIXI_PROJECT"), mustWork = FALSE)
+  } else {
+    .drugsignet_pixi_project_from_python(python)
+  }
+  pixi <- Sys.which("pixi")
+  if (!nzchar(pixi)) {
+    candidate <- file.path(path.expand("~"), ".pixi", "bin", "pixi")
+    if (file.exists(candidate)) pixi <- candidate
+  }
+
+  if (nzchar(project) && nzchar(pixi)) {
+    return(system2(
+      pixi,
+      c(
+        "run", "--manifest-path", shQuote(file.path(project, "pixi.toml")),
+        "python", args
+      ),
+      stdout = stdout,
+      stderr = stderr
+    ))
+  }
+
+  system2(
+    python,
+    args,
+    stdout = stdout,
+    stderr = stderr,
+    env = .drugsignet_python_process_env(python)
+  )
+}
+
+.drugsignet_pixi_project_from_python <- function(python) {
+  if (length(python) != 1L || is.na(python) || !nzchar(python)) return("")
+  normalized <- normalizePath(python, mustWork = FALSE)
+  projects <- unique(c(
+    Sys.getenv("DRUGSIGNET_PIXI_PROJECT"),
+    getOption("DrugSigNet.pixi_project", ""),
+    file.path(path.expand("~"), "DrugSigNet-test")
+  ))
+  projects <- projects[nzchar(projects)]
+  for (project in projects) {
+    project <- normalizePath(path.expand(project), mustWork = FALSE)
+    prefix_bin <- file.path(project, ".pixi", "envs", "default", "bin")
+    if (startsWith(normalized, paste0(prefix_bin, .Platform$file.sep)) &&
+        file.exists(file.path(project, "pixi.toml"))) {
+      return(project)
+    }
+  }
+
+  marker <- paste0(.Platform$file.sep, ".pixi", .Platform$file.sep, "envs",
+                   .Platform$file.sep, "default", .Platform$file.sep, "bin",
+                   .Platform$file.sep)
+  position <- regexpr(marker, normalized, fixed = TRUE)[[1L]]
+  if (position < 1L) return("")
+  project <- substr(normalized, 1L, position - 1L)
+  if (file.exists(file.path(project, "pixi.toml"))) project else ""
+}
+
+.drugsignet_python_runtime_validated <- function(python) {
+  if (length(python) != 1L || is.na(python) || !nzchar(python) ||
+      !file.exists(python)) {
+    return(FALSE)
+  }
+
+  # Check the lexical interpreter path first. Pixi/conda Python executables are
+  # often symlinks, and normalizePath() may resolve them outside the environment
+  # prefix even though the selected entry point and validation marker are inside
+  # that prefix.
+  lexical_prefix <- dirname(dirname(path.expand(python)))
+  if (file.exists(file.path(
+    lexical_prefix, ".drugsignet-runtime-validated"
+  ))) {
+    return(TRUE)
+  }
+
+  projects <- unique(c(
+    Sys.getenv("DRUGSIGNET_PIXI_PROJECT"),
+    getOption("DrugSigNet.pixi_project", ""),
+    file.path(path.expand("~"), "DrugSigNet-test")
+  ))
+  projects <- projects[nzchar(projects)]
+  for (project in projects) {
+    project <- normalizePath(path.expand(project), mustWork = FALSE)
+    expected_python <- file.path(
+      project, ".pixi", "envs", "default", "bin", "python"
+    )
+    marker <- file.path(
+      project, ".pixi", "envs", "default", ".drugsignet-runtime-validated"
+    )
+    same_python <- identical(path.expand(python), expected_python) ||
+      identical(
+        normalizePath(python, mustWork = FALSE),
+        normalizePath(expected_python, mustWork = FALSE)
+      )
+    if (same_python && file.exists(marker)) return(TRUE)
+  }
+
+  resolved_prefix <- dirname(dirname(normalizePath(python, mustWork = TRUE)))
+  file.exists(file.path(resolved_prefix, ".drugsignet-runtime-validated"))
+}
+
+.drugsignet_validated_pixi_runtime <- function() {
+  project <- Sys.getenv("DRUGSIGNET_PIXI_PROJECT")
+  python <- Sys.getenv("RETICULATE_PYTHON")
+  persisted_marker <- Sys.getenv("DRUGSIGNET_PIXI_VALIDATION_MARKER")
+  if (nzchar(persisted_marker) && file.exists(persisted_marker) &&
+      nzchar(python) && file.exists(python)) {
+    return(TRUE)
+  }
+  if (!nzchar(project) || !nzchar(python)) return(FALSE)
+
+  project <- path.expand(project)
+  python <- path.expand(python)
+  expected_bin <- file.path(project, ".pixi", "envs", "default", "bin")
+  marker <- file.path(
+    project, ".pixi", "envs", "default", ".drugsignet-runtime-validated"
+  )
+  file.exists(python) && file.exists(marker) &&
+    startsWith(python, paste0(expected_bin, .Platform$file.sep))
+}
+
+.drugsignet_python_process_env <- function(python) {
+  if (length(python) != 1L || is.na(python) || !nzchar(python)) return(character())
+
+  prefix <- dirname(dirname(normalizePath(python, mustWork = FALSE)))
+  prefix_bin <- file.path(prefix, "bin")
+  prefix_lib <- file.path(prefix, "lib")
+  path <- paste(c(prefix_bin, Sys.getenv("PATH")), collapse = .Platform$path.sep)
+  environment <- c(
+    paste0("PATH=", path),
+    "PYTHONNOUSERSITE=1"
+  )
+  if (!.drugsignet_is_windows()) {
+    library_path <- c(prefix_lib, Sys.getenv("LD_LIBRARY_PATH"))
+    library_path <- library_path[nzchar(library_path)]
+    environment <- c(
+      environment,
+      paste0("LD_LIBRARY_PATH=", paste(library_path, collapse = .Platform$path.sep))
+    )
+  }
+  environment
 }
 
 .drugsignet_python_packages <- function(include_graph_tool = FALSE) {
@@ -263,7 +533,77 @@ setup_python_dependencies <- function(
   pkgs
 }
 
+.drugsignet_network_methods_available <- function(os_type = .Platform$OS.type,
+                                                   warn = TRUE) {
+  if (!identical(os_type, "windows")) return(TRUE)
+  if (isTRUE(warn)) {
+    warning(
+      paste(
+        "Network-based methods require the Python graph-tool library,",
+        "which is not available for native Windows installations.",
+        "",
+        "Please use the DrugSigNet Docker image or Windows Subsystem",
+        "for Linux (WSL) to access network-based analyses.",
+        sep = "\n"
+      ),
+      call. = FALSE
+    )
+  }
+  FALSE
+}
+
 .drugsignet_require_graph_tool <- function() {
+  # A configured interpreter is authoritative.  In particular, do not require
+  # the installer marker here: it is an installation-time optimisation and can
+  # be absent after a project is copied, while its Python remains usable.  More
+  # importantly, falling through to setup_python_dependencies() asks reticulate
+  # to discover Conda and produces "Unable to find conda binary" even though a
+  # complete Pixi interpreter was explicitly configured.
+  python <- .drugsignet_discover_pixi_python()
+  if (nzchar(python) && file.exists(python)) {
+    requested_python <- normalizePath(python, mustWork = FALSE)
+    selection_error <- tryCatch(
+      {
+        # Do not call py_available() here. Even with initialize = FALSE, recent
+        # reticulate releases perform interpreter discovery and may query Conda
+        # before honoring the project-local Pixi interpreter. use_python()
+        # records the explicit interpreter without that discovery step and also
+        # rejects attempts to switch an already initialized Python session.
+        reticulate::use_python(requested_python, required = TRUE)
+        NULL
+      },
+      error = identity
+    )
+    if (!is.null(selection_error)) {
+      stop(
+        "DrugSigNet could not select its configured Python interpreter: ",
+        requested_python, "\n", conditionMessage(selection_error),
+        "\nRestart R, load DrugSigNet first, and retry the network pipeline.",
+        call. = FALSE
+      )
+    }
+
+    import_error <- tryCatch(
+      {
+        reticulate::import("graph_tool", delay_load = FALSE)
+        NULL
+      },
+      error = identity
+    )
+    if (!is.null(import_error)) {
+      stop(
+        "DrugSigNet selected the configured Python interpreter, but could not ",
+        "import graph_tool: ", requested_python, "\n",
+        conditionMessage(import_error),
+        call. = FALSE
+      )
+    }
+    return(invisible(TRUE))
+  }
+
+  # No configured interpreter was found. An interpreter that was deliberately
+  # initialized by the caller may still provide graph_tool; only then is it
+  # safe to accept it without provisioning DrugSigNet's environment.
   if (reticulate::py_available(initialize = FALSE) &&
       reticulate::py_module_available("graph_tool")) {
     return(invisible(TRUE))
@@ -373,10 +713,9 @@ setup_python_dependencies <- function(
 }
 
 .drugsignet_auto_install_enabled <- function() {
-  # Network methods are core package functionality, so provision their Python
-  # environment on the first interactive attach unless the user explicitly
-  # opts out. Non-interactive checks/builds never start network downloads.
-  opt <- getOption("DrugSigNet.auto_install_python", interactive())
+  # Loading an R package must not unexpectedly download or mutate an external
+  # runtime. Users can explicitly opt in or call setup_python_dependencies().
+  opt <- getOption("DrugSigNet.auto_install_python", FALSE)
   env <- Sys.getenv("DRUGSIGNET_AUTO_INSTALL_PYTHON", "")
 
   if (nzchar(env)) {
