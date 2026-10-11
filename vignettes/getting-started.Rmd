@@ -62,114 +62,84 @@ stages, and optional interpretation steps.
 
 # Installation
 
-## Install package managers
+DrugSigNet requires **R 4.5.0 or newer**. Choose the installation method
+that matches your environment. For a concise overview, see the
+[README installation guide](https://github.com/orhanbellur/DrugSigNet#installation).
 
-DrugSigNet can be installed directly from GitHub. Install the required package
-managers if they are not already available:
+## Project-local Pixi (without sudo)
 
-```{r install-managers}
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager", repos = "https://cloud.r-project.org")
-}
-if (!requireNamespace("devtools", quietly = TRUE)) {
-  install.packages("devtools", repos = "https://cloud.r-project.org")
-}
-if (!requireNamespace("pak", quietly = TRUE)) {
-  install.packages("pak", repos = "https://cloud.r-project.org")
-}
-```
+Pixi creates an isolated, reproducible R/Python environment with the native
+dependencies needed for signature- and network-based analyses. In R or RStudio:
 
-## Install DrugSigNet
-
-Install the development version from GitHub:
-
-```{r install-drugsignet}
-devtools::install_github(
-  "compneurobio/DrugSigNet",
-  dependencies = TRUE,
-  upgrade = "never",
-  build_vignettes = TRUE
+```{r install-pixi, eval=FALSE}
+branch <- "codex/verify-drugsignet-installation-dependencies-gu6bme"
+source(paste0(
+  "https://raw.githubusercontent.com/orhanbellur/DrugSigNet/",
+  branch, "/install-pixi.R"
+))
+install_drugsignet_pixi(
+  package_ref = paste0("orhanbellur/DrugSigNet@", branch),
+  project_dir = "~/DrugSigNet-test"
 )
 ```
 
-Alternatively, install the same dependencies and build the vignettes with
-`pak`:
+The installer installs and validates DrugSigNet and configures access from
+RStudio. Restart R if another Python interpreter was already initialized.
+Set `build_vignettes = TRUE` when installing if rendered HTML vignettes
+are required.
 
-```{r install-drugsignet-pak}
-options(pkg.build_vignettes = TRUE)
+## Standard R installation
 
-pak::pak(
-  "compneurobio/DrugSigNet",
-  dependencies = TRUE,
-  upgrade = FALSE
+Use this method when the required native system libraries are already present.
+Do not enable automatic system-package installation in an R session without
+root or passwordless sudo.
+
+```{r install-drugsignet-pak, eval=FALSE}
+stopifnot(getRversion() >= "4.5.0")
+if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")
+options(timeout = max(1200, getOption("timeout", 60)))
+options(pkg.sysreqs = FALSE, pkg.build_vignettes = TRUE)
+Sys.setenv(PKG_SYSREQS = "false", PKG_BUILD_VIGNETTES = "true")
+pak::pkg_install(
+  "orhanbellur/DrugSigNet@codex/verify-drugsignet-installation-dependencies-gu6bme",
+  dependencies = NA,
+  upgrade = FALSE,
+  ask = FALSE
 )
 ```
 
-For local package development, install from a local checkout instead:
+For Python-backed network methods, provision and validate the Python environment:
 
-```{r install-local}
-remotes::install_local(
-  "~/DrugSigNet",
-  dependencies = TRUE,
-  upgrade = "never"
-)
+```{r setup-python, eval=FALSE}
+DrugSigNet::setup_python_dependencies()
+DrugSigNet::check_drugsignet_installation(stop_on_error = TRUE)
 ```
+
+The optional Bioconductor package `signatureSearch` is required by some
+signature methods; install it with `BiocManager::install("signatureSearch")`
+when needed.
 
 ## Verify the installation
 
-Load DrugSigNet and check the installed version:
-
-```{r verify-installation}
+```{r verify-installation, eval=FALSE}
 library(DrugSigNet)
 packageVersion("DrugSigNet")
 ```
 
-## Alternative: use a pre-built Docker image
+## Docker
 
-For a fully configured and reproducible environment, DrugSigNet is also
-available as pre-built Docker images. Docker Engine or Docker Desktop must be
-installed before using these images.
-
-Images are available from the
-[DrugSigNet Docker Hub repository](https://hub.docker.com/r/orhan1117/drugsignet).
-Pull the image corresponding to your platform:
-
-**Linux**
+For a fully configured Linux-based runtime on Linux, macOS, or Windows, use
+the maintained DrugSigNet Docker image:
 
 ```bash
 docker pull orhan1117/drugsignet:linux
-```
-
-**macOS**
-
-```bash
-docker pull orhan1117/drugsignet:mac
-```
-
-**Windows**
-
-```powershell
-docker pull orhan1117/drugsignet:windows
-```
-
-After downloading the image, start RStudio Server. For example, on Linux:
-
-```bash
 docker run --rm -p 8787:8787 -e PASSWORD=drugsignet orhan1117/drugsignet:linux
 ```
 
-For macOS or Windows, replace the `linux` tag with `mac` or `windows`,
-respectively. Then open <http://localhost:8787> and sign in with username
-`rstudio` and password `drugsignet`.
-
-To run R directly instead of RStudio Server:
-
-```bash
-docker run --rm -it orhan1117/drugsignet:linux R
-```
-
-See [`DOCKER.md`](https://github.com/compneurobio/DrugSigNet/blob/main/DOCKER.md) for platform-specific builds, configuration,
-volume mounting, authentication, and troubleshooting.
+Open <http://localhost:8787> and sign in as `rstudio` with password
+`drugsignet`. Docker Desktop provides the Linux container runtime on macOS
+and Windows. See [`DOCKER.md`](https://github.com/orhanbellur/DrugSigNet/blob/codex/verify-drugsignet-installation-dependencies-gu6bme/DOCKER.md)
+for platform-specific instructions.
 
 # Optional resources
 
@@ -331,8 +301,7 @@ question:
 
 ## Package installation fails
 
-Install Bioconductor dependencies first, then retry the package installation with
-`upgrade = "never"` to avoid unnecessary dependency upgrades.
+Verify R >= 4.5.0 and check the installation method above. For a missing native library in a restricted environment, use Pixi or the maintained Docker image rather than retrying an unprivileged system-package installation.
 
 ## Reference database download fails
 
@@ -340,12 +309,8 @@ Check internet access, authentication, and local cache permissions. If the
 resource requires Synapse authentication, also confirm that a valid token is
 available in `SYNAPSE_AUTH_TOKEN`.
 
-If the error says that `synapser` is unavailable, run
-`DrugSigNet::setup_synapser()`. The helper falls back to the official Sage
-Bionetworks GitHub repository when the legacy Synapse R package index cannot be
-reached and disables dependency-vignette rebuilding, so a LaTeX installation is
-not needed. Set `options(DrugSigNet.auto_install_synapser = FALSE)` to disable
-installation on first use.
+If Synapse access fails, run `DrugSigNet::setup_synapser()` to check the
+configured client and authentication. See the authentication guidance above.
 
 ## Network methods are slow
 
@@ -361,11 +326,9 @@ annotation workflow and its resource requirements.
 
 # Summary
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
+Begin with the analysis supported by your available disease evidence. After validating a minimal run, inspect the result structure and add annotation, visualization, and reporting as needed.
 
 # Session information
-
-Record the R and package versions used to build this vignette.
 
 ```{r session-info, eval=TRUE}
 sessionInfo()
