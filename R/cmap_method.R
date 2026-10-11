@@ -74,7 +74,6 @@
 #' )
 #' }
 #'
-#' @importFrom signatureSearch qSig gess_cmap result
 #' @importFrom magrittr %>%
 #' @export
 
