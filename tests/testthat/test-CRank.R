@@ -13,12 +13,6 @@ test_that("Python data-frame metadata is removed without changing R metadata", {
 
 test_that("CRank returns strictly reproducible ordinary R data frames", {
   skip_if_not_installed("reticulate")
-  required_modules <- c("numpy", "pandas", "scipy", "openpyxl")
-  skip_if_not(all(vapply(
-    required_modules,
-    reticulate::py_module_available,
-    logical(1)
-  )), "CRank Python dependencies are not available")
 
   rank_df <- data.frame(
     Drug = paste0("drug_", letters[1:6]),
