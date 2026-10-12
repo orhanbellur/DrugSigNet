@@ -18,6 +18,13 @@ jobs:
     container: ${{ matrix.config.cont }}
     env:
       DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
+      # R CMD check runs before the dedicated runtime provisioning step. Allow
+      # reticulate::py_require() to create its isolated test environment there;
+      # later fresh R sessions explicitly select r-drugsignet via
+      # RETICULATE_PYTHON and validate that dedicated interpreter.
+      RETICULATE_USE_MANAGED_VENV: 'yes'
+      # CI containers intentionally run pip as their isolated build user.
+      PIP_ROOT_USER_ACTION: ignore
       # synapser is installed for normal source installs, but package checks
       # skip this network-dependent integration and exercise guarded paths.
       DRUGSIGNET_SKIP_SYNAPSER_INSTALL: 'true'
@@ -25,27 +32,33 @@ jobs:
       fail-fast: ${{ false }}
       matrix:
         config:
+        # Bioconductor 3.22 is the release designed for R 4.5 on Linux,
+        # macOS ARM64, and Windows. Keeping this pair explicit prevents the
+        # action's own BiocVersion/BiocStyle dependencies from being resolved
+        # against repositories for a different R/Bioconductor generation.
         - os: ubuntu-latest
-          bioc: devel
-          r: auto
-          cont: ghcr.io/bioconductor/bioconductor_docker:devel
+          bioc: '3.22'
+          # The official Bioconductor 3.22 container is built with R 4.5.2;
+          # this matrix label must describe the R actually inside the image.
+          r: '4.5.2'
+          cont: ghcr.io/bioconductor/bioconductor_docker:RELEASE_3_22-R-4.5.2
           rspm: ~
         - os: macOS-latest
-          bioc: release
-          r: auto
+          bioc: '3.22'
+          r: '4.5.3'
           cont: ~
           rspm: ~
         - os: windows-latest
-          bioc: release
-          r: auto
+          bioc: '3.22'
+          r: '4.5.3'
           cont: ~
           rspm: ~
     steps:
     - id: rworkflows-check
       uses: neurogenomics/rworkflows@master
-      # rworkflows treats every R CMD check warning as fatal.  Let the step
-      # finish so the validator below can admit only the one immutable-data
-      # warning that is known for this package.
+      # Always run the runtime diagnostics and log validator after the
+      # composite action. The validator remains strict: any check warning or
+      # any failure outside R CMD check still fails the job.
       continue-on-error: true
       with:
         run_bioccheck: ${{ false }}
@@ -69,6 +82,17 @@ jobs:
         # namespace; retain the stable cache for Ubuntu and macOS.
         cache_version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || 'cache-v1' }}
         docker_registry: ghcr.io
+    - id: runtime-install
+      name: Install package and provision complete runtime
+      if: ${{ always() }}
+      env:
+        DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
+      run: |
+        Rscript -e "remotes::install_local('.', dependencies=FALSE, upgrade='never', build_vignettes=TRUE, force=TRUE)"
+        Rscript -e "DrugSigNet::setup_python_dependencies(write_renviron=TRUE)"
+    - name: Validate OS-specific runtime
+      if: ${{ steps.runtime-install.outcome == 'success' }}
+      run: Rscript .github/scripts/validate-runtime-install.R
     - name: Validate R CMD check result
       if: ${{ always() }}
       env:
