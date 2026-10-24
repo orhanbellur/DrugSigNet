@@ -37,7 +37,10 @@ setup_synapser <- function(quiet = FALSE) {
   # Python client rather than loading the Synapser R namespace.
   .drugsignet_prepare_synapser_python(quiet = quiet)
   python <- Sys.getenv("RETICULATE_PYTHON")
-  if (!nzchar(python) || !.drugsignet_python_has_modules(python, "synapseclient")) {
+  if (!nzchar(python) ||
+      (!.drugsignet_validated_pixi_runtime() &&
+       !.drugsignet_python_runtime_validated(python) &&
+       !.drugsignet_python_has_modules(python, "synapseclient"))) {
     stop("Python Synapse client installation failed.", call. = FALSE)
   }
   if (!isTRUE(quiet)) message("DrugSigNet's isolated Synapse client is ready.")
@@ -58,7 +61,9 @@ setup_synapser <- function(quiet = FALSE) {
   .drugsignet_prepare_synapser_python(quiet = TRUE)
   python <- Sys.getenv("RETICULATE_PYTHON")
   if (!nzchar(python) ||
-      !.drugsignet_python_has_modules(python, "synapseclient")) {
+      (!.drugsignet_validated_pixi_runtime() &&
+       !.drugsignet_python_runtime_validated(python) &&
+       !.drugsignet_python_has_modules(python, "synapseclient"))) {
     stop(
       "Python package 'synapseclient' is required to ", purpose, ".\n",
       "Run setup_python_dependencies(force = TRUE) and retry.",
@@ -84,10 +89,20 @@ setup_synapser <- function(quiet = FALSE) {
       invisible(TRUE)
     })
   }
+  if (identical(name, "synGet")) {
+    # Keep callers written against the historical Synapser API on the same
+    # isolated-client path as new code.  Synapser 3.x no longer accepts every
+    # legacy synGet() argument (notably downloadFile), whereas our adapter does
+    # and translates it for the Python client without loading Python into R.
+    return(function(entity, ...) .drugsignet_syn_get(entity, ...))
+  }
   getExportedValue(.drugsignet_synapser_package(), name)
 }
 
 .drugsignet_prepare_synapser_python <- function(quiet = TRUE) {
+  .drugsignet_discover_pixi_python()
+  if (.drugsignet_validated_pixi_runtime()) return(invisible(TRUE))
+
   tryCatch(
     setup_python_dependencies(
       include_graph_tool = !.drugsignet_is_windows(),
@@ -118,7 +133,7 @@ setup_synapser <- function(quiet = FALSE) {
 
   download <- !identical(args$downloadFile, FALSE)
   location <- args$downloadLocation %||% ""
-  output <- system2(
+  output <- .drugsignet_python_system2(
     python,
     c(shQuote(script), shQuote(entity), if (download) "true" else "false", shQuote(location)),
     stdout = TRUE,
@@ -132,7 +147,7 @@ setup_synapser <- function(quiet = FALSE) {
   if (!length(json_lines)) {
     stop("Synapse Python client returned no result: ", paste(output, collapse = "\n"), call. = FALSE)
   }
-  result <- jsonlite::fromJSON(tail(json_lines, 1L), simplifyVector = TRUE)
+  result <- jsonlite::fromJSON(utils::tail(json_lines, 1L), simplifyVector = TRUE)
   list(properties = result$properties, path = result$path)
 }
 

@@ -33,6 +33,24 @@ test_that("Synapse login stores the token without loading the R wrapper", {
   expect_identical(getOption("DrugSigNet.synapse_auth_token"), "test-token")
 })
 
+test_that("legacy synGet lookup uses the isolated compatibility adapter", {
+  received <- NULL
+  local_mocked_bindings(
+    .drugsignet_syn_get = function(entity, ...) {
+      received <<- c(list(entity = entity), list(...))
+      list(properties = list(id = entity), path = NULL)
+    },
+    .package = "DrugSigNet"
+  )
+
+  syn_get <- DrugSigNet:::.drugsignet_synapser_function("synGet")
+  result <- syn_get("syn75862040", downloadFile = FALSE)
+
+  expect_identical(received$entity, "syn75862040")
+  expect_identical(received$downloadFile, FALSE)
+  expect_identical(result$properties$id, "syn75862040")
+})
+
 test_that("Synapse operations use the isolated Python client", {
   script <- system.file("Python", "synapse_client.py", package = "DrugSigNet")
   source <- readLines(script, warn = FALSE)
