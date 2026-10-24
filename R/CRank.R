@@ -71,7 +71,6 @@
 #' \doi{10.1038/s41467-018-04948-5}
 #'
 #' @importFrom dplyr mutate dense_rank
-#' @importFrom openxlsx write.xlsx
 #' @importFrom reticulate py_run_file
 #' @export
 
@@ -121,15 +120,22 @@ setMethod(
     }
 
     # Create a temporary file for CRank input
-    crank_input_file <- tempfile(fileext = ".xlsx")
+    crank_input_file <- tempfile(fileext = ".csv")
     on.exit(unlink(crank_input_file), add = TRUE)
 
     if (any(input_data[, numeric_cols] > 0, na.rm = TRUE)) {
       # Prepare CRank input
       crank_input <- .CRank_input(input_data, ties_method = params$ties_method, reverse = params$reverse)
 
-      # Write to a temporary Excel file
-      openxlsx::write.xlsx(crank_input, crank_input_file)
+      # CRank only needs a rectangular interchange format.  Using CSV here
+      # avoids invoking openxlsx's native ZIP/XML stack in the reticulate test
+      # process (which has caused process-level crashes on macOS arm64).
+      utils::write.csv(
+        crank_input,
+        file = crank_input_file,
+        row.names = FALSE,
+        na = ""
+      )
 
       # Locate the Python script dynamically
       CRank_path <- system.file("Python", "CRank.py", package = "DrugSigNet")
@@ -143,11 +149,11 @@ setMethod(
           # Declare transitive requirements before evaluating the script so
           # reticulate's managed Python environment includes scipy on Linux.
           if ("py_require" %in% getNamespaceExports("reticulate")) {
-            reticulate::py_require(c("numpy", "pandas", "scipy", "openpyxl"))
+            reticulate::py_require(c("numpy", "pandas", "scipy"))
           }
           py <- reticulate::py_run_file(CRank_path)
           CRank_res <- py$CRank(
-            file_name = crank_input_file, sheet_name = "Sheet 1",
+            file_name = crank_input_file,
             ties_method = params$ties_method, prior = params$prior,
             num_bin = as.integer(params$num_bin), num_iter = as.integer(params$num_iter)
           )

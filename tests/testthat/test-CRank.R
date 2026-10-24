@@ -11,14 +11,22 @@ test_that("Python data-frame metadata is removed without changing R metadata", {
   expect_identical(cleaned$CRank, result$CRank)
 })
 
+test_that("CRank uses a plain CSV interchange file", {
+  implementation <- paste(deparse(
+    methods::getMethod("CRank", "RankAggregation")
+  ), collapse = "\n")
+  python <- readLines(
+    system.file("Python", "CRank.py", package = "DrugSigNet"),
+    warn = FALSE
+  )
+
+  expect_match(implementation, "utils::write.csv", fixed = TRUE)
+  expect_false(grepl("openxlsx::write.xlsx", implementation, fixed = TRUE))
+  expect_true(any(grepl("pd.read_csv(file_name)", python, fixed = TRUE)))
+})
+
 test_that("CRank returns strictly reproducible ordinary R data frames", {
   skip_if_not_installed("reticulate")
-  required_modules <- c("numpy", "pandas", "scipy", "openpyxl")
-  skip_if_not(all(vapply(
-    required_modules,
-    reticulate::py_module_available,
-    logical(1)
-  )), "CRank Python dependencies are not available")
 
   rank_df <- data.frame(
     Drug = paste0("drug_", letters[1:6]),

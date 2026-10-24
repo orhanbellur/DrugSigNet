@@ -1,4 +1,5 @@
-# Admit only DrugSigNet's immutable cell_info2 R CMD check warning.
+# R CMD check must complete without errors or warnings. Notices remain visible
+# in the check log but are not promoted to failures by this validator.
 
 logs <- list.files(
   ".",
@@ -19,49 +20,57 @@ if (length(logs) != 1L) {
 lines <- readLines(logs[[1L]], warn = FALSE, encoding = "UTF-8")
 error_lines <- grep("^\\* checking .* \\.\\.\\. ERROR$", lines, value = TRUE)
 warning_indices <- grep("^\\* checking .* \\.\\.\\. WARNING$", lines)
+status_lines <- grep("^Status:", lines, value = TRUE)
+
+test_outputs <- list.files(
+  dirname(logs[[1L]]),
+  pattern = "testthat\\.Rout(?:\\.fail)?$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+diagnostic_tail <- function() {
+  source <- if (length(test_outputs)) test_outputs[[1L]] else logs[[1L]]
+  output <- readLines(source, warn = FALSE, encoding = "UTF-8")
+  paste0(
+    "\nDiagnostic tail from ", source, ":\n",
+    paste(utils::tail(output, 80L), collapse = "\n")
+  )
+}
 
 if (length(error_lines)) {
   stop(
     "R CMD check reported ERRORs:\n", paste(error_lines, collapse = "\n"),
+    diagnostic_tail(),
     call. = FALSE
   )
 }
 
-if (!length(warning_indices)) {
-  if (!identical(Sys.getenv("RWORKFLOWS_OUTCOME"), "success")) {
-    stop(
-      "rworkflows failed for a reason other than an allowed R CMD check warning",
-      call. = FALSE
-    )
-  }
-  message("R CMD check passed with 0 ERRORs and 0 WARNINGs.")
-  quit(status = 0L)
-}
-
-if (length(warning_indices) != 1L) {
+if (length(warning_indices)) {
   stop(
-    "R CMD check reported ", length(warning_indices),
-    " WARNINGs; only the cell_info2 warning is allowed",
+    "R CMD check reported WARNINGs:\n",
+    paste(lines[warning_indices], collapse = "\n"),
+    diagnostic_tail(),
     call. = FALSE
   )
 }
 
-warning_index <- warning_indices[[1L]]
-expected_header <- "* checking data for non-ASCII characters ... WARNING"
-if (!identical(lines[[warning_index]], expected_header)) {
-  stop("Unexpected R CMD check warning: ", lines[[warning_index]], call. = FALSE)
+if (length(status_lines) && !grepl("OK$", status_lines[[length(status_lines)]])) {
+  stop(
+    "R CMD check reported a failing status: ",
+    status_lines[[length(status_lines)]],
+    diagnostic_tail(),
+    call. = FALSE
+  )
 }
 
-later_checks <- which(
-  seq_along(lines) > warning_index & startsWith(lines, "* checking ")
-)
-next_check <- if (length(later_checks)) later_checks[[1L]] else length(lines) + 1L
-warning_block <- paste(lines[seq.int(warning_index, next_check - 1L)], collapse = "\n")
-if (!grepl("(?<![A-Za-z0-9_])cell_info2(?![A-Za-z0-9_])", warning_block, perl = TRUE)) {
-  stop("The non-ASCII data warning did not identify cell_info2", call. = FALSE)
+if (!identical(Sys.getenv("RWORKFLOWS_OUTCOME"), "success")) {
+  stop(
+    "The R CMD check process failed without writing a standard ERROR/WARNING ",
+    "summary (for example, a test process may have crashed).",
+    diagnostic_tail(),
+    call. = FALSE
+  )
 }
 
-message(
-  "R CMD check has 0 ERRORs and only the allowed cell_info2 ",
-  "non-ASCII data warning."
-)
+message("R CMD check passed with 0 ERRORs and 0 WARNINGs.")

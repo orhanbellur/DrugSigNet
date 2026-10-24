@@ -140,15 +140,16 @@ def rra(data,ties_method, prior=0.002, num_bin=800, num_iter=1000, return_all=Tr
         return guess, converged, corr_last, corr_values
 
 
-def CRank(file_name, sheet_name,ties_method, prior, num_bin, num_iter):
-    """Read data from an Excel file and perform Robust Rank Aggregation.
+def CRank(file_name, sheet_name=None, ties_method="max", prior=0.002,
+          num_bin=800, num_iter=1000):
+    """Read tabular data and perform Robust Rank Aggregation.
     
-    This function reads the ranking data from the specified sheet in an Excel file and calls the
-    Robust Rank Aggregation algorithm on the data.
+    This function reads ranking data from CSV or a specified Excel sheet and
+    calls the Robust Rank Aggregation algorithm on the data.
 
     Args:
-        file_name (str): Path to the Excel file.
-        sheet_name (str): Name of the sheet to read data from.
+        file_name (str): Path to a CSV file (or a legacy Excel workbook).
+        sheet_name (str, optional): Excel sheet name for legacy workbook input.
         prior (float): Prior probability for Bayesian updating.
         num_bin (int): Number of bins for categorizing ranks.
         num_iter (int): Maximum number of iterations for the RRA algorithm.
@@ -156,8 +157,13 @@ def CRank(file_name, sheet_name,ties_method, prior, num_bin, num_iter):
     Returns:
         tuple: Results of the RRA, including aggregated ranks and convergence information.
     """
-    # Read data from the specified sheet in the Excel file
-    df = pd.read_excel(file_name, sheet_name=sheet_name)
+    # DrugSigNet writes CSV to keep this numerical path independent of Excel
+    # writer libraries.  Continue accepting workbooks for callers that used
+    # this package-private Python function directly in earlier releases.
+    if str(file_name).lower().endswith((".xlsx", ".xls", ".xlsm")):
+        df = pd.read_excel(file_name, sheet_name=sheet_name or 0)
+    else:
+        df = pd.read_csv(file_name)
     df_edit = df.iloc[:, 1:].to_numpy()  # Extract data, ignoring the first column (assumed to be identifiers)
 
     # Call the RRA function and get results
