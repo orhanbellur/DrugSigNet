@@ -71,8 +71,6 @@
 #' \doi{10.1038/s41467-018-04948-5}
 #'
 #' @importFrom dplyr mutate dense_rank
-#' @importFrom openxlsx write.xlsx
-#' @importFrom reticulate py_run_file
 #' @export
 
 setGeneric(
@@ -121,15 +119,26 @@ setMethod(
     }
 
     # Create a temporary file for CRank input
-    crank_input_file <- tempfile(fileext = ".xlsx")
-    on.exit(unlink(crank_input_file), add = TRUE)
+    crank_input_file <- tempfile(fileext = ".csv")
+    crank_output_file <- tempfile(fileext = ".csv")
+    crank_metadata_file <- tempfile(fileext = ".json")
+    on.exit(unlink(c(
+      crank_input_file, crank_output_file, crank_metadata_file
+    )), add = TRUE)
 
     if (any(input_data[, numeric_cols] > 0, na.rm = TRUE)) {
       # Prepare CRank input
       crank_input <- .CRank_input(input_data, ties_method = params$ties_method, reverse = params$reverse)
 
-      # Write to a temporary Excel file
-      openxlsx::write.xlsx(crank_input, crank_input_file)
+      # CRank only needs a rectangular interchange format.  Using CSV here
+      # avoids invoking openxlsx's native ZIP/XML stack in the reticulate test
+      # process (which has caused process-level crashes on macOS arm64).
+      utils::write.csv(
+        crank_input,
+        file = crank_input_file,
+        row.names = FALSE,
+        na = ""
+      )
 
       # Locate the Python script dynamically
       CRank_path <- system.file("Python", "CRank.py", package = "DrugSigNet")
@@ -137,31 +146,54 @@ setMethod(
         stop("Unable to find Python script: CRank.py in the package directory.")
       }
 
-      # Call Python CRank with error handling
-      tryCatch(
-        {
-          # Declare transitive requirements before evaluating the script so
-          # reticulate's managed Python environment includes scipy on Linux.
-          if ("py_require" %in% getNamespaceExports("reticulate")) {
-            reticulate::py_require(c("numpy", "pandas", "scipy", "openpyxl"))
-          }
-          py <- reticulate::py_run_file(CRank_path)
-          CRank_res <- py$CRank(
-            file_name = crank_input_file, sheet_name = "Sheet 1",
-            ties_method = params$ties_method, prior = params$prior,
-            num_bin = as.integer(params$num_bin), num_iter = as.integer(params$num_iter)
-          )
-        },
-        error = function(e) {
-          stop("Error executing Python script: ", e$message)
-        }
+      # Run CRank outside the R process. Loading libpython into R is unnecessary
+      # for this file-based calculation and has caused irrecoverable crashes on
+      # macOS arm64 when R CMD check initializes reticulate repeatedly.
+      python <- .drugsignet_discover_pixi_python()
+      if (!nzchar(python)) python <- Sys.getenv("RETICULATE_PYTHON")
+      if (!nzchar(python) || !file.exists(python)) {
+        stop(
+          "DrugSigNet's Python runtime is not configured. Run ",
+          "setup_python_dependencies() before CRank().",
+          call. = FALSE
+        )
+      }
+      output <- .drugsignet_python_system2(
+        python,
+        c(
+          shQuote(CRank_path), "--input", shQuote(crank_input_file),
+          "--output", shQuote(crank_output_file),
+          "--metadata", shQuote(crank_metadata_file),
+          "--ties-method", shQuote(params$ties_method),
+          "--prior", as.character(params$prior),
+          "--num-bin", as.character(as.integer(params$num_bin)),
+          "--num-iter", as.character(as.integer(params$num_iter))
+        ),
+        stdout = TRUE,
+        stderr = TRUE
       )
+      status <- attr(output, "status") %||% 0L
+      if (!identical(as.integer(status), 0L) ||
+          !file.exists(crank_output_file) ||
+          !file.exists(crank_metadata_file)) {
+        stop(
+          "Error executing Python CRank process: ",
+          paste(output, collapse = "\n"),
+          call. = FALSE
+        )
+      }
 
       # Process results
-      # reticulate attaches the pandas Index as an external-pointer attribute
-      # when converting a pandas DataFrame. The index has no meaning in the
-      # returned R table and makes otherwise equal results fail identical().
-      rankagg_result <- .clean_python_result(CRank_res[[1]])
+      rankagg_result <- utils::read.csv(
+        crank_output_file, stringsAsFactors = FALSE, check.names = FALSE
+      )
+      metadata <- jsonlite::fromJSON(crank_metadata_file)
+      CRank_res <- list(
+        rankagg_result,
+        isTRUE(metadata$converged),
+        as.character(metadata$correlation),
+        metadata$correlation_values
+      )
     } else {
       # Handle non-numeric or invalid data
       rankagg_result <- data.frame(Drug = input_data[, 1]) %>%
