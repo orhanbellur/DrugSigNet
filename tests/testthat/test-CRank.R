@@ -1,6 +1,11 @@
 test_that("Python data-frame metadata is removed without changing R metadata", {
   result <- data.frame(Drug = "drug_a", CRank = 1)
-  attr(result, "pandas.index") <- methods::new("externalptr")
+  # The cleaner dispatches on the attribute name, not its native pointer
+  # value. Do not manufacture a bare external pointer in the R test process:
+  # unlike a reticulate-owned pointer it has no owning Python object/finalizer
+  # contract, and retaining it until a later garbage collection can make
+  # native-crash diagnosis nondeterministic.
+  attr(result, "pandas.index") <- "synthetic-python-index"
   attr(result, "scientific_metadata") <- "keep"
 
   cleaned <- DrugSigNet:::.clean_python_result(result)
@@ -11,14 +16,25 @@ test_that("Python data-frame metadata is removed without changing R metadata", {
   expect_identical(cleaned$CRank, result$CRank)
 })
 
+test_that("CRank uses a plain CSV interchange file", {
+  implementation <- paste(deparse(
+    methods::getMethod("CRank", "RankAggregation")
+  ), collapse = "\n")
+  python <- readLines(
+    system.file("Python", "CRank.py", package = "DrugSigNet"),
+    warn = FALSE
+  )
+
+  expect_match(implementation, "utils::write.csv", fixed = TRUE)
+  expect_false(grepl("openxlsx::write.xlsx", implementation, fixed = TRUE))
+  expect_match(implementation, ".drugsignet_python_system2", fixed = TRUE)
+  expect_false(grepl("reticulate::py_run_file", implementation, fixed = TRUE))
+  expect_true(any(grepl("pd.read_csv(file_name)", python, fixed = TRUE)))
+  expect_true(any(grepl('if __name__ == "__main__"', python, fixed = TRUE)))
+})
+
 test_that("CRank returns strictly reproducible ordinary R data frames", {
   skip_if_not_installed("reticulate")
-  required_modules <- c("numpy", "pandas", "scipy", "openpyxl")
-  skip_if_not(all(vapply(
-    required_modules,
-    reticulate::py_module_available,
-    logical(1)
-  )), "CRank Python dependencies are not available")
 
   rank_df <- data.frame(
     Drug = paste0("drug_", letters[1:6]),
