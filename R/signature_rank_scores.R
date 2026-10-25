@@ -4,6 +4,43 @@
 # Ranking Functions
 # =====================
 
+# Resolve the Kolmogorov-Smirnov critical-value helper across supported
+# BoutrosLab.plotting.general releases. Version 7 renamed the original
+# `ks.test.critical.value()` function to `critical.value.ks.test()`, and some
+# binary builds do not export the renamed symbol even though it is present in
+# the namespace. Looking it up explicitly keeps the calculation owned by the
+# dependency while avoiding a brittle `pkg::symbol` export requirement.
+.drugsignet_ks_critical_value <- function(n, confidence,
+                                          alternative = "two.sided",
+                                          namespace = NULL) {
+  if (is.null(namespace)) {
+    namespace <- asNamespace("BoutrosLab.plotting.general")
+  }
+  candidates <- c("critical.value.ks.test", "ks.test.critical.value")
+  available <- candidates[vapply(
+    candidates,
+    exists,
+    logical(1),
+    envir = namespace,
+    mode = "function",
+    inherits = FALSE
+  )]
+  if (!length(available)) {
+    stop(
+      "The installed BoutrosLab.plotting.general package does not provide ",
+      "a Kolmogorov-Smirnov critical-value function. Please reinstall or ",
+      "update BoutrosLab.plotting.general.",
+      call. = FALSE
+    )
+  }
+
+  get(available[[1L]], envir = namespace, inherits = FALSE)(
+    n,
+    confidence,
+    alternative = alternative
+  )
+}
+
 # Standardize method-specific signature scores into the shared processed
 # perturbation schema used by downstream rank aggregation.
 .data_format <- function(signature_data, score_col) {
