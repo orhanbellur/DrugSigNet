@@ -90,7 +90,6 @@
 #' )
 #' }
 #'
-#' @importFrom signatureSearch qSig gess_gcmap result
 #' @importFrom magrittr %>%
 #' @export
 setGeneric(
@@ -209,7 +208,7 @@ setMethod(
 #' @return A data frame of standardized gCMAP rank scores.
 #' @export
 gcmap_rank_score <- function(gcmap_signature, cmap_signature, trend_name = NULL, ties_method = "max") {
-  cmap.sig <- BoutrosLab.plotting.general::critical.value.ks.test(
+  cmap.sig <- .drugsignet_ks_critical_value(
     sum(cmap_signature$N_upset[1], cmap_signature$N_downset[1]), 0.95
   )
   if (!is.null(trend_name)) {

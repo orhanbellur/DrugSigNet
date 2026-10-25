@@ -90,13 +90,13 @@
 #' \emph{Nucleic Acids Research}. 2022;50(W1):W138-W144.
 #' \doi{10.1093/nar/gkac384}
 #'
-#' @importFrom reticulate r_to_py py_run_file
 #' @importFrom dplyr pull
 #' @export
 setGeneric("Degree_centrality", function(object = NULL, ppi_network = NULL, drug_target_network = NULL, disease_genes,
                                          max_deg = NULL, result_size = NULL, target = "drug",
                                          include_indirect_drugs = TRUE, include_non_approved_drugs = TRUE,
                                          filter_paths = TRUE, force = FALSE, auth_token = NULL) {
+  if (!.drugsignet_network_methods_available()) return(NULL)
   if (is.null(object)) {
     network_inputs <- resolve_network_inputs(ppi_network, drug_target_network, force = force, auth_token = auth_token)
     ppi_network <- network_inputs$ppi_network
@@ -134,6 +134,7 @@ setGeneric("Degree_centrality", function(object = NULL, ppi_network = NULL, drug
 
 #' @describeIn Degree_centrality Implements the Degree Centrality calculation for the NetworkCentrality object.
 setMethod("Degree_centrality", signature = "NetworkBased", function(object) {
+  if (!.drugsignet_network_methods_available()) return(object)
   # Validate inputs
   validateInputs(object)
   work_dir <- create_temp_work_dir()
