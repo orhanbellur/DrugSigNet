@@ -61,36 +61,27 @@ resolve_network_inputs <- function(ppi_network = NULL,
                                    force = FALSE,
                                    auth_token = NULL) {
   standardize_ppi <- function(x) {
-    x <- tibble::as_tibble(x)
-
+    validate_network_columns(x, c("gene1", "gene2"), "ppi_network")
     if ("confidence" %in% names(x)) {
-      x <- x %>%
-        dplyr::filter(
-          grepl(
-            "High",
-            as.character(confidence),
-            ignore.case = TRUE
-          )
-        )
+      keep <- !is.na(x$confidence) & grepl(
+        "High", as.character(x$confidence), ignore.case = TRUE
+      )
+      x <- x[keep, , drop = FALSE]
     }
-
-    x %>%
-      dplyr::select(gene1, gene2) %>%
-      dplyr::distinct()
+    tibble::as_tibble(unique(x[c("gene1", "gene2")]))
   }
 
   standardize_dti <- function(x) {
-    x <- tibble::as_tibble(x)
+    validate_network_columns(
+      x, c("ID", "Drug", "Target", "Group"), "drug_target_network"
+    )
     if (all(c("Drug_confidence", "Target_confidence") %in% names(x))) {
-      x <- x %>%
-        dplyr::filter(
-          Drug_confidence == "High",
-          Target_confidence %in% c("High", "Medium")
-        )
+      keep <- !is.na(x$Drug_confidence) & !is.na(x$Target_confidence) &
+        x$Drug_confidence == "High" &
+        x$Target_confidence %in% c("High", "Medium")
+      x <- x[keep, , drop = FALSE]
     }
-    x %>%
-      dplyr::select(ID, Drug, Target, Group) %>%
-      dplyr::distinct()
+    tibble::as_tibble(unique(x[c("ID", "Drug", "Target", "Group")]))
   }
 
   if (is.null(ppi_network)) {

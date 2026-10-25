@@ -65,7 +65,6 @@
 #' )
 #' }
 #'
-#' @importFrom rcdk parse.smiles get.fingerprint
 #' @importFrom dplyr select distinct mutate filter
 #' @importFrom tibble tibble
 #' @export
@@ -173,6 +172,14 @@ setMethod(
     # -------------------------------------
     # Structural similarity calculation
     # -------------------------------------
+    if (!requireNamespace("rcdk", quietly = TRUE)) {
+      stop(
+        "Package `rcdk` is required to calculate structural drug similarity. ",
+        "Install it with `install.packages(\"rcdk\")` and try again.",
+        call. = FALSE
+      )
+    }
+
     valid_tbl <- result_tbl %>%
       dplyr::filter(!is.na(canonical_smiles) & nzchar(canonical_smiles))
 
@@ -200,7 +207,9 @@ setMethod(
       return(object)
     }
 
-    # Parse SMILES -> molecules
+    # Keep rcdk calls namespace-qualified rather than importing them. Importing
+    # rcdk eagerly initializes rJava/JVM whenever DrugSigNet is loaded, even for
+    # workflows and tests that never calculate chemical similarity.
     mols <- rcdk::parse.smiles(valid_tbl$canonical_smiles)
     ok <- !vapply(mols, is.null, logical(1))
 
