@@ -54,7 +54,6 @@
 #' \emph{Nucleic Acids Research}. 2022;50(W1):W138-W144.
 #' \doi{10.1093/nar/gkac384}
 #'
-#' @importFrom reticulate py_run_file r_to_py
 #' @importFrom dplyr filter mutate left_join select group_by ungroup distinct rename if_all pull
 #' @importFrom tidyr drop_na
 #' @export
@@ -74,6 +73,8 @@ setGeneric(
            filter_paths = TRUE,
            force = FALSE,
            auth_token = NULL) {
+
+    if (!.drugsignet_network_methods_available()) return(NULL)
 
     if (is.null(object)) {
       network_inputs <- resolve_network_inputs(ppi_network, drug_target_network, force = force, auth_token = auth_token)
@@ -257,6 +258,8 @@ setMethod(
   "TrustRank",
   signature = "NetworkBased",
   function(object) {
+
+    if (!.drugsignet_network_methods_available()) return(object)
 
     validateInputs(object)
     cat("Running TrustRank network-based drug search method...\n")
