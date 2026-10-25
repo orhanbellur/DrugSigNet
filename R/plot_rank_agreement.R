@@ -1,3 +1,14 @@
+.drugsignet_rank_agreement_device <- function(file_type) {
+  switch(
+    file_type,
+    pdf = grDevices::pdf,
+    png = grDevices::png,
+    jpeg = grDevices::jpeg,
+    svg = grDevices::svg,
+    stop("Unsupported plot file type: ", file_type, call. = FALSE)
+  )
+}
+
 #' @title Plot Rank Agreement Across Methods
 #'
 #' @description
@@ -334,6 +345,12 @@ setMethod(
       ggplot2::ggsave(
         filename = paste0(params$file_name, ".", params$file_type),
         plot = p,
+        # Pass the base-R device explicitly. ggplot2's extension-based device
+        # discovery probes the optional ragg namespace even when saving a PDF;
+        # that unnecessary native-library load has crashed affected macOS ARM
+        # runners. Explicit devices keep output formats unchanged and avoid
+        # loading ragg as an unrelated side effect.
+        device = .drugsignet_rank_agreement_device(params$file_type),
         width = params$width,
         height = params$height,
         units = params$units
