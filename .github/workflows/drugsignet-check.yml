@@ -1,0 +1,181 @@
+name: DrugSigNet cross-platform check
+'on':
+  # Run checks when a feature branch is pushed, rather than waiting until a
+  # pull request targets one of the release branches below.
+  push: {}
+  pull_request:
+    branches:
+    - master
+    - main
+    - devel
+    - RELEASE_**
+  workflow_dispatch: {}
+jobs:
+  rworkflows:
+    permissions: write-all
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+    container: ${{ matrix.config.cont }}
+    env:
+      DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
+      # The complete r-drugsignet runtime is provisioned before R CMD check.
+      # Prevent reticulate from independently creating an r-reticulate
+      # environment (which is both redundant and vulnerable to upstream Conda
+      # launcher packaging regressions on Windows).
+      RETICULATE_USE_MANAGED_VENV: 'no'
+      # CI containers intentionally run pip as their isolated build user.
+      PIP_ROOT_USER_ACTION: ignore
+      # synapser is installed for normal source installs, but package checks
+      # skip this network-dependent integration and exercise guarded paths.
+      DRUGSIGNET_SKIP_SYNAPSER_INSTALL: 'true'
+    strategy:
+      fail-fast: ${{ false }}
+      matrix:
+        config:
+        # Bioconductor 3.22 is the release designed for R 4.5 on Linux,
+        # macOS ARM64, and Windows. Keeping this pair explicit prevents the
+        # action's own BiocVersion/BiocStyle dependencies from being resolved
+        # against repositories for a different R/Bioconductor generation.
+        - os: ubuntu-latest
+          bioc: '3.22'
+          # The official Bioconductor 3.22 container is built with R 4.5.2;
+          # this matrix label must describe the R actually inside the image.
+          r: '4.5.2'
+          cont: ghcr.io/bioconductor/bioconductor_docker:RELEASE_3_22-R-4.5.2
+          rspm: ~
+        - os: macOS-latest
+          bioc: '3.22'
+          r: '4.5.3'
+          cont: ~
+          rspm: ~
+        - os: windows-latest
+          bioc: '3.22'
+          r: '4.5.3'
+          cont: ~
+          rspm: ~
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v5
+    - name: Set up R
+      if: ${{ matrix.config.cont == null }}
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: ${{ matrix.config.r }}
+        use-public-rspm: true
+    - name: Set up Pandoc
+      uses: r-lib/actions/setup-pandoc@v2
+    - name: Set up supported Windows Python
+      if: ${{ runner.os == 'Windows' }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.10'
+    - name: Provision Windows Python modules
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        python -m pip install --disable-pip-version-check `
+          numpy pandas scipy networkx joblib tqdm openpyxl jinja2 `
+          markupsafe kaleido synapseclient==4.4.2
+        $python = ((Get-Command python).Source -replace '\\', '/')
+        "RETICULATE_PYTHON=$python" | Out-File `
+          -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    - name: Install Ubuntu check tools
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        if [ "$(id -u)" -eq 0 ]; then
+          apt-get update
+          apt-get install --yes --no-install-recommends qpdf
+        else
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends qpdf
+        fi
+        # The Bioconductor container can retain a distro-specific Posit
+        # Package Manager URL after that endpoint has been retired. Override
+        # it only for this Linux job. On Windows and macOS, setup-r selects a
+        # platform-aware binary repository; replacing that value globally
+        # forces avoidable source installs and broke Windows dependency setup.
+        echo "RSPM=https://cloud.r-project.org" >> "$GITHUB_ENV"
+    - name: Install R dependencies
+      uses: r-lib/actions/setup-r-dependencies@v2
+      with:
+        needs: check
+        extra-packages: any::rcmdcheck
+        cache-version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || 'cache-v2' }}
+    - id: runtime-install
+      name: Install package and provision complete runtime
+      env:
+        DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
+      shell: Rscript {0}
+      run: |
+        remotes::install_local(
+          ".", dependencies = FALSE, upgrade = "never",
+          build_vignettes = TRUE, force = TRUE
+        )
+        if (identical(Sys.info()[["sysname"]], "Darwin")) {
+          loadNamespace("DrugSigNet")
+          unexpectedly_loaded <- intersect(c("rcdk", "rJava"), loadedNamespaces())
+          if (length(unexpectedly_loaded)) {
+            stop(
+              "DrugSigNet eagerly loaded native Java namespaces: ",
+              paste(unexpectedly_loaded, collapse = ", ")
+            )
+          }
+          message("Validated lazy rcdk/rJava loading on macOS.")
+        }
+        DrugSigNet::setup_python_dependencies(write_renviron = TRUE)
+    - id: rworkflows-check
+      name: Run R CMD check
+      # rworkflows v1.0.12 references the retired Catchpoint telemetry action.
+      # GitHub resolves every nested action before evaluating its `if`, so
+      # run_telemetry=false cannot prevent that prepare-job failure. Run the
+      # same strict package check directly with maintained r-lib actions.
+      continue-on-error: true
+      env:
+        _R_CHECK_CRAN_INCOMING_: 'false'
+        RGL_USE_NULL: 'true'
+      shell: Rscript {0}
+      run: |
+        rcmdcheck::rcmdcheck(
+          args = c("--no-manual", "--timings", "--as-cran"),
+          build_args = c("--no-manual", "--keep-empty-dirs", "--no-resave-data"),
+          error_on = "warning",
+          check_dir = "check"
+        )
+    - name: Validate OS-specific runtime
+      if: ${{ steps.runtime-install.outcome == 'success' }}
+      run: Rscript .github/scripts/validate-runtime-install.R
+    - id: check-artifacts
+      name: Locate R CMD check diagnostics
+      if: ${{ always() }}
+      shell: Rscript {0}
+      run: |
+        files <- list.files(
+          ".", pattern = "^(00check\\.log|testthat\\.Rout.*)$",
+          recursive = TRUE, full.names = TRUE
+        )
+        cat(
+          "found=", if (length(files)) "true" else "false", "\n",
+          file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE, sep = ""
+        )
+        if (length(files)) {
+          message("R CMD check diagnostics: ", paste(files, collapse = ", "))
+        } else {
+          message("No R CMD check diagnostics exist because the check did not run.")
+        }
+    - name: Preserve R CMD check diagnostics
+      if: ${{ always() && steps.check-artifacts.outputs.found == 'true' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: r-cmd-check-${{ runner.os }}-r-${{ matrix.config.r }}
+        path: |
+          **/*.Rcheck/00check.log
+          **/*.Rcheck/tests/testthat.Rout*
+          **/check/*.Rcheck/00check.log
+          **/check/*.Rcheck/tests/testthat.Rout*
+    - name: Validate R CMD check result
+      # A skipped check has no 00check.log. In that case the earlier failed
+      # provisioning step is already the primary, actionable job failure.
+      if: ${{ always() && steps.rworkflows-check.outcome != 'skipped' }}
+      env:
+        RWORKFLOWS_OUTCOME: ${{ steps.rworkflows-check.outcome }}
+      run: Rscript .github/scripts/validate-r-cmd-check.R
