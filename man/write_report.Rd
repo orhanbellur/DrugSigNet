@@ -12,7 +12,17 @@ write_report(
   device = c("html", "pdf"),
   interactive = FALSE,
   author = NULL,
-  dashboard = c("tabset", "shinydashboard")
+  dashboard = c("tabset", "shinydashboard"),
+  template = "scientific",
+  top_n = 10L,
+  include_summary = TRUE,
+  include_methods = TRUE,
+  include_interpretation = TRUE,
+  include_reproducibility = TRUE,
+  include_appendix = TRUE,
+  table_orientation = c("auto", "portrait", "landscape"),
+  figure_dpi = 300,
+  table_rows = 50L
 )
 }
 \arguments{
@@ -37,6 +47,20 @@ be exported as Excel files. Default is `FALSE`.}
 
 \item{dashboard}{HTML report layout. One of `"tabset"` (default) or
 `"shinydashboard"`.}
+
+\item{template}{PDF template. `"scientific"` produces the publication-oriented layout.}
+
+\item{top_n}{Number of top-ranked candidates shown: 10, 20, or 50.}
+
+\item{include_summary, include_methods, include_interpretation}{Logical controls for PDF sections.}
+
+\item{include_reproducibility, include_appendix}{Logical controls for PDF sections.}
+
+\item{table_orientation}{PDF table orientation: `"auto"`, `"portrait"`, or `"landscape"`.}
+
+\item{figure_dpi}{Positive PDF figure resolution in dots per inch.}
+
+\item{table_rows}{Maximum rows shown per PDF table; complete results remain in the pipeline object and optional Excel export.}
 }
 \value{
 Invisibly returns the path to the generated report.
@@ -94,7 +118,10 @@ write_report(
 ## PDF report
 write_report(
   object = result,
-  device = "pdf"
+  device = "pdf",
+  title = "Drug Repurposing Analysis",
+  top_n = 20,
+  figure_dpi = 300
 )
 
 ## Multiple pipeline results

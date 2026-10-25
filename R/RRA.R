@@ -120,13 +120,9 @@ setMethod(
 
     # Replace NA values and apply ranking
     rank_matrix <- input_data
-    rank_matrix[, numeric_cols] <- lapply(rank_matrix[, numeric_cols], function(x) {
+    rank_matrix[, numeric_cols] <- lapply(rank_matrix[, numeric_cols, drop = FALSE], function(x) {
       if (params$ties_method == "dense") {
-        if (params$reverse) {
-          ifelse(is.na(x), NA, dplyr::dense_rank(-x)) # Preserve NA values
-        } else {
-          ifelse(is.na(x), NA, dplyr::dense_rank(x)) # Preserve NA values
-        }
+        .drugsignet_dense_rank(if (params$reverse) -x else x)
       } else {
         if (params$reverse) {
           rank(-x, ties.method = params$ties_method, na.last = "keep")
@@ -137,10 +133,13 @@ setMethod(
     })
 
     # Convert the first column to row names
-    rank_matrix <- rank_matrix %>%
-      data.frame() %>%
-      `rownames<-`(NULL) %>%
-      tibble::column_to_rownames(var = names(rank_matrix)[1])
+    item_names <- rank_matrix[[1L]]
+    rank_matrix <- data.frame(
+      rank_matrix[-1L],
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+    rownames(rank_matrix) <- item_names
 
     # Normalize ranks
     max_val <- max(rank_matrix, na.rm = TRUE)
@@ -157,13 +156,16 @@ setMethod(
     rra_results <- rra_results[order(rra_results$Score), ] # Sort by score
 
     # Rank RRA scores
-    rra_results <- rra_results %>%
-      mutate(RRA_rank = if (params$ties_method == "dense") {
-        dplyr::dense_rank(Score)
-      } else {
-        rank(Score, ties.method = params$ties_method, na.last = "keep")
-      }) %>%
-      rename(RRA_pval = Score)
+    rra_results$RRA_rank <- if (params$ties_method == "dense") {
+      .drugsignet_dense_rank(rra_results$Score)
+    } else {
+      rank(
+        rra_results$Score,
+        ties.method = params$ties_method,
+        na.last = "keep"
+      )
+    }
+    names(rra_results)[names(rra_results) == "Score"] <- "RRA_pval"
 
     # Assign results back to the object
     object@result <- rra_results
@@ -191,8 +193,23 @@ setMethod(
 .transform_to_ranks <- function(x, ties_method, reverse) {
   if (reverse) x <- -x
   if (ties_method == "dense") {
-    return(dplyr::dense_rank(x))
+    return(.drugsignet_dense_rank(x))
   } else {
     return(rank(x, ties.method = ties_method, na.last = "keep"))
   }
+}
+
+# Base-R dense ranking avoids routing small ordinary vectors through dplyr's
+# data-mask/vctrs machinery. Besides reducing overhead, this keeps RRA isolated
+# from a native dplyr failure observed on macOS ARM64 during package checks.
+.drugsignet_dense_rank <- function(x) {
+  result <- rep(NA_integer_, length(x))
+  names(result) <- names(x)
+  present <- !is.na(x)
+
+  if (any(present)) {
+    result[present] <- match(x[present], sort(unique(x[present])))
+  }
+
+  result
 }
