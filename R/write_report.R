@@ -145,6 +145,17 @@
 #' @param author Optional author name.
 #' @param dashboard HTML report layout. One of `"tabset"` (default) or
 #'   `"shinydashboard"`.
+#' @param template PDF template. `"scientific"` produces the publication-style
+#'   layout. This argument does not alter HTML or Shiny reports.
+#' @param top_n Number of top candidates to show; one of 10, 20, or 50.
+#' @param include_summary,include_methods,include_interpretation Logical PDF
+#'   section controls.
+#' @param include_reproducibility,include_appendix Logical PDF section controls.
+#' @param table_orientation PDF table orientation: `"auto"`, `"portrait"`, or
+#'   `"landscape"`.
+#' @param figure_dpi Resolution used for PDF figures.
+#' @param table_rows Maximum rows shown per PDF table. Complete results remain
+#'   in the pipeline object and optional Excel export.
 #'
 #' @return
 #' Invisibly returns the path to the generated report.
@@ -165,7 +176,15 @@
 #' ## PDF report
 #' write_report(
 #'   object = result,
-#'   device = "pdf"
+#'   device = "pdf",
+#'   title = "Drug Repurposing Analysis",
+#'   author = "Analysis Team",
+#'   top_n = 20,
+#'   include_summary = TRUE,
+#'   include_methods = TRUE,
+#'   include_reproducibility = TRUE,
+#'   table_orientation = "auto",
+#'   figure_dpi = 300
 #' )
 #'
 #' ## Multiple pipeline results
@@ -183,9 +202,24 @@ write_report <- function(object,
                          device = c("html", "pdf"),
                          interactive = FALSE,
                          author = NULL,
-                         dashboard = c("tabset", "shinydashboard")) {
+                         dashboard = c("tabset", "shinydashboard"),
+                         template = "scientific",
+                         top_n = 10L,
+                         include_summary = TRUE,
+                         include_methods = TRUE,
+                         include_interpretation = TRUE,
+                         include_reproducibility = TRUE,
+                         include_appendix = TRUE,
+                         table_orientation = c("auto", "portrait", "landscape"),
+                         figure_dpi = 300,
+                         table_rows = 50L) {
   device <- match.arg(device)
   dashboard <- match.arg(dashboard)
+  table_orientation <- match.arg(table_orientation)
+  if (!identical(template, "scientific")) stop("`template` must be 'scientific'.", call. = FALSE)
+  if (length(top_n) != 1L || !top_n %in% c(10L, 20L, 50L)) stop("`top_n` must be 10, 20, or 50.", call. = FALSE)
+  if (length(figure_dpi) != 1L || !is.finite(figure_dpi) || figure_dpi <= 0) stop("`figure_dpi` must be positive.", call. = FALSE)
+  if (length(table_rows) != 1L || !is.finite(table_rows) || table_rows < 1) stop("`table_rows` must be a positive integer.", call. = FALSE)
 
   if (is.null(object)) {
     stop("`object` cannot be NULL.", call. = FALSE)
@@ -224,6 +258,24 @@ write_report <- function(object,
 
   rmd_file <- paste0(base_name, ".Rmd")
   output_file <- paste0(base_name, ".", ifelse(device == "html", "html", "pdf"))
+
+  if (device == "pdf") {
+    latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
+    if (!any(nzchar(latex_engines))) {
+      if (requireNamespace("tinytex", quietly = TRUE)) {
+        message("No LaTeX engine found; installing TinyTeX before rendering the PDF report.")
+        try(tinytex::install_tinytex(), silent = TRUE)
+        latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
+      }
+      if (!any(nzchar(latex_engines))) stop("PDF reports require pdflatex, xelatex, or lualatex. Install a TeX distribution (for example TinyTeX) and retry.", call. = FALSE)
+    }
+    return(.report_render_scientific_pdf(
+      objects, report_title, author, rmd_file, output_file, as.integer(top_n),
+      include_summary, include_methods, include_interpretation,
+      include_reproducibility, include_appendix, table_orientation,
+      as.integer(figure_dpi), as.integer(table_rows)
+    ))
+  }
 
   if (dashboard == "shinydashboard") {
     if (device != "html") {
