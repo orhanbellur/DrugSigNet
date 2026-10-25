@@ -74,7 +74,6 @@
 #' )
 #' }
 #'
-#' @importFrom signatureSearch qSig gess_cmap result
 #' @importFrom magrittr %>%
 #' @export
 
@@ -184,7 +183,7 @@ setMethod(
 #' @return A data frame of standardized CMAP rank scores.
 #' @export
 cmap_rank_score <- function(cmap_signature, confidence_level = 0.95, ties_method = "max") {
-  cmap.sig <- BoutrosLab.plotting.general::critical.value.ks.test(
+  cmap.sig <- .drugsignet_ks_critical_value(
     sum(cmap_signature$N_upset[1], cmap_signature$N_downset[1]), confidence_level
   )
   if ("name" %in% names(cmap_signature)) {

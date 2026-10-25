@@ -685,12 +685,24 @@ integrateSignatureNetwork <- function(signature_res,
     return(NULL)
   }
 
-  top_k_targets <- drug_target_network %>%
-    dplyr::filter(Drug %in% drugs) %>%
-    dplyr::select(Target) %>%
-    dplyr::distinct()
+  required_columns <- c("Drug", "Target")
+  missing_columns <- setdiff(required_columns, names(drug_target_network))
+  if (length(missing_columns)) {
+    stop(
+      "The drug-target network is missing required column(s): ",
+      paste(missing_columns, collapse = ", "),
+      call. = FALSE
+    )
+  }
 
-  target_list <- unique(stats::na.omit(top_k_targets$Target))
+  # This is a simple vector lookup, so keep it in base R. In particular, avoid
+  # entering dplyr's native data-mask/vector-chop path after other native-backed
+  # package tests have run; that path has intermittently crashed macOS ARM64 R
+  # during R CMD check even though this network is an ordinary data.frame.
+  drug_values <- as.character(drug_target_network$Drug)
+  matching_rows <- !is.na(drug_values) & drug_values %in% drugs
+  target_values <- as.character(drug_target_network$Target)
+  target_list <- unique(target_values[matching_rows & !is.na(target_values)])
   if (!length(target_list)) {
     return(NULL)
   }
