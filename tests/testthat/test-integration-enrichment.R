@@ -5,8 +5,8 @@ test_that("integration enrichment uses the same GO ontology schema as pipelines"
     load_drugsignet_network = function(network, ...) {
       expect_identical(network, "drug_target")
       data.frame(
-        Drug = c("drug_a", "drug_b"),
-        Target = c("GENE1", "GENE2"),
+        Drug = c("drug_a", "drug_a", "drug_b", NA_character_),
+        Target = c("GENE1", "GENE1", "GENE2", "GENE3"),
         stringsAsFactors = FALSE
       )
     },
@@ -30,6 +30,20 @@ test_that("integration enrichment uses the same GO ontology schema as pipelines"
   expect_identical(calls$source, "GO")
   expect_identical(calls$ont, "ALL")
   expect_identical(calls$target_id_from, "SYMBOL")
+})
+
+test_that("integration enrichment validates the drug-target schema", {
+  testthat::local_mocked_bindings(
+    load_drugsignet_network = function(...) {
+      data.frame(Drug = "drug_a", stringsAsFactors = FALSE)
+    },
+    .package = "DrugSigNet"
+  )
+
+  expect_error(
+    DrugSigNet:::.integration_functional_enrichment("drug_a"),
+    "missing required column\\(s\\): Target"
+  )
 })
 
 test_that("single-ontology TSEA results retain an ontology column", {
