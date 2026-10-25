@@ -177,29 +177,64 @@ setMethod(
     # ---- Process results ----
     if (ont == "ALL") {
 
-      object@result <- dplyr::bind_rows(
-        enriched_terms[["GO_Biological_Process_2023"]] %>%
-          dplyr::mutate(ont = "BP"),
-
-        enriched_terms[["GO_Molecular_Function_2023"]] %>%
-          dplyr::mutate(ont = "MF"),
-
-        enriched_terms[["GO_Cellular_Component_2023"]] %>%
-          dplyr::mutate(ont = "CC")
-      ) %>%
-        dplyr::filter(Adjusted.P.value <= cutoff)
+      object@result <- .tsea_bind_results(list(
+        .tsea_prepare_result(
+          enriched_terms[["GO_Biological_Process_2023"]], "BP", cutoff
+        ),
+        .tsea_prepare_result(
+          enriched_terms[["GO_Molecular_Function_2023"]], "MF", cutoff
+        ),
+        .tsea_prepare_result(
+          enriched_terms[["GO_Cellular_Component_2023"]], "CC", cutoff
+        )
+      ))
 
     } else {
 
-      object@result <-
-        as.data.frame(enriched_terms[[1]]) %>%
-        dplyr::mutate(ont = ont) %>%
-        dplyr::filter(Adjusted.P.value <= cutoff)
+      object@result <- .tsea_prepare_result(enriched_terms[[1L]], ont, cutoff)
     }
 
     object
   }
 )
+
+# EnrichR returns ordinary data frames. Keep the small schema annotation and
+# cutoff operation in base R so TSEA does not need to enter dplyr's native
+# data-mask/vector-chop path during long-running package test sessions.
+.tsea_prepare_result <- function(result, ont, cutoff) {
+  result <- as.data.frame(result, stringsAsFactors = FALSE)
+  if (!"Adjusted.P.value" %in% names(result)) {
+    stop(
+      "Enrichment results must contain an `Adjusted.P.value` column.",
+      call. = FALSE
+    )
+  }
+
+  result$ont <- ont
+  adjusted_p <- result$Adjusted.P.value
+  keep <- !is.na(adjusted_p) & adjusted_p <= cutoff
+  result <- result[keep, , drop = FALSE]
+  rownames(result) <- NULL
+  result
+}
+
+# Base equivalent of bind_rows() for the three GO result tables. EnrichR
+# normally returns the same schema for each ontology, while the fill behavior
+# keeps this robust to an ontology-specific extra column.
+.tsea_bind_results <- function(results) {
+  column_names <- unique(unlist(lapply(results, names), use.names = FALSE))
+  results <- lapply(results, function(result) {
+    missing_columns <- setdiff(column_names, names(result))
+    for (column in missing_columns) {
+      result[[column]] <- rep(NA, nrow(result))
+    }
+    result[column_names]
+  })
+
+  combined <- do.call(rbind, results)
+  rownames(combined) <- NULL
+  combined
+}
 
 ############################################################
 # Internal: EnrichR wrapper

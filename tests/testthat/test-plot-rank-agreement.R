@@ -9,3 +9,18 @@ test_that("plot_rank_agreement uses Kendall correlation by default", {
 
   expect_identical(result$method, "kendall")
 })
+
+test_that("plot_rank_agreement selects explicit base graphics devices", {
+  expect_identical(
+    DrugSigNet:::.drugsignet_rank_agreement_device("pdf"),
+    grDevices::pdf
+  )
+  expect_identical(
+    DrugSigNet:::.drugsignet_rank_agreement_device("png"),
+    grDevices::png
+  )
+  expect_error(
+    DrugSigNet:::.drugsignet_rank_agreement_device("unknown"),
+    "Unsupported plot file type"
+  )
+})
