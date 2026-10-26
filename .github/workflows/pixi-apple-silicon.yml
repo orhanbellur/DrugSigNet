@@ -45,4 +45,6 @@ jobs:
           )
       - name: Record installed R and Bioconductor versions
         run: |
-          "$HOME/.pixi/bin/pixi" run --manifest-path "$RUNNER_TEMP/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'
+          env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
+            -u JAVA_HOME -u R_JAVA_LD_LIBRARY_PATH \
+            "$HOME/.pixi/bin/pixi" run --clean-env --manifest-path "$RUNNER_TEMP/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'

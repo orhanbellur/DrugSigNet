@@ -4,6 +4,8 @@
 
 ### Apple Silicon Pixi installation
 
+- Keep Pixi R libraries out of host sessions using a different R major/minor
+  version; return the validated project and print its isolated R command.
 - Bind JAVA_HOME to the project OpenJDK during Pixi activation and remove host
   Java settings from clean subprocesses so rJava uses the configured JVM.
 

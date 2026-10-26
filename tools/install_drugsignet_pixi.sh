@@ -140,11 +140,18 @@ CONDA_PREFIX=${project_dir}/.pixi/envs/default
 DRUGSIGNET_PIXI_PROJECT=${project_dir}
 EOF
 cat > "${project_dir}/.Rprofile" <<EOF
-pixi_library <- "${project_dir}/.pixi/envs/default/lib/R/library"
-if (dir.exists(pixi_library)) {
-  .libPaths(unique(c(pixi_library, .libPaths())))
-}
-rm(pixi_library)
+local({
+  pixi_library <- "${project_dir}/.pixi/envs/default/lib/R/library"
+  version_file <- "${project_dir}/.pixi/envs/default/.drugsignet-r-version"
+  if (dir.exists(pixi_library) && file.exists(version_file)) {
+    runtime_version <- readLines(version_file, warn = FALSE, n = 1L)
+    host_minor <- strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2]
+    runtime_minor <- if (length(runtime_version)) strsplit(runtime_version, ".", fixed = TRUE)[[1L]][1:2] else character()
+    if (identical(host_minor, runtime_minor)) {
+      .libPaths(unique(c(pixi_library, .libPaths())))
+    }
+  }
+})
 EOF
 
 echo "[DrugSigNet] Resolving and installing the Pixi runtime."

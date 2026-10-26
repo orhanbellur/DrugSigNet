@@ -76,4 +76,5 @@ if (!isTRUE(check$ok)) {
   print(check$python[!check$python$available, , drop = FALSE])
   stop("DrugSigNet Pixi validation failed; missing components are printed above.")
 }
+writeLines(as.character(getRversion()), file.path(prefix, ".drugsignet-r-version"))
 message("DrugSigNet installation and its Pixi runtime were validated successfully.")
