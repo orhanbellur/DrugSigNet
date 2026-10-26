@@ -338,7 +338,7 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
         GESS_result$DrugSearching$Raw[[method]]@result <- .normalize_frozen_lincs2_result(
           gess_tb = GESS_result$DrugSearching$Raw[[method]]@result,
           refdb = method_config[["ref_db"]],
-          signature_refdb_mode = signature_refdb_mode
+          signature_refdb_mode = effective_refdb_mode
         )
       }
     }
@@ -722,7 +722,7 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
 # Helper functions
 # =====================
 
-.normalize_frozen_lincs2_result <- function(gess_tb, refdb, signature_refdb_mode) {
+.normalize_frozen_lincs2_result <- function(gess_tb, refdb, signature_refdb_mode, metadata = NULL) {
   if (identical(signature_refdb_mode, "default") ||
       !identical(refdb, "lincs2") ||
       !is.data.frame(gess_tb) ||
@@ -731,12 +731,21 @@ drugSignaturePipeline <- function(signature_input, padj = NULL, trend = NULL,
     return(gess_tb)
   }
 
-  utils::data("lincs_pert_info2", package = "signatureSearch", envir = environment())
+  if (is.null(metadata)) {
+    utils::data("lincs_pert_info2", package = "signatureSearch", envir = environment())
+    metadata <- lincs_pert_info2
+  }
   gess_tb %>%
     dplyr::left_join(
-      lincs_pert_info2[, c("pert_id", "pert_iname")],
+      metadata[, c("pert_id", "pert_iname")],
       by = c(pert = "pert_id")
     ) %>%
+    # Keep unmatched identifiers distinct. Converting every unknown compound
+    # to NA would collapse unrelated perturbations before rank scoring.
+    dplyr::mutate(pert_iname = ifelse(
+      is.na(pert_iname) | !nzchar(trimws(pert_iname)),
+      as.character(pert), as.character(pert_iname)
+    )) %>%
     dplyr::relocate(pert_iname, .after = pert) %>%
     dplyr::rename(pert_id = pert, pert = pert_iname)
 }

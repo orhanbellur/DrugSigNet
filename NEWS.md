@@ -26,3 +26,45 @@
   incompatible `rjson 0.2.23` and avoids rebuilding dependency vignettes.
 - Treat `enrichR` as a runtime-checked optional dependency so it does not keep
   an incompatible `rjson` namespace loaded when Synapser setup replaces it.
+
+## Scientific PDF reports
+
+* `write_report(device = "pdf")` now presents a concise scientific report with
+  verified candidate counts, explicit deterministic Top-N selection and CRank
+  tie auditing, ranking diagnostics, prioritized annotations, globally selected
+  enrichment terms, and compact method/input/software summaries.
+* Stored ranks and prioritization algorithms are unchanged. HTML/Shiny retain
+  their existing detailed views. PDF tables wrap long identifiers and repeat
+  headers across pages; figures stay with their sections and unavailable static
+  exports receive an informative fallback.
+* New optional `top_n` (10), `enrichment_n` (12), and `supplementary` (FALSE)
+  arguments control PDF detail and complete original-object RDS exports.
+
+* Explicit `figure_dpi` and section/layout controls now use the concise PDF
+  renderer, fixing the legacy routing regression that produced raw-data tables
+  and repeated `tab:analyses` labels. Resolution and section controls are honored
+  without changing candidate selection or stored ranks.
+
+* Restored a linked contents page and PDF outline. All stored pipeline figures
+  are included once under the relevant scientific section, including wrapped
+  plot objects. Unavailable Plotly sunbursts get a labelled static branch-summary
+  fallback; export notes no longer render as console output.
+
+* Scientific HTML reports now use a responsive sidebar layout with verified
+  summary cards, input/rank/annotation coverage, a candidate shortlist, ranking
+  agreement, focused enrichment, interpretation, and compact provenance.
+* Full results have searchable, sortable, paginated native HTML tables with
+  expandable cells and CSV downloads across all matching rows. The previous
+  200-row preview limit no longer hides later rows from table search/export.
+* Standalone HTML no longer requires Shiny or DT; the existing Shiny dashboard
+  remains available. Native Plotly figures are retained and `interactive` is
+  honored for ggplot conversion. Scientific summaries share PDF extraction and
+  tie handling without modifying rankings.
+## Signature ranking identity correction
+
+* Signature pipelines now normalize LINCS2 identifiers using the effective
+  reference mode. Parallel default-mode runs resolve frozen references and must
+  apply frozen identifier normalization before filtering and rank scoring.
+* Unmapped frozen perturbation IDs remain distinct instead of becoming a shared
+  missing identifier. Method score formulas, significance thresholds, tie rules,
+  and aggregation directions are unchanged from main.

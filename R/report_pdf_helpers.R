@@ -113,36 +113,12 @@
                                            include_reproducibility, include_appendix,
                                            table_orientation, figure_dpi,
                                            table_rows) {
-  model <- .report_pdf_model(objects, top_n)
-  body <- c(
-    "```{r setup, include=FALSE}",
-    paste0("knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=7.2, fig.height=5.2, dpi=", figure_dpi, ", fig.align='center', out.width='\\\\linewidth')"),
-    paste0("table_rows <- ", table_rows), paste0("table_orientation <- '", table_orientation, "'"),
-    "render_table <- function(x, caption=NULL, limit=table_rows) {",
-    " if (is.null(x) || !is.data.frame(x) || !nrow(x)) { cat('*No tabular results were recorded.*\\n'); return(invisible()) }",
-    " shown <- utils::head(x, limit)",
-    " shown[] <- lapply(shown, function(column) { values <- if (is.list(column)) vapply(column, function(value) paste(as.character(value), collapse='; '), character(1)) else as.character(column); values[is.na(values)] <- ''; ifelse(nchar(values, type='width') > 80L, paste0(substr(values, 1L, 77L), '...'), values) })",
-    " id_col <- intersect(c('Drug','drug','pert','perturbation','Name','name','ID'), names(shown)); id_col <- if (length(id_col)) id_col[[1L]] else NULL",
-    " groups <- if (ncol(shown) <= 7L) list(names(shown)) else split(setdiff(names(shown), id_col), ceiling(seq_along(setdiff(names(shown), id_col))/6L))",
-    " for (g in seq_along(groups)) { cols <- unique(c(id_col, groups[[g]])); part <- shown[, cols, drop=FALSE]; wide <- ncol(part) > 5L; landscape <- table_orientation == 'landscape' || (table_orientation == 'auto' && wide); if (landscape) cat('\\\\begin{landscape}\\n'); part_caption <- if (length(groups) > 1L) paste0(caption %||% 'Table', ' (columns ', g, ' of ', length(groups), ')') else caption; z <- knitr::kable(part, format='latex', booktabs=TRUE, longtable=TRUE, caption=part_caption, escape=TRUE, row.names=FALSE); if (requireNamespace('kableExtra', quietly=TRUE)) z <- kableExtra::kable_styling(z, latex_options='repeat_header', font_size=if(wide) 7 else 8, full_width=FALSE); print(z); if (landscape) cat('\\n\\\\end{landscape}\\n') }",
-    " if (nrow(x) > limit) cat(sprintf('\\n*Showing %d of %d rows; the complete table is retained in the pipeline object.*\\n', limit, nrow(x)))",
-    "}",
-    "render_figure <- function(p, caption) {",
-    " if (is.list(p) && !is.null(p$plot)) p <- p$plot",
-    " if (inherits(p, 'plotly')) { img <- tempfile(fileext='.png'); ok <- FALSE; if (requireNamespace('plotly', quietly=TRUE)) ok <- tryCatch({ plotly::save_image(p, img, width=1800, height=1200, scale=1); file.exists(img) && file.info(img)$size > 0 }, error=function(e) FALSE); if (ok) { print(knitr::include_graphics(img)); return(invisible()) }; cat(paste0('*', caption, ': interactive Plotly content could not be exported statically; inspect the HTML report or pipeline object.*\\n')); return(invisible()) }",
-    " if (inherits(p, c('ggplot','grob','recordedplot'))) { print(p); return(invisible()) }",
-    " cat(paste0('*', caption, ': no renderable static figure was recorded.*\\n'))",
-    "}", "```", ""
-  )
-  if (include_summary) body <- c(body, "# Executive Summary", "", "```{r summary, results='asis'}", "cat('This report summarizes the analysis outputs actually present in the supplied DrugSigNet object(s). Computational prioritization ranks candidates; it does not establish clinical efficacy.\\n\\n')", "for (i in seq_along(report_model$objects)) cat(sprintf('- **%s analysis:** %d unique ranked candidate(s).\\n', tools::toTitleCase(report_model$types[[i]]), report_model$counts[[i]]))", "if (!is.na(report_model$overlap)) cat(sprintf('- **Signature/network overlap:** %d candidate(s).\\n', report_model$overlap))", "```", "")
-  body <- c(body, "# Top-Ranked Drug Candidates", "", "Lower numeric rank values indicate stronger prioritization. CRank, Dowdall, and RRA are distinct aggregation methods; agreement is supporting computational evidence, not proof of biological activity or clinical benefit.", "", "```{r top-tables, results='asis'}", "for (i in seq_along(report_model$top)) { cat(sprintf('\\n## %s\\n\\n', tools::toTitleCase(report_model$types[[i]]))); render_table(report_model$top[[i]], sprintf('Top-ranked candidates (%s analysis)', report_model$types[[i]]), limit=top_n) }", "```", "")
-  labels <- c(signature="Signature-Based Analysis", network="Network-Based Analysis", integration="Integrated Drug Prioritization")
-  body <- c(body, "```{r analyses, results='asis'}", "for (i in seq_along(report_model$objects)) { obj <- report_model$objects[[i]]; cat(sprintf('\\n# %s\\n\\n', labels[[obj$type]] %||% 'Analysis Results')); render_table(DrugSigNet:::.report_harmonized_table(obj), 'Harmonized ranking results'); if (!is.null(obj$DrugAnnotation)) { cat('\\n## Drug Annotation\\n\\n'); render_table(DrugSigNet:::.report_extract_data_frame(obj$DrugAnnotation$Features), 'Available drug annotations'); fe <- DrugSigNet:::.report_extract_data_frame(obj$DrugAnnotation$Functional_Enrichment); if (!is.null(fe)) { cat('\\n## Functional Enrichment\\n\\nEnrichment describes over-representation among prioritized candidates and does not demonstrate causality or efficacy.\\n\\n'); render_table(fe, 'Functional enrichment results') } }; plots <- DrugSigNet:::.report_visualization_items(obj$Visualization); if (length(plots)) { cat('\\n## Visualization\\n\\n'); for (j in seq_along(plots)) { cap <- DrugSigNet:::.report_visualization_title(names(plots)[j]); cat(sprintf('\\n### %s\\n\\n', cap)); render_figure(plots[[j]], cap) } } }", "```", "")
-  if (include_interpretation) body <- c(body, "# Interpretation", "", "Rank aggregation measures agreement across computational methods. Functional enrichment summarizes associations among selected candidates. Neither result alone is evidence of clinical efficacy; experimental and clinical validation remain necessary.", "")
-  if (include_methods) body <- c(body, "# Methods", "", "The report uses recorded DrugSigNet outputs without recalculating priorities. CRank, Dowdall, and RRA columns are displayed when present; unavailable methods and sections are not inferred.", "", "## Recorded Analysis Configuration", "", "```{r recorded-configuration}", "if (!length(unlist(report_model$metadata, recursive=FALSE))) cat('No analysis parameters or reference metadata were recorded in the supplied objects.\\n') else print(report_model$metadata)", "```", "")
-  if (include_reproducibility) body <- c(body, "# Reproducibility", "", "```{r reproducibility}", "cat('DrugSigNet version:', as.character(utils::packageVersion('DrugSigNet')), '\\n\\n')", "cat('R version:', R.version.string, '\\n\\n')", "print(sessionInfo())", "```", "")
-  if (include_appendix) body <- c(body, "# Appendix", "", paste0("Main result tables are limited to ", table_rows, " rows for readability. Complete, unmodified results remain available in the supplied pipeline object and optional Excel export."), "")
-  writeLines(c(.report_pdf_template(title, author), body), rmd_file)
-  rmarkdown::render(rmd_file, output_format="pdf_document", output_file=basename(output_file), envir=list2env(list(report_model=model, top_n=top_n, labels=labels, `%||%`=function(x,y) if (is.null(x)) y else x), parent=globalenv()), quiet=TRUE)
-  invisible(normalizePath(output_file, winslash="/", mustWork=FALSE))
+  # Retain this internal entry point for callers from older code, but delegate
+  # to the same bounded layout. No chunk may regenerate exhaustive raw tables.
+  .write_pdf_report(objects, title, tools::file_path_sans_ext(output_file), author,
+    top_n, enrichment_n = 12L, supplementary = FALSE,
+    options = list(include_summary = include_summary, include_methods = include_methods,
+      include_interpretation = include_interpretation,
+      include_reproducibility = include_reproducibility, include_appendix = include_appendix,
+      table_orientation = table_orientation, figure_dpi = figure_dpi, table_rows = table_rows))
 }
