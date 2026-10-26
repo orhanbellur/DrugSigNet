@@ -16,7 +16,9 @@ All build commands use the repository root as the Docker build context.
 
 ## Supported R version
 
-The current DrugSigNet release requires R 4.5.0 or newer. In particular,
+DrugSigNet supports R 4.4.0 or newer. Use Bioconductor 3.20 with R 4.4,
+or Bioconductor 3.22 with R 4.5. The maintained isolated runtime and container
+images continue to default to R 4.5. In particular,
 `rocker/rstudio:4.0.5` is not supported: it selects the historical
 Bioconductor release associated with R 4.0, whose `XVector`, `GenomicRanges`,
 `HDF5Array`, and `signatureSearch` dependency chain is not interchangeable with

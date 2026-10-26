@@ -17,6 +17,7 @@ jobs:
     name: ${{ matrix.config.os }} (${{ matrix.config.r }})
     container: ${{ matrix.config.cont }}
     env:
+      R_BIOC_VERSION: ${{ matrix.config.bioc }}
       DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
       # The complete r-drugsignet runtime is provisioned before R CMD check.
       # Prevent reticulate from independently creating an r-reticulate
@@ -42,6 +43,23 @@ jobs:
           # this matrix label must describe the R actually inside the image.
           r: '4.5.2'
           cont: ghcr.io/bioconductor/bioconductor_docker:RELEASE_3_22-R-4.5.2
+          rspm: ~
+        # R 4.4 uses its matching Bioconductor 3.20 release. Native Linux
+        # exercises installation outside the recommended R 4.5 container.
+        - os: ubuntu-latest
+          bioc: '3.20'
+          r: '4.4.3'
+          cont: ~
+          rspm: ~
+        - os: macOS-latest
+          bioc: '3.20'
+          r: '4.4.3'
+          cont: ~
+          rspm: ~
+        - os: windows-latest
+          bioc: '3.20'
+          r: '4.4.3'
+          cont: ~
           rspm: ~
         - os: macOS-latest
           bioc: '3.22'
@@ -94,7 +112,9 @@ jobs:
         # it only for this Linux job. On Windows and macOS, setup-r selects a
         # platform-aware binary repository; replacing that value globally
         # forces avoidable source installs and broke Windows dependency setup.
-        echo "RSPM=https://cloud.r-project.org" >> "$GITHUB_ENV"
+        if [ -n "${{ matrix.config.cont }}" ]; then
+          echo "RSPM=https://cloud.r-project.org" >> "$GITHUB_ENV"
+        fi
     - name: Validate CI clock before dependency setup
       if: ${{ runner.os == 'Linux' }}
       run: |
