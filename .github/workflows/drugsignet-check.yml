@@ -191,7 +191,7 @@ jobs:
         rcmdcheck::rcmdcheck(
           args = c("--no-manual", "--timings", "--as-cran"),
           build_args = c("--no-manual", "--keep-empty-dirs", "--no-resave-data"),
-          error_on = "warning",
+          error_on = "note",
           check_dir = "check"
         )
     - name: Validate OS-specific runtime
