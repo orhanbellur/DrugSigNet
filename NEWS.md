@@ -102,3 +102,6 @@
   existing R 4.5/Bioconductor 3.22 environment. Add full checks on Linux,
   macOS ARM64 and Windows for both R versions. The recommended isolated
   runtime remains R 4.5 and Python 3.12; ranking algorithms are unchanged.
+- Remove the unused `webr` suggestion. Its current dependency chain reaches
+  `Deriv` (R >= 4.5), blocking complete dependency installation on R 4.4
+  despite no DrugSigNet code, documentation, or tests using it.

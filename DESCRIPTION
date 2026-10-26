@@ -60,8 +60,7 @@ Suggests:
     signatureSearch,
     testthat,
     tinytex,
-    withr,
-    webr
+    withr
 VignetteBuilder: 
     knitr,
     rmarkdown
