@@ -6,6 +6,8 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     project <- tempfile("pixi-platform-")
     dir.create(project)
     on.exit(unlink(project, recursive = TRUE), add = TRUE)
+    sdk <- file.path(project, "MacOSX.sdk")
+    dir.create(file.path(sdk, "usr", "include"), recursive = TRUE)
     runtime <- file.path(project, ".pixi", "envs", "default", "bin")
     dir.create(runtime, recursive = TRUE)
     file.create(file.path(project, ".pixi", ".drugsignet-post-link-enabled"))
@@ -38,10 +40,16 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       paste0("PIXI_HOME=", shQuote(pixi_home)),
       paste0("DRUGSIGNET_PIXI_PROJECT=", shQuote(project)),
       paste0("DRUGSIGNET_PIXI_PLATFORM=", platform),
+      paste0("DRUGSIGNET_MACOS_SDKROOT=", shQuote(sdk)),
       "DRUGSIGNET_BUILD_VIGNETTES=true"
     )))
     expect_equal(attr(output, "status"), 73L, info = paste(output, collapse = "\n"))
     manifest <- readLines(file.path(project, "pixi.toml"))
+    expect_identical(any(grepl("[activation.env]", manifest, fixed = TRUE)), startsWith(platform, "osx-"))
+    if (startsWith(platform, "osx-")) {
+      expect_true(any(grepl(paste0('SDKROOT = "', sdk, '"'), manifest, fixed = TRUE)))
+      expect_true(any(grepl(paste0('CONDA_BUILD_SYSROOT = "', sdk, '"'), manifest, fixed = TRUE)))
+    }
     bioc <- grepl('^"bioconductor-', manifest)
     expect_equal(sum(bioc), if (platform == "osx-arm64") 0L else 2L)
     expect_equal(any(grepl('^"r-rcdk"', manifest)), platform != "osx-arm64")

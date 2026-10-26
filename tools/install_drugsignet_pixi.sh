@@ -56,6 +56,22 @@ case "${pixi_platform}" in
 esac
 echo "[DrugSigNet] Pixi target platform: ${pixi_platform}."
 
+# Conda's macOS compilers need the host SDK headers (not supplied by Pixi).
+# Persist the SDK in Pixi activation so --clean-env does not discard it.
+macos_sdk=""
+case "${pixi_platform}" in
+  osx-*)
+    macos_sdk="${DRUGSIGNET_MACOS_SDKROOT:-}"
+    if [[ -z "${macos_sdk}" ]] && command -v xcrun >/dev/null 2>&1; then
+      macos_sdk="$(xcrun --sdk macosx --show-sdk-path)"
+    fi
+    if [[ ! -d "${macos_sdk}/usr/include" ]]; then
+      echo "ERROR: macOS SDK headers are unavailable. Install Xcode Command Line Tools with xcode-select --install, or set DRUGSIGNET_MACOS_SDKROOT to a valid SDK." >&2
+      exit 1
+    fi
+    ;;
+esac
+
 pixi_toml="${project_dir}/pixi.toml"
 {
   printf '%s\n' \
@@ -83,6 +99,9 @@ pixi_toml="${project_dir}/pixi.toml"
     }
     printf "\"%s\" = \"%s\"\n", name, version
   }' "${manifest}"
+  if [[ -n "${macos_sdk}" ]]; then
+    printf '\n[activation.env]\nSDKROOT = "%s"\nCONDA_BUILD_SYSROOT = "%s"\n' "${macos_sdk}" "${macos_sdk}"
+  fi
 } > "${pixi_toml}"
 
 # Keep Synapse wholly on the Conda/Bioconda side of Pixi's solver. Mixing the
