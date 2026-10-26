@@ -176,9 +176,9 @@ jobs:
         message("Loaded DLLs before R CMD check:")
         print(getLoadedDLLs())
         print(sessionInfo())
-    - name: Diagnose Ubuntu check time services
+    - name: Test CI clock validation
       if: ${{ runner.os == 'Linux' }}
-      run: Rscript .github/scripts/diagnose-check-clock.R
+      run: Rscript .github/scripts/test-check-system-clock.R
     - id: rworkflows-check
       name: Run R CMD check
       # rworkflows v1.0.12 references the retired Catchpoint telemetry action.
@@ -191,6 +191,10 @@ jobs:
         RGL_USE_NULL: 'true'
       shell: Rscript {0}
       run: |
+        if (identical(Sys.info()[["sysname"]], "Linux")) {
+          source(".github/scripts/check-system-clock.R")
+          prepare_check_clock()
+        }
         rcmdcheck::rcmdcheck(
           args = c("--no-manual", "--timings", "--as-cran"),
           build_args = c("--no-manual", "--keep-empty-dirs", "--no-resave-data"),
