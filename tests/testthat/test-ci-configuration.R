@@ -23,9 +23,16 @@ test_that("CI uses a compatible fixed R and Bioconductor release", {
   matrix_rows <- strsplit(workflow, "\n        - os: ", fixed = TRUE)[[1L]][-1L]
   older <- matrix_rows[grepl("r: '4.4.3'", matrix_rows, fixed = TRUE)]
   expect_setequal(vapply(strsplit(older, "\n", fixed = TRUE), `[[`, character(1), 1L),
-                  c("ubuntu-latest", "macOS-latest", "windows-latest"))
+                  c("ubuntu-24.04", "macOS-latest", "windows-latest"))
   expect_true(all(grepl("bioc: '3.20'", older, fixed = TRUE)))
   expect_match(workflow, "R_BIOC_VERSION: ${{ matrix.config.bioc }}", fixed = TRUE)
+  expect_true(all(grepl("2025-04-30", older, fixed = TRUE)))
+  expect_match(workflow, "cran: ${{ matrix.config.rspm }}", fixed = TRUE)
+  expect_match(workflow, "r44-cran-2025-04-30-v1", fixed = TRUE)
+  expect_match(workflow, "cran/__linux__/noble/2025-04-30", fixed = TRUE)
+  expect_match(workflow, "Register macOS Java with R 4.4", fixed = TRUE)
+  expect_match(workflow, 'CMD javareconf JAVA_HOME="$JAVA_HOME"', fixed = TRUE)
+  expect_match(workflow, 'source(".github/scripts/check-r44-plotting.R")', fixed = TRUE)
   expect_match(workflow, "RETICULATE_USE_MANAGED_VENV: 'no'", fixed = TRUE)
   expect_match(workflow, "r-lib/actions/setup-r-dependencies@v2", fixed = TRUE)
   expect_false(grepl("Rebuild macOS native tidyverse core", workflow, fixed = TRUE))

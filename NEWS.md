@@ -2,6 +2,36 @@
 
 ## DrugSigNet 1.0.0
 
+### Apple Silicon Pixi installation
+
+- Provide macOS libintl development files and the arch utility for source
+  builds; check gdtools before the full Bioconductor dependency installation.
+
+- Keep Pixi R libraries out of host sessions using a different R major/minor
+  version; return the validated project and print its isolated R command.
+- Bind JAVA_HOME to the project OpenJDK during Pixi activation and remove host
+  Java settings from clean subprocesses so rJava uses the configured JVM.
+
+- Install signatureSearch and signatureSearchData through Bioconductor 3.22
+  inside Pixi R on Apple Silicon, avoiding unavailable Bioconda ARM64 packages.
+- Install rcdk/fingerprint from CRAN on Apple Silicon and validate the Pixi
+  Java connection with a CDK fingerprint calculation.
+- Add a dedicated macOS ARM64 Pixi installation check with vignette builds.
+
+### R 4.4 check compatibility
+
+- Treat the three conditionally used plotting packages ggalluvial, ggforce, and
+  wordcloud as optional dependencies; their plotting functions retain existing
+  availability checks. Complete runtime installers still install these packages.
+- Use one dated CRAN snapshot (2025-04-30) with Bioconductor 3.20 CI,
+  avoiding mixed plotting binaries from different ggplot2 generations. Use
+  native Ubuntu 24.04 LTS and its matching binary repository for R 4.4.
+- Build HTML vignettes with local shared assets rather than embedding duplicate
+  images and scripts in each HTML file. Keep the installed doc directory together
+  when sharing vignettes. Render workflow diagrams as compact SVGs, and display
+  the static alluvial example while retaining the interactive sunburst
+  calculation and instructions for opening it in R.
+
 ### Initial release
 
 - Added signature-based, network-based, and integrated drug-repurposing

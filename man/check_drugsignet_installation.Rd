@@ -19,8 +19,8 @@ DrugSigNet through \code{reticulate}.}
 \item{check_synapser}{Logical; if \code{TRUE}, require the optional \code{synapser}
 package to be installed and loadable.}
 
-\item{check_optional}{Logical; if \code{TRUE}, check optional report-generation
-packages such as \code{kableExtra} and \code{tinytex}.}
+\item{check_optional}{Logical; if \code{TRUE}, check optional visualization,
+signature-search, and report-generation packages.}
 
 \item{install_missing_synapser}{Logical; if \code{TRUE} and \code{check_synapser = TRUE},
 attempt to install/load \code{synapser} through the DrugSigNet Synapse helper

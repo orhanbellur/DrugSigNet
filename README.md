@@ -63,7 +63,11 @@ install_drugsignet_pixi(
 
 The installer provisions the environment, installs DrugSigNet, and validates it. It reuses `pixi.lock` and the existing environment on subsequent runs. HTML vignettes are omitted by default for faster installation; use `build_vignettes = TRUE` if needed.
 
-The installer configures access from RStudio as well. Restart R if a different Python interpreter was already initialized, and retain the generated `.pixi/` directory and lock file for reproducibility.
+Native macOS Pixi installs require Xcode Command Line Tools (`xcode-select --install`). The installer detects the macOS SDK and preserves its header path in Pixi activation for source package compilation.
+
+On Apple Silicon Macs, the installer obtains `signatureSearch` and `signatureSearchData` through Bioconductor 3.22 using the project's R 4.5, because Bioconda does not provide these packages for `osx-arm64`. The installer also obtains `rcdk` and its `fingerprint` dependency through CRAN, configures the project's OpenJDK for R, and validates a CDK fingerprint calculation. These steps require internet access and may compile R dependencies. These R installations are outside `pixi.lock`; retain the printed installation logs and package versions when reproducing an analysis. The R version used to launch the installer does not change the project's R version.
+
+The installer configures library access only when the caller and Pixi use the same R major/minor version. If you launch it from R 4.4 while Pixi uses R 4.5, installation still completes in Pixi; start the Pixi R command printed by the installer to run the analysis. Opening the generated RStudio project alone does not change the R executable. Restart R if a different Python interpreter was already initialized, and retain the generated `.pixi/` directory and lock file for reproducibility.
 
 ### Standard R installation
 
@@ -93,6 +97,8 @@ For Python-backed network methods, run:
 DrugSigNet::setup_python_dependencies()
 DrugSigNet::check_drugsignet_installation(stop_on_error = TRUE)
 ```
+
+Optional annotation plots use `ggalluvial`, `ggforce`, and `wordcloud`. For a plain R installation, install the packages needed for those plots with `install.packages(c("ggalluvial", "ggforce", "wordcloud"))`. Complete Pixi/container installers include them. Installed HTML vignettes use local asset directories; keep the complete `doc` directory together when copying or sharing them.
 
 The signature workflow additionally uses the optional Bioconductor package `signatureSearch`; install it if your chosen signature methods require it:
 

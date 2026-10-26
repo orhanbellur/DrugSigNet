@@ -1,7 +1,26 @@
+.drugsignet_r_minor <- function(version) {
+  paste(strsplit(as.character(numeric_version(version)), ".", fixed = TRUE)[[1L]][1:2], collapse = ".")
+}
+
+# Packages compiled for another R minor version must stay in their own runtime.
+.drugsignet_configure_pixi_library <- function(pixi_library, runtime_version,
+                                              host_version = getRversion()) {
+  compatible <- identical(.drugsignet_r_minor(runtime_version), .drugsignet_r_minor(host_version))
+  if (compatible) {
+    .libPaths(unique(c(pixi_library, .libPaths())))
+  } else {
+    target <- normalizePath(pixi_library, mustWork = FALSE)
+    .libPaths(.libPaths()[normalizePath(.libPaths(), mustWork = FALSE) != target])
+  }
+  compatible
+}
+
 # Persist access to a completed Pixi runtime for future host-R sessions.
 .drugsignet_persist_pixi_host_config <- function(project_dir, pixi_python,
-                                                  pixi_library, validation_marker) {
-  renviron <- path.expand("~/.Renviron")
+                                                  pixi_library, validation_marker,
+                                                  runtime_version = getRversion(),
+                                                  config_dir = path.expand("~")) {
+  renviron <- file.path(config_dir, ".Renviron")
   environment <- if (file.exists(renviron)) readLines(renviron, warn = FALSE) else character()
   environment <- environment[!grepl(
     "^(DRUGSIGNET_PIXI_PROJECT|RETICULATE_PYTHON|RETICULATE_CONDA|CONDA_PREFIX|DRUGSIGNET_PIXI_VALIDATION_MARKER)=",
@@ -16,7 +35,7 @@
     paste0("DRUGSIGNET_PIXI_VALIDATION_MARKER=", validation_marker)
   ), renviron)
 
-  rprofile <- path.expand("~/.Rprofile")
+  rprofile <- file.path(config_dir, ".Rprofile")
   profile <- if (file.exists(rprofile)) readLines(rprofile, warn = FALSE) else character()
   begin <- "# >>> DrugSigNet Pixi >>>"
   end <- "# <<< DrugSigNet Pixi <<<"
@@ -32,7 +51,9 @@
     begin,
     "local({",
     paste0("  pixi_library <- ", encodeString(pixi_library, quote = '"')),
-    "  if (dir.exists(pixi_library)) {",
+    paste0("  runtime_minor <- ", encodeString(.drugsignet_r_minor(runtime_version), quote = '"')),
+    '  host_minor <- paste(strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2], collapse = ".")',
+    "  if (identical(host_minor, runtime_minor) && dir.exists(pixi_library)) {",
     "    .libPaths(unique(c(pixi_library, .libPaths())))",
     "  }",
     "})",
@@ -138,22 +159,32 @@ install_drugsignet_pixi <- function(
   if (!dir.exists(pixi_library)) {
     stop("Pixi completed without creating its R package library: ", pixi_library, call. = FALSE)
   }
-  .libPaths(unique(c(pixi_library, .libPaths())))
-  if (!requireNamespace("DrugSigNet", quietly = TRUE)) {
-    stop(
-      "DrugSigNet is installed in Pixi but cannot be loaded by the current R. ",
-      "Open ", file.path(project_dir, "DrugSigNet-test.Rproj"),
-      " or start Pixi R as printed below.",
-      call. = FALSE
-    )
-  }
   validation_marker <- Sys.getenv("DRUGSIGNET_PIXI_VALIDATION_MARKER")
   if (!file.exists(validation_marker)) {
     stop("Pixi runtime validation marker is missing: ", validation_marker, call. = FALSE)
   }
+  version_file <- file.path(project_dir, ".pixi", "envs", "default", ".drugsignet-r-version")
+  runtime_version <- if (file.exists(version_file)) readLines(version_file, warn = FALSE, n = 1L) else character()
+  if (length(runtime_version) != 1L || !grepl("^[0-9]+[.][0-9]+([.][0-9]+)?$", runtime_version)) {
+    stop("Pixi R version metadata is missing or invalid; rerun the installer.", call. = FALSE)
+  }
+  compatible <- .drugsignet_configure_pixi_library(pixi_library, runtime_version)
+  if (compatible && !requireNamespace("DrugSigNet", quietly = TRUE)) {
+    stop("DrugSigNet could not load in the matching host R; start the validated Pixi R runtime.", call. = FALSE)
+  }
   .drugsignet_persist_pixi_host_config(
-    project_dir, pixi_python, pixi_library, validation_marker
+    project_dir, pixi_python, pixi_library, validation_marker, runtime_version = runtime_version
   )
+  if (!compatible) {
+    message(
+      "DrugSigNet was installed and validated in Pixi R ", runtime_version,
+      ". This session uses R ", getRversion(),
+      "; use Pixi R for this project so compiled packages use the matching R version:\n  ",
+      file.path(path.expand("~"), ".pixi", "bin", "pixi"),
+      " run --manifest-path ", shQuote(file.path(project_dir, "pixi.toml")), " R"
+    )
+    return(invisible(project_dir))
+  }
   message(
     "DrugSigNet's Pixi library and Python selection are configured for this R session; ",
     "library(DrugSigNet) can be called directly. The generated RStudio project ",

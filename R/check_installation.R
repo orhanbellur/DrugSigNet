@@ -10,8 +10,8 @@
 #'   DrugSigNet through `reticulate`.
 #' @param check_synapser Logical; if `TRUE`, require the optional `synapser`
 #'   package to be installed and loadable.
-#' @param check_optional Logical; if `TRUE`, check optional report-generation
-#'   packages such as `kableExtra` and `tinytex`.
+#' @param check_optional Logical; if `TRUE`, check optional visualization,
+#'   signature-search, and report-generation packages.
 #' @param install_missing_synapser Logical; if `TRUE` and `check_synapser = TRUE`,
 #'   attempt to install/load `synapser` through the DrugSigNet Synapse helper
 #'   before reporting check results.
@@ -34,11 +34,11 @@ check_drugsignet_installation <- function(check_python = TRUE,
                                           install_missing_synapser = FALSE,
                                           stop_on_error = FALSE) {
   required_packages <- c(
-    "data.table", "dplyr", "enrichR", "ggalluvial", "ggforce", "ggplot2",
+    "data.table", "dplyr", "enrichR", "ggplot2",
     "methods", "plotly", "reticulate", "tibble", "tidyr",
-    "utils", "wordcloud"
+    "utils"
   )
-  optional_packages <- c("kableExtra", "signatureSearch", "tinytex")
+  optional_packages <- c("ggalluvial", "ggforce", "wordcloud", "kableExtra", "signatureSearch", "tinytex")
   if (isTRUE(check_synapser)) {
     optional_packages <- c(optional_packages, "synapser")
   }

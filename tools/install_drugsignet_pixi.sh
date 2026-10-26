@@ -56,6 +56,22 @@ case "${pixi_platform}" in
 esac
 echo "[DrugSigNet] Pixi target platform: ${pixi_platform}."
 
+# Conda's macOS compilers need the host SDK headers (not supplied by Pixi).
+# Persist the SDK in Pixi activation so --clean-env does not discard it.
+macos_sdk=""
+case "${pixi_platform}" in
+  osx-*)
+    macos_sdk="${DRUGSIGNET_MACOS_SDKROOT:-}"
+    if [[ -z "${macos_sdk}" ]] && command -v xcrun >/dev/null 2>&1; then
+      macos_sdk="$(xcrun --sdk macosx --show-sdk-path)"
+    fi
+    if [[ ! -d "${macos_sdk}/usr/include" ]]; then
+      echo "ERROR: macOS SDK headers are unavailable. Install Xcode Command Line Tools with xcode-select --install, or set DRUGSIGNET_MACOS_SDKROOT to a valid SDK." >&2
+      exit 1
+    fi
+    ;;
+esac
+
 pixi_toml="${project_dir}/pixi.toml"
 {
   printf '%s\n' \
@@ -65,7 +81,10 @@ pixi_toml="${project_dir}/pixi.toml"
     "platforms = [\"${pixi_platform}\"]" \
     '' \
     '[dependencies]'
-  awk -F '\t' '$1 == "conda" || $1 == "pixi" {
+  awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
+    # Bioconda does not provide these packages for Apple Silicon. Install
+    # them with BiocManager inside Pixi R after the native runtime exists.
+    if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
@@ -80,6 +99,12 @@ pixi_toml="${project_dir}/pixi.toml"
     }
     printf "\"%s\" = \"%s\"\n", name, version
   }' "${manifest}"
+  # rJava configure prefers JAVA_HOME from the process environment over
+  # R's javareconf settings. Always bind it to the project OpenJDK.
+  printf '\n[activation.env]\nJAVA_HOME = "%s/.pixi/envs/default/lib/jvm"\n' "${project_dir}"
+  if [[ -n "${macos_sdk}" ]]; then
+    printf 'SDKROOT = "%s"\nCONDA_BUILD_SYSROOT = "%s"\n' "${macos_sdk}" "${macos_sdk}"
+  fi
 } > "${pixi_toml}"
 
 # Keep Synapse wholly on the Conda/Bioconda side of Pixi's solver. Mixing the
@@ -115,11 +140,18 @@ CONDA_PREFIX=${project_dir}/.pixi/envs/default
 DRUGSIGNET_PIXI_PROJECT=${project_dir}
 EOF
 cat > "${project_dir}/.Rprofile" <<EOF
-pixi_library <- "${project_dir}/.pixi/envs/default/lib/R/library"
-if (dir.exists(pixi_library)) {
-  .libPaths(unique(c(pixi_library, .libPaths())))
-}
-rm(pixi_library)
+local({
+  pixi_library <- "${project_dir}/.pixi/envs/default/lib/R/library"
+  version_file <- "${project_dir}/.pixi/envs/default/.drugsignet-r-version"
+  if (dir.exists(pixi_library) && file.exists(version_file)) {
+    runtime_version <- readLines(version_file, warn = FALSE, n = 1L)
+    host_minor <- strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2]
+    runtime_minor <- if (length(runtime_version)) strsplit(runtime_version, ".", fixed = TRUE)[[1L]][1:2] else character()
+    if (identical(host_minor, runtime_minor)) {
+      .libPaths(unique(c(pixi_library, .libPaths())))
+    }
+  }
+})
 EOF
 
 echo "[DrugSigNet] Resolving and installing the Pixi runtime."
@@ -154,6 +186,12 @@ if [[ ! -x "${runtime_bin}/sh" ]]; then
   ln -s bash "${runtime_bin}/sh"
   echo "[DrugSigNet] Added the missing project-local sh -> bash runtime link."
 fi
+# Some R configure scripts call the macOS arch utility. Clean Pixi PATHs
+# need an explicit project-local bridge to this standard host executable.
+if [[ "${pixi_platform}" == osx-* && ! -x "${runtime_bin}/arch" ]]; then
+  [[ -x /usr/bin/arch ]] || { echo "ERROR: macOS arch utility is missing." >&2; exit 1; }
+  ln -s /usr/bin/arch "${runtime_bin}/arch"
+fi
 
 repository="${package_ref%%@*}"
 ref=""
@@ -176,11 +214,60 @@ clone_args+=("https://github.com/${repository}.git" "${source_dir}")
 
 pixi_clean_run() {
   env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
+    -u JAVA_HOME -u R_JAVA_LD_LIBRARY_PATH \
     "${pixi}" run --clean-env --manifest-path "${pixi_toml}" "$@"
 }
 
 echo "[DrugSigNet] Downloading ${package_ref} with Git (pak metadata resolution is skipped)."
 pixi_clean_run git "${clone_args[@]}"
+
+# Use the Bioconductor release matching the maintained Pixi R 4.5 runtime.
+# Run before building vignettes: they load signatureSearch as well.
+if [[ "${pixi_platform}" == "osx-arm64" ]]; then
+  echo "[DrugSigNet] Configuring Pixi Java and installing Apple Silicon R dependencies."
+  [[ -x "${runtime_prefix}/lib/jvm/bin/java" ]] || {
+    echo "ERROR: Pixi OpenJDK is missing from ${runtime_prefix}/lib/jvm." >&2
+    exit 1
+  }
+  # Embed the JVM search path; macOS system shells can strip DYLD_* vars.
+  pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm" \
+    JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm"
+  pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+expected_java <- normalizePath(file.path(R.home(), "..", "jvm"), mustWork = TRUE)
+actual_java <- normalizePath(Sys.getenv("JAVA_HOME"), mustWork = TRUE)
+if (!identical(actual_java, expected_java)) {
+  stop("Pixi Java isolation failed: JAVA_HOME must point to ", expected_java)
+}
+message("Using project OpenJDK: ", actual_java)
+if (getRversion() < "4.5" || getRversion() >= "4.6") {
+  stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
+}
+cran_required <- c("fingerprint", "rcdk", "gdtools")
+cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(cran_missing)) install.packages(cran_missing)
+cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(cran_missing)) {
+  stop("Apple Silicon CRAN installation failed: ", paste(cran_missing, collapse = ", "))
+}
+# Exercise rJava/CDK as well as namespace loading before claiming success.
+molecule <- rcdk::parse.smiles("CCO")[[1L]]
+fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
+if (!inherits(fingerprint, "fingerprint")) {
+  stop("Apple Silicon CDK fingerprint validation failed.")
+}
+required <- c("signatureSearch", "signatureSearchData")
+BiocManager::install(version = "3.22", ask = FALSE, update = FALSE)
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) {
+  BiocManager::install(missing, version = "3.22", ask = FALSE, update = FALSE)
+}
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) {
+  stop("Apple Silicon Bioconductor installation failed: ", paste(missing, collapse = ", "))
+}
+RSCRIPT
+fi
 
 install_source="${source_dir}"
 if [[ "${DRUGSIGNET_BUILD_VIGNETTES:-false}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]; then
