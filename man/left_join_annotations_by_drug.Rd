@@ -7,11 +7,11 @@
 left_join_annotations_by_drug(input_tbl, ref_tbl, empty_cols = character())
 }
 \arguments{
-\item{input_tbl}{Input table with `Drug` column.}
+\item{input_tbl}{Input table with \code{Drug} column.}
 
-\item{ref_tbl}{Reference table with `Drug` column.}
+\item{ref_tbl}{Reference table with \code{Drug} column.}
 
-\item{empty_cols}{Annotation columns to include when `ref_tbl` is empty.}
+\item{empty_cols}{Annotation columns to include when \code{ref_tbl} is empty.}
 }
 \value{
 Joined data frame.

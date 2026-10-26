@@ -21,7 +21,6 @@
 #' @return A `ggplot` object.
 #'
 #' @examples
-#' \dontrun{
 #' enrich_df <- data.frame(
 #'   Term = c("apoptotic process (GO:0006915)", "cell cycle (GO:0007049)"),
 #'   ont = c("BP", "BP"),
@@ -31,7 +30,6 @@
 #'
 #' plot_enriched_terms(enrich_df, plottype = "dotplot")
 #' plot_enriched_terms(enrich_df, plottype = "barplot")
-#' }
 #'
 #' @export
 setGeneric(

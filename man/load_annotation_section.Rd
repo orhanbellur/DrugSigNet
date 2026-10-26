@@ -21,11 +21,11 @@ load_annotation_section(
 \item{auth_token}{Optional Synapse auth token.}
 }
 \value{
-A data frame or `NULL`.
+A data frame or \code{NULL}.
 }
 \description{
-Internal helper that reads the current Synapse/cache `drug_annotation.rds`
-schema (`annotations = list(moa = ..., indications = ..., ...)`) and falls
+Internal helper that reads the current Synapse/cache \code{drug_annotation.rds}
+schema (\code{annotations = list(moa = ..., indications = ..., ...)}) and falls
 back to legacy top-level names when necessary.
 }
 \keyword{internal}

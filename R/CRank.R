@@ -33,12 +33,26 @@
 #' @param ties_method Method used to resolve ties during rank conversion. One of
 #'   `"max"`, `"min"`, `"average"`, `"first"`, `"last"`, `"random"`, or
 #'   `"dense"`. Default is `"max"`.
-#' @param prior Numeric prior used by CRank. Default is `0.093`.
-#' @param num_bin Number of bins used by CRank. Default is `200`.
+#' @param prior Fraction defining the temporary high-confidence group. Its size
+#'   is `floor(nrow(input_data) * prior)`; use settings giving a nonempty group
+#'   smaller than the candidate universe. Default is `0.093`.
+#' @param num_bin Number of bins used by CRank; at least three are needed by
+#'   the smoothing step. Default is `200`.
 #' @param num_iter Number of CRank iterations. Default is `1000`.
 #' @param reverse Logical; if `TRUE`, smaller input values are treated as better,
 #'   which is appropriate when numeric columns already represent ranks. If
 #'   `FALSE`, larger input values are treated as better. Default is `FALSE`.
+#'
+#' @section Input and interpretation:
+#' Use positive ranks or nonnegative priority scores; do not pass signed native
+#' connectivity scores directly. An all-nonpositive input uses the no-evidence
+#' fallback. `reverse = TRUE` is appropriate for smaller-is-better ranks, whereas
+#' Dowdall and RRA use the opposite convention. Returned rows need not be sorted;
+#' explicitly order by `CRank` before selecting candidates. Ties are retained and
+#' consensus is not experimental validation. Configure Python with
+#' [setup_python_dependencies()] before running this method.
+#'
+#' @seealso [Dowdall()], [RRA()], [optimize_parameters()]
 #'
 #' @return
 #' A `RankAggregation` object containing the aggregated CRank results in
@@ -55,14 +69,14 @@
 #' res <- CRank(
 #'   input_data = rank_df,
 #'   ties_method = "max",
-#'   prior = 0.093,
-#'   num_bin = 200,
+#'   prior = 0.5, # one high-confidence item in this three-item toy input
+#'   num_bin = 3,
 #'   num_iter = 1000,
 #'   reverse = TRUE
 #' )
 #'
 #' # Pipe-friendly use
-#' res_pipe <- CRank(rank_df, reverse = TRUE)
+#' res_pipe <- CRank(rank_df, prior = 0.5, num_bin = 3, reverse = TRUE)
 #' }
 #'
 #' @references

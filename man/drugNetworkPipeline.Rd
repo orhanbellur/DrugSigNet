@@ -32,115 +32,127 @@ drugNetworkPipeline(
 }
 \arguments{
 \item{ppi_network}{Optional protein-protein interaction network. Expected to
-contain columns `gene1` and `gene2`. If `NULL`, the default DrugSigNet
+contain columns \code{gene1} and \code{gene2}. If \code{NULL}, the default DrugSigNet
 gene-gene network is loaded.}
 
 \item{drug_target_network}{Optional drug-target interaction network. Expected
-to contain columns such as `ID`, `Drug`, `Target`, and `Group`. If `NULL`,
+to contain columns such as \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL},
 the default DrugSigNet drug-target network is loaded.}
 
 \item{disease_genes}{Disease-associated genes used as seed genes. Can be a
-character vector or a data frame containing a `gene` column.}
+character vector or a data frame containing a \code{gene} column.}
 
-\item{run_all_network_methods}{Logical; if `TRUE`, run TrustRank, harmonic
+\item{run_all_network_methods}{Logical; if \code{TRUE}, run TrustRank, harmonic
 centrality, degree centrality, network proximity, and diffusion. If
-`FALSE`, run only TrustRank, harmonic centrality, and degree centrality.
-Default is `TRUE`.}
+\code{FALSE}, run only TrustRank, harmonic centrality, and degree centrality.
+Default is \code{TRUE}.}
 
 \item{include_indirect_drugs}{Logical; whether to include drugs indirectly
-connected to disease genes. Default is `TRUE`.}
+connected to disease genes. Default is \code{TRUE}.}
 
 \item{include_non_approved_drugs}{Logical; whether to include non-approved or
-investigational drugs. Default is `TRUE`.}
+investigational drugs. Default is \code{TRUE}.}
 
 \item{hub_penalty}{Numeric hub penalty used by centrality-based methods. If a
 single value is provided, it is used for both TrustRank and harmonic
 centrality. If two values are provided, the first is used for TrustRank and
-the second for harmonic centrality. Default is `0.01`.}
+the second for harmonic centrality. Default is \code{0.01}.}
 
 \item{damping_factor}{Numeric damping factor used by TrustRank. Must be
-between `0` and `1`. Default is `0.95`.}
+between \code{0} and \code{1}. Default is \code{0.95}.}
 
 \item{result_size}{Optional number of ranked results returned per method. If
-`NULL`, it is inferred from the number of unique drugs in the resolved
+\code{NULL}, it is inferred from the number of unique drugs in the resolved
 drug-target network.}
 
 \item{n_simulations}{Number of random simulations used by
-`Network_proximity()`. Default is `1000`.}
+\code{Network_proximity()}. Default is \code{1000}.}
 
 \item{n_workers}{Number of workers used by methods that support parallel
 execution, currently network proximity. Centrality methods are run
-sequentially for reticulate/Python backend stability. Default is `5`.}
+sequentially for reticulate/Python backend stability. Default is \code{5}.}
 
-\item{prior}{Numeric prior used by CRank aggregation. Default is `0.093`.}
+\item{prior}{Numeric prior used by CRank aggregation. Default is \code{0.093}.}
 
-\item{num_bin}{Number of bins used by CRank aggregation. Default is `200`.}
+\item{num_bin}{Number of bins used by CRank aggregation. Default is \code{200}.}
 
-\item{ties_method}{Method used to resolve ranking ties. One of `"max"`,
-`"min"`, `"average"`, or `"dense"`. Default is `"max"`.}
+\item{ties_method}{Method used to resolve ranking ties. One of \code{"max"},
+\code{"min"}, \code{"average"}, or \code{"dense"}. Default is \code{"max"}.}
 
 \item{output_dir}{Optional directory used by diffusion methods to store
 intermediate files.}
 
-\item{top_k}{Number of top-ranked drugs used for downstream annotation and
-target enrichment. Default is `100`.}
+\item{top_k}{Positive rank threshold for downstream annotation/enrichment.
+The union of drugs with rank <= \code{top_k} in any selected consensus column
+is used; ties and differing methods can select more than \code{top_k} drugs.
+This does not truncate the core ranking tables. Default is \code{100}.}
 
 \item{trial_condition}{Optional condition used to retrieve matching clinical
 trial annotations.}
 
-\item{drug_annotation_source}{Drug annotation source. One of `"All"`,
-`"OpenTargets"`, `"CHEMBL"`, or `"TTD"`.}
+\item{drug_annotation_source}{Drug annotation source. One of \code{"All"},
+\code{"OpenTargets"}, \code{"CHEMBL"}, or \code{"TTD"}.}
 
 \item{target_id_from}{Optional AnnotationDbi keytype or supported alias
-describing target identifiers used for target set enrichment. If `NULL`,
+describing target identifiers used for target set enrichment. If \code{NULL},
 targets are treated as HGNC symbols unless Ensembl gene IDs are detected.}
 
 \item{force}{Logical; force refresh of Synapse-backed annotation or network
-resources where supported. Default is `FALSE`.}
+resources where supported. Default is \code{FALSE}.}
 
 \item{auth_token}{Optional Synapse authentication token used by annotation
 and network-loading helpers.}
 
-\item{run_drug_annotation}{Logical; if `TRUE`, annotate ranked drugs and run
-target set enrichment. Default is `TRUE`.}
+\item{run_drug_annotation}{Logical; if \code{TRUE}, annotate ranked drugs and run
+target set enrichment. Default is \code{TRUE}.}
 
-\item{run_visualization}{Logical; if `TRUE`, build visualization metadata and
-plots. Default is `TRUE`.}
+\item{run_visualization}{Logical; if \code{TRUE}, build visualization metadata and
+plots. Default is \code{TRUE}.}
 }
 \value{
-A `DrugSearchingPipeline` S4 object containing raw network-search results,
+A \code{DrugSearchingPipeline} S4 object containing raw network-search results,
 processed rankings, rank aggregation results, and optionally annotation and
-visualization sections. Returns `NULL` with a warning on native Windows.
+visualization sections. Returns \code{NULL} with a warning on native Windows.
 }
 \description{
 Runs a complete network-based drug prioritization workflow using centrality,
 diffusion, network proximity, rank aggregation, and optional drug annotation.
 }
 \details{
-`drugNetworkPipeline()` prioritizes candidate drugs from disease-associated
+\code{drugNetworkPipeline()} prioritizes candidate drugs from disease-associated
 genes using network-based methods. The workflow first resolves the
-protein-protein interaction network (`ppi_network`) and drug-target
-interaction network (`drug_target_network`). If either network is `NULL`,
+protein-protein interaction network (\code{ppi_network}) and drug-target
+interaction network (\code{drug_target_network}). If either network is \code{NULL},
 the corresponding default DrugSigNet network can be loaded from the local
 cache or Synapse.
 
 The pipeline always runs centrality-based methods, including TrustRank,
-harmonic centrality, and degree centrality. If `run_all_network_methods =
-TRUE`, it additionally runs network proximity and diffusion-based methods.
+harmonic centrality, and degree centrality. If \code{run_all_network_methods = TRUE}, it additionally runs network proximity and diffusion-based methods.
 
 Method-specific rankings are integrated using CRank, Dowdall, and Robust Rank
 Aggregation (RRA). The final harmonized network ranking is stored in the
-`Network_Harmonized` section of the returned object.
+\code{Network_Harmonized} section of the returned object.
 
-Native Windows installations do not support the Python `graph-tool`
+Native Windows installations do not support the Python \code{graph-tool}
 dependency. On native Windows this function warns, recommends Docker or WSL,
-and returns `NULL` without starting the analysis.
+and returns \code{NULL} without starting the analysis.
 
-If `run_drug_annotation = TRUE`, ranked drugs are annotated and target set
+If \code{run_drug_annotation = TRUE}, ranked drugs are annotated and target set
 enrichment analysis is performed on targets of top-ranked drugs. If
-`run_visualization = TRUE`, visualization-ready outputs are included in the
+\code{run_visualization = TRUE}, visualization-ready outputs are included in the
 returned pipeline object.
 }
+\section{Aggregation stages}{
+
+With \code{run_all_network_methods = FALSE}, only the three centrality rank lists
+enter final CRank, Dowdall and RRA aggregation. With \code{TRUE}, five diffusion rank
+measures first form \code{Diffusion_CRank}, \code{Diffusion_Dowdall} and \code{Diffusion_RRA}.
+Each final network aggregator uses its matching diffusion consensus together
+with the proximity rank and all three centrality ranks. They are not all pooled
+into every final aggregator. Final \code{Network_CRank}, \code{Network_Dowdall} and
+\code{Network_RRA} values are smaller-is-better ranks.
+}
+
 \examples{
 \dontrun{
 disease_genes <- data.frame(
@@ -184,7 +196,10 @@ res_custom <- drugNetworkPipeline(
 
 }
 \seealso{
-`TrustRank()`, `Harmonic_centrality()`, `Degree_centrality()`,
-`Network_proximity()`, `Diffusion()`, `CRank()`, `Dowdall()`, `RRA()`,
-`annotate_drugs()`, `TSEA()`
+\code{\link[=drugRepurposingPipeline]{drugRepurposingPipeline()}}, \code{\link[=integrateSignatureNetwork]{integrateSignatureNetwork()}},
+\code{\link[=write_report]{write_report()}}
+
+\code{TrustRank()}, \code{Harmonic_centrality()}, \code{Degree_centrality()},
+\code{Network_proximity()}, \code{Diffusion()}, \code{CRank()}, \code{Dowdall()}, \code{RRA()},
+\code{annotate_drugs()}, \code{TSEA()}
 }

@@ -5,10 +5,10 @@
 #' integrated protein-protein interaction and drug-target network.
 #'
 #' @details
-#' Degree centrality is a local network measure that ranks nodes by their number
-#' of direct connections. In network-based drug repurposing, it can prioritize
-#' drugs or targets connected to the disease module in the integrated
-#' interactome.
+#' This implementation is disease-seeded local-neighborhood scoring, not raw
+#' graph degree. For each disease seed, one-hop neighbors contribute 1 and
+#' two-hop neighbors not already counted contribute 0.5. Contributions are
+#' accumulated across seeds before prioritizing candidate drugs or targets.
 #'
 #' The integrated network is built from a protein-protein interaction network
 #' (`ppi_network`) and a drug-target interaction network
@@ -46,6 +46,14 @@
 #'   instead of using the local cache.
 #' @param auth_token Optional Synapse authentication token. If `NULL`, the
 #'   `SYNAPSE_AUTH_TOKEN` environment variable is used.
+#'
+#' @section Result schema:
+#' `@result` contains `Drug` and `Score`; higher `Score` indicates greater
+#' method-specific priority. The network pipeline converts scores to
+#' smaller-is-better ranks before aggregation. The method's score is not a
+#' probability of therapeutic benefit.
+#'
+#' @seealso [drugNetworkPipeline()], [load_drugsignet_network()]
 #'
 #' @return
 #' A `NetworkBased` object containing degree centrality results in

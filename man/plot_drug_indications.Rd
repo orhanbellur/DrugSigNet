@@ -25,46 +25,46 @@ plot_drug_indications(
 )
 }
 \arguments{
-\item{object}{A `PlotObject` containing parameters for the plot.}
+\item{object}{A \code{PlotObject} containing parameters for the plot.}
 
 \item{data_df}{Data frame containing enrichment results.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{plottype}{Plot type. One of `"wordcloud"` or `"barplot"`. Default is
-`"wordcloud"`.}
+\item{plottype}{Plot type. One of \code{"wordcloud"} or \code{"barplot"}. Default is
+\code{"wordcloud"}.}
 
 \item{max_words}{Maximum number of indications to include in the word cloud.
-Default is `Inf`.}
+Default is \code{Inf}.}
 
 \item{top_terms}{Number of top indications to include in the plot. Default is
-`100`.}
+\code{100}.}
 }
 \value{
-A `ggplot` object for `plottype = "barplot"`, or a recorded base R plot for
-`plottype = "wordcloud"`.
+A \code{ggplot} object for \code{plottype = "barplot"}, or a recorded base R plot for
+\code{plottype = "wordcloud"}.
 
-A `ggplot` object for `plottype = "barplot"`, or a recorded base plot for `plottype = "wordcloud"`.
+A \code{ggplot} object for \code{plottype = "barplot"}, or a recorded base plot for \code{plottype = "wordcloud"}.
 }
 \description{
 Visualizes the frequency distribution of drug indications as a bar plot or
 word cloud.
 }
 \details{
-`plot_drug_indications()` summarizes values in the `indication` column. The
-input data must contain `Drug` and `indication` columns.
+\code{plot_drug_indications()} summarizes values in the \code{indication} column. The
+input data must contain \code{Drug} and \code{indication} columns.
 
-Before plotting, indications are converted to lower case, split on `"|"` or
-`";"`, trimmed, cleaned for repeated whitespace, and counted by frequency.
+Before plotting, indications are converted to lower case, split on \code{"|"} or
+\code{";"}, trimmed, cleaned for repeated whitespace, and counted by frequency.
 
-For `plottype = "barplot"`, the function returns a horizontal `ggplot`
-object. For `plottype = "wordcloud"`, it returns a recorded base R plot.
+For \code{plottype = "barplot"}, the function returns a horizontal \code{ggplot}
+object. For \code{plottype = "wordcloud"}, it returns a recorded base R plot.
 }
 \examples{
 data <- data.frame(

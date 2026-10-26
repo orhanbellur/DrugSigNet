@@ -20,6 +20,10 @@
 #' input drug or drugs matched each clinical trial record. Multiple matched drugs
 #' are separated with semicolons.
 #'
+#' @param drugs Character vector, factor, or exactly one-column data frame of
+#'   drug names. Extract `candidates$Drug` from a multi-column candidate table.
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @inheritParams annotate_drugs
 #' @param ignore_case Logical; whether drug and condition matching should be
 #'   case-insensitive. Default is `TRUE`.

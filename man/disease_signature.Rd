@@ -7,10 +7,10 @@
 \format{
 A data frame with two columns:
 \describe{
-  \item{Entrez}{NCBI Entrez Gene identifier.}
-  \item{FC}{Log2 fold-change for COVID-19 convalescent donors relative to
-  healthy donors. Positive and negative values indicate higher and lower
-  expression in convalescent donors, respectively.}
+\item{Entrez}{NCBI Entrez Gene identifier.}
+\item{FC}{Log2 fold-change for COVID-19 convalescent donors relative to
+healthy donors. Positive and negative values indicate higher and lower
+expression in convalescent donors, respectively.}
 }
 }
 \source{

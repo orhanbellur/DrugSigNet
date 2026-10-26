@@ -1,8 +1,8 @@
 #' @title Target Set Enrichment Analysis
 #'
 #' @description
-#' Performs target set enrichment analysis against Gene Ontology or KEGG
-#' databases using Enrichr.
+#' Performs target set enrichment analysis against Gene Ontology libraries
+#' using Enrichr.
 #'
 #' @details
 #' `TSEA()` tests whether a set of drug targets is enriched for biological
@@ -11,8 +11,8 @@
 #'
 #' For Gene Ontology enrichment, `source = "GO"` and `ont` selects Biological
 #' Process (`"BP"`), Molecular Function (`"MF"`), Cellular Component (`"CC"`),
-#' or all three ontologies (`"ALL"`). For KEGG enrichment, use
-#' `source = "KEGG"`.
+#' or all three ontologies (`"ALL"`). The current backend selects GO libraries
+#' using `ont`; it does not implement KEGG dispatch through `source`.
 #'
 #' `targetList` should contain gene symbols by default. If another identifier
 #' type is supplied, use `target_id_from` to specify the source identifier type.
@@ -31,15 +31,28 @@
 #'   when `targetList` is omitted.
 #' @param targetList Character vector of gene symbols or other gene identifiers.
 #'   Required unless supplied through `object`.
-#' @param source Enrichment database source. One of `"GO"` or `"KEGG"`.
-#'   Default is `"GO"`.
-#' @param ont Gene Ontology namespace used when `source = "GO"`. One of
-#'   `"BP"`, `"MF"`, `"CC"`, or `"ALL"`. Default is `"ALL"`.
+#' @param source Compatibility source label stored in the result parameters.
+#'   Use `"GO"`. The current backend does not select libraries from this value;
+#'   `"KEGG"` does not request a KEGG analysis.
+#' @param ont Gene Ontology namespace selected by the backend. One of
+#'   `"BP"`, `"MF"`, `"CC"`, or `"ALL"`. Default is `"BP"`.
 #' @param Adjusted.P.value Adjusted p-value cutoff used to filter enrichment
 #'   results. Default is `0.05`.
 #' @param target_id_from Optional AnnotationDbi keytype or supported alias
 #'   describing the identifiers in `targetList`. If `NULL`, targets are treated
 #'   as HGNC symbols unless Ensembl gene IDs are detected automatically.
+#'
+#' @section Background and interpretation:
+#' The current libraries are `GO_Biological_Process_2023`,
+#' `GO_Molecular_Function_2023` and `GO_Cellular_Component_2023`. Targets are
+#' mapped to symbols and deduplicated before submission. There is no custom
+#' background/universe argument; adjusted p-values refer to the Enrichr library
+#' background, not a restricted set of experimentally detectable genes. Record
+#' library names, retrieval dates, mapping losses and the candidate-selection
+#' rule. Shared targets and annotation coverage can affect enrichment; an enriched
+#' term does not establish a drug's mechanism or therapeutic effect.
+#'
+#' @seealso [annotate_drugs()], [plot_enriched_terms()]
 #'
 #' @return
 #' A `DrugAnnotation` object containing filtered enrichment results in

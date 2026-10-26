@@ -9,16 +9,13 @@
 #' The function accepts a character vector or a one-column data frame and returns
 #' a `DrugAnnotation` object with status information stored in `object@result`.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' Supported sources are `"All"`, `"OpenTargets"`, `"CHEMBL"`, and `"TTD"`.
 #' Depending on the selected source, `Highest_status` may represent the highest
 #' development phase, approval status, or regulatory status available for each
 #' drug.
 #'
-#' @inheritParams annotate_drugs
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @param source Annotation source. One of `"All"`, `"OpenTargets"`,
 #'   `"CHEMBL"`, or `"TTD"`. Default is `"All"`.
 #'

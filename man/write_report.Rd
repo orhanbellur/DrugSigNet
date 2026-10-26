@@ -32,48 +32,55 @@ write_report(
 result objects.}
 
 \item{title}{Optional report title. Defaults to
-`"DrugSigNet <current date>"`.}
+\code{"DrugSigNet <current date>"}.}
 
 \item{file}{Output file name with or without extension. Defaults to
-`"drugsignet_<current date>"`.}
+\code{"drugsignet_<current date>"}.}
 
 \item{write_results}{Logical indicating whether pipeline results should also
-be exported as Excel files. Default is `FALSE`.}
+be exported as Excel files. Default is \code{FALSE}.}
 
-\item{device}{Output format. One of `"html"` (default) or `"pdf"`.}
+\item{device}{Output format. One of \code{"html"} (default) or \code{"pdf"}.}
 
-\item{interactive}{Logical; if `TRUE` and `device = "html"`, compatible
-`ggplot` objects are rendered as interactive Plotly figures.}
+\item{interactive}{Logical; if \code{TRUE} and \code{device = "html"}, compatible
+\code{ggplot} objects are rendered as interactive Plotly figures.}
 
 \item{author}{Optional author name.}
 
-\item{dashboard}{HTML report layout. One of `"tabset"` (default) or
-`"shinydashboard"`.}
+\item{dashboard}{HTML report layout. One of \code{"tabset"} (default) or
+\code{"shinydashboard"}.}
 
-\item{template}{PDF template. `"scientific"` produces the publication-oriented layout.}
+\item{template}{PDF template. \code{"scientific"} produces the publication-style
+layout. This argument does not alter HTML or Shiny reports.}
 
-\item{include_summary, include_methods, include_interpretation}{Logical scientific HTML/PDF section controls.}
-
-\item{include_reproducibility}{Logical scientific HTML/PDF provenance and rendering-software control.}
-
-\item{include_appendix}{Logical PDF supplementary-material section control.}
-
-\item{table_orientation}{PDF table orientation: `"auto"`, `"portrait"`, or `"landscape"`.}
-
-\item{figure_dpi}{Positive static HTML/PDF figure resolution in dots per inch.}
-
-\item{table_rows}{Maximum rows in PDF input, method, and provenance summaries.
-Candidate and annotation tables follow `top_n`. Complete results remain
-in the pipeline object and optional exports.}
-\item{top_n}{Positive integer number of prioritized candidates in scientific HTML/PDF reports (default 10).
+\item{top_n}{Positive integer number of prioritized candidates in scientific
+HTML/PDF reports (default 10).
 Selection uses increasing stored CRank, Dowdall, RRA, then identifier;
 ties are preserved and the display does not expand ties at the cutoff.}
 
+\item{include_summary, include_methods, include_interpretation}{Logical
+scientific HTML/PDF section controls.}
+
+\item{include_reproducibility}{Logical scientific HTML/PDF provenance and
+rendering-software control.}
+
+\item{include_appendix}{Logical PDF supplementary-material section control.}
+
+\item{table_orientation}{PDF table orientation: \code{"auto"}, \code{"portrait"}, or
+\code{"landscape"}.}
+
+\item{figure_dpi}{Resolution used for static HTML/PDF figures.}
+
+\item{table_rows}{Maximum rows in PDF input, method, and provenance summaries.
+Candidate and annotation tables follow \code{top_n}. Complete results remain
+in the pipeline object and optional exports.}
+
 \item{enrichment_n}{Positive integer number of enrichment terms across all
-libraries in scientific HTML/PDF reports (default 12), ordered by stored adjusted p-value.}
+libraries in scientific HTML/PDF reports (default 12), ordered by stored
+adjusted p-value.}
 
 \item{supplementary}{Logical; save the complete original input as a companion
-`_supplementary.rds` file (default `FALSE`).}
+\verb{_supplementary.rds} file (default \code{FALSE}).}
 }
 \value{
 Invisibly returns the path to the generated report.
@@ -83,8 +90,8 @@ Generates an HTML or PDF report summarizing one or more DrugSigNet pipeline
 results.
 }
 \details{
-`write_report()` creates a report from pipeline results returned by
-DrugSigNet workflows. A combined `drugRepurposingPipeline()` result is shown
+\code{write_report()} creates a report from pipeline results returned by
+DrugSigNet workflows. A combined \code{drugRepurposingPipeline()} result is shown
 in separate signature-based, network-based, and integrated report parts.
 
 Scientific HTML reports provide sidebar navigation, an executive summary,
@@ -95,9 +102,9 @@ client-side search, stable sorting, pagination, expandable cells, and CSV
 downloads of all matching rows. This report does not require Shiny or DT.
 
 Reports can optionally export pipeline results as Excel files using
-`write_pipeline_results()`. PDF reports require a LaTeX engine such as
-`pdflatex`, `xelatex`, or `lualatex`. If the `tinytex` R package is
-installed but no LaTeX engine is available, `write_report()` attempts to
+\code{write_pipeline_results()}. PDF reports require a LaTeX engine such as
+\code{pdflatex}, \code{xelatex}, or \code{lualatex}. If the \code{tinytex} R package is
+installed but no LaTeX engine is available, \code{write_report()} attempts to
 install TinyTeX automatically before rendering the PDF.
 
 PDF reports use a concise scientific layout, prioritized annotations, compact
@@ -112,16 +119,16 @@ the comparison, annotation, or enrichment section. Unavailable Plotly sunbursts
 may use a labelled summary of stored branch values as a static fallback.
 
 HTML figures are generated from every entry in
-`object@Visualization$plots`; it is not limited to a fixed set of plot names.
+\code{object@Visualization$plots}; it is not limited to a fixed set of plot names.
 Missing annotations, enrichment, and input metadata are explicitly identified.
 Stored Plotly figures remain interactive; compatible ggplots can be converted
-when `interactive = TRUE`.
+when \code{interactive = TRUE}.
 
 HTML reports can be generated either as:
 \itemize{
-  \item a scientific R Markdown report (`dashboard = "tabset"`, retained
+\item a standalone scientific HTML report (\code{dashboard = "tabset"}, retained
 as the compatibility name), or
-  \item a Shiny dashboard application.
+\item a Shiny dashboard application.
 }
 }
 \examples{
@@ -142,7 +149,12 @@ write_report(
   object = result,
   device = "pdf",
   title = "Drug Repurposing Analysis",
+  author = "Analysis Team",
   top_n = 20,
+  include_summary = TRUE,
+  include_methods = TRUE,
+  include_reproducibility = TRUE,
+  table_orientation = "auto",
   figure_dpi = 300
 )
 

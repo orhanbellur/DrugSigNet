@@ -13,52 +13,63 @@ get_drug_trials(
   force = FALSE,
   auth_token = NULL
 )
+
 \S4method{get_drug_trials}{DrugAnnotation}(object)
 }
 \arguments{
-\item{object}{Optional input for pipe-friendly workflows. Used only when
-`drugs` is not supplied. Accepts a character vector, a one-column data
-frame, or a data frame containing a `Drug` column.}
+\item{object}{Optional \code{DrugAnnotation} object. For pipe-friendly use when
+\code{drugs} is omitted, a character vector or exactly one-column data frame
+can be supplied instead. When passing a \code{DrugAnnotation} instance, also
+supply \code{drugs}.}
 
-\item{drugs}{Drugs to annotate. Accepts a character vector, a one-column
-data frame, or a data frame containing a `Drug` column.}
+\item{drugs}{Character vector, factor, or exactly one-column data frame of
+drug names. Extract \code{candidates$Drug} from a multi-column candidate table.}
 
 \item{condition}{Optional disease or indication used to retrieve matching
 clinical trial information.}
 
 \item{ignore_case}{Logical; whether drug and condition matching should be
-case-insensitive. Default is `TRUE`.}
+case-insensitive. Default is \code{TRUE}.}
 
 \item{force}{Logical; force refresh of cached annotation resources when
 downloading data from Synapse.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`,
-the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL},
+the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `DrugAnnotation` object containing matching clinical trial records in
-`object@result`.
+A \code{DrugAnnotation} object containing matching clinical trial records in
+\code{object@result}.
 }
 \description{
 Retrieves clinical trial records involving one or more specified drugs, with
 optional filtering by disease or condition.
 }
 \details{
-`get_drug_trials()` searches the DrugSigNet clinical trial annotation table
+\code{get_drug_trials()} searches the DrugSigNet clinical trial annotation table
 for records whose intervention field contains the supplied drug names.
-Clinical trial data are loaded from the local cache or Synapse using `force`
-and `auth_token`.
+Clinical trial data are loaded from the local cache or Synapse using \code{force}
+and \code{auth_token}.
 
 Drug matching is performed with fixed-string matching against the
-`Interventions` field. When `ignore_case = TRUE`, both input drug names and
+\code{Interventions} field. When \code{ignore_case = TRUE}, both input drug names and
 intervention text are converted to lowercase before matching. Leading
-`"Drug:"` prefixes in intervention strings are removed during normalization.
+\code{"Drug:"} prefixes in intervention strings are removed during normalization.
 
-If `condition` is provided, records are first filtered by the `Conditions`
-field before drug matching. A `matched_drug` column is added to indicate which
+If \code{condition} is provided, records are first filtered by the \code{Conditions}
+field before drug matching. A \code{matched_drug} column is added to indicate which
 input drug or drugs matched each clinical trial record. Multiple matched drugs
 are separated with semicolons.
 }
+\section{Matching and resources}{
+
+Matching is case-insensitive by default; trials expose \code{ignore_case}.
+Missing annotations mean missing source coverage,
+not evidence that a biological property is absent. Resource tables are resolved
+from the cache or Synapse; \code{force} and \code{auth_token} control resource retrieval.
+Keep the returned object and resource provenance with the analysis.
+}
+
 \examples{
 \dontrun{
 res <- get_drug_trials(
@@ -86,5 +97,5 @@ res_pipe <- get_drug_trials(
 
 }
 \seealso{
-`annotate_drugs()`
+\code{annotate_drugs()}
 }

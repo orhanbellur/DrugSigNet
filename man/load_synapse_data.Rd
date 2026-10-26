@@ -7,7 +7,7 @@
 load_synapse_data(force = FALSE, auth_token = NULL)
 }
 \arguments{
-\item{force}{Logical; if `TRUE`, re-download the Synapse annotation file.}
+\item{force}{Logical; if \code{TRUE}, re-download the Synapse annotation file.}
 
 \item{auth_token}{Optional Synapse personal access token.}
 }
@@ -15,6 +15,6 @@ load_synapse_data(force = FALSE, auth_token = NULL)
 The DrugSigNet drug annotation object.
 }
 \description{
-Deprecated compatibility wrapper for `load_synapse_annotations()`.
+Deprecated compatibility wrapper for \code{load_synapse_annotations()}.
 }
 \keyword{internal}

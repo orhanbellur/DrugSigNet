@@ -21,16 +21,16 @@ integrateSignatureNetwork(
 )
 }
 \arguments{
-\item{signature_res}{A `DrugSearchingPipeline` object returned by
+\item{signature_res}{A \code{DrugSearchingPipeline} object returned by
 \code{drugSignaturePipeline()} or a legacy result list containing
 signature rank aggregation results. The direct output from
 \code{harmonize_signature_results()} is also supported. Integration uses
-`RankAggregation$Pairwise` signature ranks for integrated aggregation and
-`RankAggregation$Harmonized` ranks for the signature columns when present.}
+\code{RankAggregation$Pairwise} signature ranks for integrated aggregation and
+\code{RankAggregation$Harmonized} ranks for the signature columns when present.}
 
-\item{network_res}{A `DrugSearchingPipeline` object returned by
+\item{network_res}{A \code{DrugSearchingPipeline} object returned by
 \code{drugNetworkPipeline()} or a legacy result list containing
-`RankAggregation$Network_Harmonized`.}
+\code{RankAggregation$Network_Harmonized}.}
 
 \item{ties_method}{Character tie-handling method ("max", "min", "dense", etc.).}
 
@@ -38,7 +38,9 @@ signature rank aggregation results. The direct output from
 
 \item{num_bin}{Integer number of bins for CRank discretization. Default is 200.}
 
-\item{top_k}{Integer number of top drugs used for enrichment.}
+\item{top_k}{Positive rank threshold for the union of integrated candidates
+used downstream. Ties and different consensus lists can select more than
+\code{top_k} compounds; complete rankings remain available.}
 
 \item{trial_condition}{Optional condition filter passed to \code{annotate_drugs()}.}
 
@@ -58,35 +60,52 @@ helpers to force Synapse cache refresh where supported.}
 
 \item{run_drug_annotation}{Logical; if \code{TRUE}, annotate integrated drugs
 and run target-set enrichment. If \code{FALSE}, the \code{DrugAnnotation}
-section is omitted (`NULL`). Default is \code{TRUE}.}
+section is omitted (\code{NULL}). Default is \code{TRUE}.}
 
 \item{run_visualization}{Logical; if \code{TRUE}, build visualization
 metadata and plots. If \code{FALSE}, the \code{Visualization} section is
-omitted (`NULL`). Default is \code{TRUE}.}
+omitted (\code{NULL}). Default is \code{TRUE}.}
 }
 \value{
-A `DrugSearchingPipeline` S4 object with `type = "integration"`.
-  The `RankAggregation` slot contains `Signature_Network_CRank`,
-  `Signature_Network_Dowdall`, `Signature_Network_RRA`, and
-  `Signature_Network_Harmonized`. The integration result keeps
-  `DrugSearching` empty and returns only rank aggregation, annotation, and
-  visualization outputs.
+A \code{DrugSearchingPipeline} S4 object with \code{type = "integration"}.
+The \code{RankAggregation} slot contains \code{Signature_Network_CRank},
+\code{Signature_Network_Dowdall}, \code{Signature_Network_RRA}, and
+\code{Signature_Network_Harmonized}. The integration result keeps
+\code{DrugSearching} empty and returns only rank aggregation, annotation, and
+visualization outputs.
 }
 \description{
-Integrates current `DrugSearchingPipeline` outputs from signature-based and
-network-based workflows into a single `DrugSearchingPipeline` object with
+Integrates current \code{DrugSearchingPipeline} outputs from signature-based and
+network-based workflows into a single \code{DrugSearchingPipeline} object with
 consensus CRank, Dowdall, and Robust Rank Aggregation (RRA) rankings.
 
 The function:
 \itemize{
-  \item Accepts either `DrugSearchingPipeline` S4 objects or legacy list results
-  \item Expands pipe-delimited network drug entries before matching overlaps
-  \item Detects overlapping drugs between both pipelines
-  \item Automatically harmonizes common drug identifier columns
-  \item Combines pairwise signature ranks with raw centrality-derived, stretched network ranks
-  \item Includes raw Network_proximity and Diffusion ranks when present
-  \item Performs CRank, Dowdall, and RRA aggregation
-  \item Builds updated `RankAggregation`, `DrugAnnotation`, and
-    `Visualization` slots
+\item Accepts either \code{DrugSearchingPipeline} S4 objects or legacy list results
+\item Expands pipe-delimited network drug entries before matching overlaps
+\item Detects overlapping drugs between both pipelines
+\item Standardizes identifier-column names; users must harmonize drug identities
+\item Combines signature-family consensus ranks with centrality-derived ranks
+\item Includes raw Network_proximity and Diffusion ranks when present
+\item Performs CRank, Dowdall, and RRA aggregation
+\item Builds updated \code{RankAggregation}, \code{DrugAnnotation}, and
+\code{Visualization} slots
 }
+}
+\details{
+Only compounds represented in both evidence inputs are eligible for
+integration. Matching uses the normalized \code{Drug} identifiers; standardizing a
+column name does not resolve arbitrary synonyms. An empty intersection raises
+an error. Branch-only compounds do not receive integrated ranks. Method-specific
+missing-rank handling still applies after selecting the intersection.
+
+The network evidence for this integration is assembled from centrality,
+proximity and raw diffusion rank measures when available. This differs from
+standalone final network aggregation, which uses diffusion consensus ranks.
+Integration uses the signature-family ranks matching the requested aggregator;
+it does not simply aggregate \code{Signature_CRank} and \code{Network_CRank}.
+}
+\seealso{
+\code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}, \code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}},
+\code{\link[=drugRepurposingPipeline]{drugRepurposingPipeline()}}
 }

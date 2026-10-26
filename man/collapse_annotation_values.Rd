@@ -10,7 +10,7 @@ collapse_annotation_values(x)
 \item{x}{Vector of values.}
 }
 \value{
-A pipe-delimited character scalar or `NA_character_`.
+A pipe-delimited character scalar or \code{NA_character_}.
 }
 \description{
 Internal helper to collapse repeated annotation values per drug.

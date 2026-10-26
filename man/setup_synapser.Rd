@@ -17,8 +17,7 @@ Installs and verifies the isolated Python \code{synapseclient} used to download
 DrugSigNet networks, reference databases, and annotation resources. Synapse
 operations run in a child Python process so conda's OpenSSL libraries never
 collide with libraries already loaded into the R/RStudio process.
-}
-\details{
+
 DrugSigNet normally calls this helper automatically when a Synapse-backed
 function is first used. Call it directly to install and validate Synapse
 support in advance. The helper selects DrugSigNet's conda Python before
@@ -28,4 +27,5 @@ running the client so reticulate does not create a separate \code{uv} environmen
 \dontrun{
 setup_synapser()
 }
+
 }

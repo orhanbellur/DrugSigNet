@@ -30,8 +30,9 @@
 #' @param input_data Data frame containing items and ranking scores. The first
 #'   column should contain item identifiers, and at least two additional columns
 #'   must be numeric.
-#' @param full Logical; whether to return the full RRA output. Default is
-#'   `TRUE`.
+#' @param full Compatibility argument retained in `@parameters`. The current
+#'   implementation always returns `Drug`, `RRA_pval` and `RRA_rank`; changing
+#'   `full` does not change the output schema.
 #' @param exact Logical; whether to calculate exact p-values from rho scores.
 #'   Default is `FALSE`.
 #' @param ties_method Method used to resolve ties during rank conversion. One of
@@ -46,7 +47,6 @@
 #' including `Drug`, `RRA_pval`, and `RRA_rank`.
 #'
 #' @examples
-#' \dontrun{
 #' rank_df <- data.frame(
 #'   Drug = c("drug_a", "drug_b", "drug_c"),
 #'   Method1 = c(1, 2, 3),
@@ -63,7 +63,6 @@
 #'
 #' # Pipe-friendly use
 #' res_pipe <- RRA(rank_df, reverse = FALSE)
-#' }
 #'
 #' @references
 #' Kolde R, Laur S, Adler P, Vilo J. Robust rank aggregation for gene list

@@ -46,27 +46,27 @@ plot_top_k_overlap_comparison(
 }
 \arguments{
 \item{df_x, df_y}{Data frames containing a shared drug identifier column and
-numeric ranking columns. `df_x` may also be a `PlotObject`. Smaller rank
+numeric ranking columns. \code{df_x} may also be a \code{PlotObject}. Smaller rank
 values are treated as better.}
 
 \item{top_k}{Maximum rank included in each drug set.}
 
 \item{drug_col}{Name of the shared drug identifier column.}
 
-\item{methods_x, methods_y}{Optional ordered ranking columns from `df_x` and
-`df_y`. When `NULL`, all numeric columns are used.}
+\item{methods_x, methods_y}{Optional ordered ranking columns from \code{df_x} and
+\code{df_y}. When \code{NULL}, all numeric columns are used.}
 
-\item{file_type}{Output format: `"pdf"`, `"png"`, `"svg"`, or `"jpeg"`.}
+\item{file_type}{Output format: \code{"pdf"}, \code{"png"}, \code{"svg"}, or \code{"jpeg"}.}
 
-\item{file_name}{Optional output filename without extension. When `NULL`,
+\item{file_name}{Optional output filename without extension. When \code{NULL},
 the plot is returned without being saved.}
 
-\item{status_df}{Optional data frame containing `drug_col` and `status_col`.
+\item{status_df}{Optional data frame containing \code{drug_col} and \code{status_col}.
 Drugs with non-missing status values are counted in the status overlap.
-When `NULL`, a `"Status"` column in either ranking input is used when
+When \code{NULL}, a \code{"Status"} column in either ranking input is used when
 available.}
 
-\item{status_col}{Name of the status column in `status_df`.}
+\item{status_col}{Name of the status column in \code{status_df}.}
 
 \item{x_axis_title, y_axis_title}{Axis titles for the methods from the first
 and second ranking results, respectively.}
@@ -78,23 +78,23 @@ and second ranking results, respectively.}
 \item{base_size}{Base theme text size.}
 
 \item{split_grouped_drugs}{Logical indicating whether grouped drug labels in
-`drug_col` should be split before overlap calculation.}
+\code{drug_col} should be split before overlap calculation.}
 
 \item{drug_sep}{Regular expression used to separate grouped drug labels.}
 
-\item{units}{Units used for `width` and `height`.}
+\item{units}{Units used for \code{width} and \code{height}.}
 }
 \value{
-A `ggplot` object. Its `data` component contains the pairwise overlap
-  table, including total overlap, status overlap, and intersecting drug
-  identifiers.
+A \code{ggplot} object. Its \code{data} component contains the pairwise overlap
+table, including total overlap, status overlap, and intersecting drug
+identifiers.
 }
 \description{
 Creates a heatmap showing pairwise drug overlap between ranking methods from
 two data frames. Drug identifiers are trimmed and compared
 case-insensitively. Cell labels show the total overlap and, when status
 information is available, the number of overlapping drugs with non-missing
-status as `total (status)`.
+status as \code{total (status)}.
 }
 \examples{
 df_a <- data.frame(

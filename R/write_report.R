@@ -143,7 +143,7 @@
 #'
 #' HTML reports can be generated either as:
 #' \itemize{
-#'   \item a scientific R Markdown report (`dashboard = "tabset"`, retained
+#'   \item a standalone scientific HTML report (`dashboard = "tabset"`, retained
 #'     as the compatibility name), or
 #'   \item a Shiny dashboard application.
 #' }

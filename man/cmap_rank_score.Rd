@@ -12,12 +12,44 @@ cmap_rank_score(cmap_signature, confidence_level = 0.95, ties_method = "max")
 \item{confidence_level}{Numeric confidence level for the Kolmogorov-Smirnov
 critical-value cutoff.}
 
-\item{ties_method}{Character string passed to [base::rank()], or `"dense"`.}
+\item{ties_method}{Character string passed to \code{\link[base:rank]{base::rank()}}, or \code{"dense"}.}
 }
 \value{
 A data frame of standardized CMAP rank scores.
 }
 \description{
-Converts raw results from [cmap_method()] into the standardized ranking
+Converts raw results from \code{\link[=cmap_method]{cmap_method()}} into the standardized ranking
 format used by the signature pipeline.
+}
+\details{
+CMAP requires \code{pert}, \code{cell}, \code{trend}, \code{raw_score}, \code{scaled_score},
+\code{N_upset} and \code{N_downset}. The first row's summed query-set sizes determine the
+KS critical value. The gate is \code{abs(raw_score)} >= that critical value; the
+input \code{scaled_score} is retained. Supply nonempty, analysis-consistent inputs.
+}
+\section{Scoring and ties}{
+
+For each compound (\code{pert}), the strongest absolute native score is retained;
+equally strong profiles can remain tied. Available cell labels are collapsed.
+Retained profiles are ranked by decreasing absolute score before the
+method-specific significance gate is applied. A qualifying profile receives
+\code{rank_score = 1 / rank}; other profiles receive zero. Nonzero scores are not
+renumbered, so gaps are expected. With \code{ties_method = "max"}, tied profiles
+receive the largest occupied rank. Larger \code{rank_score} means higher priority.
+Direction remains in \code{trend}; absolute-score priority is not evidence that a
+compound reverses disease biology.
+}
+
+\section{Output columns}{
+
+The processed table contains \code{perturbation}, \code{rank_score}, the native score,
+\code{trend} and \code{scaled_score}, plus available metadata. Optional annotations are
+not manufactured when absent. Equally strong retained profiles may produce
+multiple rows for one compound. Harmonize compound identities before scoring;
+these helpers do not load a synonym resource or run a reference search.
+}
+
+\seealso{
+\code{\link[=lincs_rank_score]{lincs_rank_score()}}, \code{\link[=gcmap_rank_score]{gcmap_rank_score()}},
+\code{\link[=correlation_rank_score]{correlation_rank_score()}}, \code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}
 }

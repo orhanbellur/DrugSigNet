@@ -7,10 +7,12 @@
 \S4method{Dowdall}{RankAggregation}(object)
 }
 \arguments{
-\item{object}{A \code{RankAggregation} object containing the input rankings and Dowdall parameters.}
+\item{object}{A \code{RankAggregation} object containing the input rankings and
+Dowdall parameters.}
 }
 \value{
-The supplied \code{RankAggregation} object with aggregation results stored in its \code{result} slot.
+The supplied \code{RankAggregation} object with aggregation results stored
+in its \code{result} slot.
 }
 \description{
 Dowdall for a RankAggregation Object

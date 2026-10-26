@@ -11,12 +11,12 @@ write_pipeline_results(result_obj, file_path, top_n = 100)
 S4 pipeline objects returned by current pipeline functions and legacy list
 results are supported.}
 
-\item{file_path}{Output `.xlsx` file path. If a directory is supplied, the
-workbook is written as `drugsignet_pipeline_results.xlsx` inside that
+\item{file_path}{Output \code{.xlsx} file path. If a directory is supplied, the
+workbook is written as \code{drugsignet_pipeline_results.xlsx} inside that
 directory.}
 
 \item{top_n}{Positive integer threshold used to create the top-ranked drug
-sheet. Default is `100`.}
+sheet. Default is \code{100}.}
 }
 \value{
 Invisibly returns the output file path.
@@ -26,14 +26,14 @@ Writes key tables from a DrugSigNet pipeline result object to a multi-sheet
 Excel workbook.
 }
 \details{
-`write_pipeline_results()` exports tables from `drugNetworkPipeline()`,
-`drugSignaturePipeline()`, or `drugRepurposingPipeline()`. Single-mode
+\code{write_pipeline_results()} exports tables from \code{drugNetworkPipeline()},
+\code{drugSignaturePipeline()}, or \code{drugRepurposingPipeline()}. Single-mode
 repurposing exports match the corresponding standalone pipeline layout;
 combined exports include signature, network, and integrated worksheets.
 
 The workbook may include raw drug-searching results, harmonized drug
 rankings, drug annotations, top-ranked drugs with annotations, and functional
-enrichment results when these sections are available in `result_obj`.
+enrichment results when these sections are available in \code{result_obj}.
 
 Sheet names are sanitized to satisfy Excel naming rules and are made unique
 automatically.

@@ -5,5 +5,24 @@
 \alias{DrugSearchingPipeline-class}
 \title{DrugSearchingPipeline Class Definition}
 \description{
-A class to manage drug signature searching and processing.
+Stores signature, network or integrated pipeline results.
+}
+\details{
+Annotation and visualization outputs are carried by the corresponding
+pipeline variants when present. A populated object alone does not prove
+that every requested method completed; inspect available methods and warnings.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{DrugSearching}}{List with \code{Raw} and \code{Processed} search results.}
+
+\item{\code{RankAggregation}}{List of aggregation objects and harmonized tables.}
+
+\item{\code{type}}{Character analysis label.}
+}}
+
+\seealso{
+\code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}, \code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}},
+\code{\link[=drugRepurposingPipeline]{drugRepurposingPipeline()}}
 }

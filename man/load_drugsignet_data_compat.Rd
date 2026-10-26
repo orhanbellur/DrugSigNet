@@ -20,7 +20,7 @@ load_drugsignet_data_compat(
 The loaded dataset object.
 }
 \description{
-Internal helper that uses `load_drugsignet_data()` when available and falls
-back to `utils::data()` for older installations/workflows.
+Internal helper that uses \code{load_drugsignet_data()} when available and falls
+back to \code{utils::data()} for older installations/workflows.
 }
 \keyword{internal}

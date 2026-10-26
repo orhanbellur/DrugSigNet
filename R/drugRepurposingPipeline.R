@@ -41,6 +41,17 @@
 #'   integrated workflows. One of `"All"`, `"OpenTargets"`, `"CHEMBL"`, or
 #'   `"TTD"`.
 #'
+#' @section Integration and completeness:
+#' Only compounds shared by the signature and network inputs are eligible for
+#' integrated ranking; branch-only compounds remain in their branch results.
+#' See [integrateSignatureNetwork()] for the matching and rank-input rules.
+#' Check warnings, method coverage and aggregation tables in each branch before
+#' interpreting the combined object. Native Windows network analysis requires
+#' Docker or WSL; see [drugNetworkPipeline()].
+#'
+#' @seealso [drugSignaturePipeline()], [drugNetworkPipeline()],
+#'   [integrateSignatureNetwork()], [write_report()]
+#'
 #' @return
 #' A `DrugSearchingPipeline` S4 object containing workflow-specific raw results,
 #' processed rankings, rank aggregation results, and optionally annotation and

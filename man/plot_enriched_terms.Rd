@@ -20,43 +20,42 @@ plot_enriched_terms(
 \S4method{plot_enriched_terms}{PlotObject}(object)
 }
 \arguments{
-\item{object}{A `PlotObject` containing parameters for the plot.}
+\item{object}{A \code{PlotObject} containing parameters for the plot.}
 
 \item{data_df}{Data frame containing enrichment results.}
 
 \item{show_category}{Number of top terms to show per ontology. Default is
-`10`.}
+\code{10}.}
 
-\item{plottype}{Plot type. One of `"dotplot"` or `"barplot"`.}
+\item{plottype}{Plot type. One of \code{"dotplot"} or \code{"barplot"}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{size}{Base text size and dot-size scaling aid. Default is `3`.}
+\item{size}{Base text size and dot-size scaling aid. Default is \code{3}.}
 }
 \value{
-A `ggplot` object.
+A \code{ggplot} object.
 
-A `ggplot` object representing the enriched terms plot.
+A \code{ggplot} object representing the enriched terms plot.
 }
 \description{
 Visualizes enrichment results as a dot plot or bar plot.
 }
 \details{
-`plot_enriched_terms()` displays enriched terms from GO or similar enrichment
-output. Input data must contain `Term`, `ont`, `Adjusted.P.value`, and
-`Overlap`. `Overlap` must be in `"x/y"` format and is used to calculate the
+\code{plot_enriched_terms()} displays enriched terms from GO or similar enrichment
+output. Input data must contain \code{Term}, \code{ont}, \code{Adjusted.P.value}, and
+\code{Overlap}. \code{Overlap} must be in \code{"x/y"} format and is used to calculate the
 gene ratio.
 
 Terms are cleaned by removing GO identifiers from labels before plotting.
 }
 \examples{
-\dontrun{
 enrich_df <- data.frame(
   Term = c("apoptotic process (GO:0006915)", "cell cycle (GO:0007049)"),
   ont = c("BP", "BP"),
@@ -66,7 +65,6 @@ enrich_df <- data.frame(
 
 plot_enriched_terms(enrich_df, plottype = "dotplot")
 plot_enriched_terms(enrich_df, plottype = "barplot")
-}
 
 }
 \keyword{internal}

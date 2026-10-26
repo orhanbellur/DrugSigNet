@@ -30,6 +30,16 @@
 #' @param random_seed Integer random seed used for reproducible simulations.
 #'   Default is `42`.
 #'
+#' @section Result schema:
+#' `@result` contains `Drug`, `Disease`, `D`, `Z`, `Mean` and `SD`. `D` is the
+#' observed mean closest target-to-disease distance; `Mean` and `SD` describe the
+#' degree-matched randomized background. `Z = (D - Mean) / SD`, so more negative
+#' Z-scores indicate closer-than-expected proximity. The pipeline ranks smaller
+#' Z-scores first. Retain simulation count, seed, mapping coverage and networks
+#' when comparing analyses.
+#'
+#' @seealso [drugNetworkPipeline()], [Diffusion()]
+#'
 #' @return
 #' A `NetworkBased` object containing network proximity results in
 #' `object@result` and method parameters in `object@parameters`.

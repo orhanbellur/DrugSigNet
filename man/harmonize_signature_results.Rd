@@ -35,11 +35,11 @@ are \code{"CRank"}, \code{"Dowdall"}, and \code{"RRA"}.}
 }
 \value{
 A list with \code{Pairwise}, \code{PairwiseAcrossResults}, and
-  \code{Harmonized} entries. \code{Pairwise} retains the original
-  family-level results. \code{PairwiseAcrossResults} is keyed by complete
-  processed-method names such as \code{CMAP_CMAP}; each entry contains the
-  requested CRank, Dowdall, and RRA objects. RRA result tables consistently
-  use \code{Drug} as the identifier column.
+\code{Harmonized} entries. \code{Pairwise} retains the original
+family-level results. \code{PairwiseAcrossResults} is keyed by complete
+processed-method names such as \code{CMAP_CMAP}; each entry contains the
+requested CRank, Dowdall, and RRA objects. RRA result tables consistently
+use \code{Drug} as the identifier column.
 }
 \description{
 Aggregates processed signature drug-search rankings from two or more
@@ -48,11 +48,11 @@ results may have any names and there may be any number of them. For each
 requested signature family, the original aggregation across all requested
 reference databases and results is retained. In addition, each complete
 method/reference combination is aggregated across results. For example,
-`CMAP_CMAP` from result 1 is aggregated with `CMAP_CMAP` from result 2, and
-the returned `PairwiseAcrossResults$CMAP_CMAP` entry contains its `CRank`,
-`Dowdall`, and `RRA` results. These additional entries are kept in a separate
-list and do not participate in or change the existing `Pairwise` or
-second-stage `Harmonized` results.
+\code{CMAP_CMAP} from result 1 is aggregated with \code{CMAP_CMAP} from result 2, and
+the returned \code{PairwiseAcrossResults$CMAP_CMAP} entry contains its \code{CRank},
+\code{Dowdall}, and \code{RRA} results. These additional entries are kept in a separate
+list and do not participate in or change the existing \code{Pairwise} or
+second-stage \code{Harmonized} results.
 }
 \details{
 The first-stage aggregation deliberately reproduces the behaviour of the

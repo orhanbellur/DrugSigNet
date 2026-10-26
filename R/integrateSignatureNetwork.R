@@ -10,13 +10,28 @@
 #'   \item Accepts either `DrugSearchingPipeline` S4 objects or legacy list results
 #'   \item Expands pipe-delimited network drug entries before matching overlaps
 #'   \item Detects overlapping drugs between both pipelines
-#'   \item Automatically harmonizes common drug identifier columns
-#'   \item Combines pairwise signature ranks with raw centrality-derived, stretched network ranks
+#'   \item Standardizes identifier-column names; users must harmonize drug identities
+#'   \item Combines signature-family consensus ranks with centrality-derived ranks
 #'   \item Includes raw Network_proximity and Diffusion ranks when present
 #'   \item Performs CRank, Dowdall, and RRA aggregation
 #'   \item Builds updated `RankAggregation`, `DrugAnnotation`, and
 #'     `Visualization` slots
 #' }
+#'
+#' @details Only compounds represented in both evidence inputs are eligible for
+#' integration. Matching uses the normalized `Drug` identifiers; standardizing a
+#' column name does not resolve arbitrary synonyms. An empty intersection raises
+#' an error. Branch-only compounds do not receive integrated ranks. Method-specific
+#' missing-rank handling still applies after selecting the intersection.
+#'
+#' The network evidence for this integration is assembled from centrality,
+#' proximity and raw diffusion rank measures when available. This differs from
+#' standalone final network aggregation, which uses diffusion consensus ranks.
+#' Integration uses the signature-family ranks matching the requested aggregator;
+#' it does not simply aggregate `Signature_CRank` and `Network_CRank`.
+#'
+#' @seealso [drugSignaturePipeline()], [drugNetworkPipeline()],
+#'   [drugRepurposingPipeline()]
 #'
 #' @param signature_res A `DrugSearchingPipeline` object returned by
 #'   \code{drugSignaturePipeline()} or a legacy result list containing
@@ -30,7 +45,9 @@
 #' @param ties_method Character tie-handling method ("max", "min", "dense", etc.).
 #' @param prior Numeric prior used in CRank. Default is 0.093.
 #' @param num_bin Integer number of bins for CRank discretization. Default is 200.
-#' @param top_k Integer number of top drugs used for enrichment.
+#' @param top_k Positive rank threshold for the union of integrated candidates
+#'   used downstream. Ties and different consensus lists can select more than
+#'   `top_k` compounds; complete rankings remain available.
 #' @param trial_condition Optional condition filter passed to \code{annotate_drugs()}.
 #' @param target_id_from Optional AnnotationDbi keytype or supported alias describing
 #'   target identifiers used for functional enrichment. Default is \code{NULL},

@@ -10,10 +10,6 @@
 #' frame and returns a `DrugAnnotation` object with adverse event and toxicity
 #' information stored in `object@result`.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' Supported sources are `"All"`, `"OpenTargets"`, and `"CHEMBL"`. Returned
 #' annotations may include regulatory warning categories and toxicity classes,
 #' depending on the selected source.
@@ -21,7 +17,8 @@
 #' Not all drugs have available safety annotations; missing values are retained
 #' to reflect source data completeness.
 #'
-#' @inheritParams annotate_drugs
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @param source Annotation source. One of `"All"`, `"OpenTargets"`, or
 #'   `"CHEMBL"`. Default is `"All"`.
 #'

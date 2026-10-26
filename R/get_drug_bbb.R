@@ -17,10 +17,6 @@
 #' collapsing multiple records for the same drug and retaining BBB
 #' classifications together with supporting metadata.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' The returned annotation may include `BBB_class` together with available
 #' supporting metadata such as compound identifiers, PubChem CID, SMILES,
 #' logBB values, decision thresholds, reference identifiers, data group, and
@@ -29,7 +25,8 @@
 #' Multiple BBB annotations may be associated with a single drug; these are
 #' collapsed with `|` by the shared annotation helpers.
 #'
-#' @inheritParams annotate_drugs
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #'
 #' @return
 #' A `DrugAnnotation` object containing a data frame of BBB permeability

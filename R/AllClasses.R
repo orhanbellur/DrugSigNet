@@ -150,16 +150,16 @@ filterSignatureParameters <- function(object) {
 }
 
 
-#' Create a SignatureBasedDrugSearching Object
+#' Network-Based Search Result Class
 #'
-#' A helper function to create an instance of the `SignatureBasedDrugSearching` class.
+#' An S4 class extending `DrugSearching` for a network-method result.
+#' Use [TrustRank()], [Harmonic_centrality()], [Degree_centrality()],
+#' [Network_proximity()] or [Diffusion()] to obtain populated instances.
 #'
-#' @param signature_result A `data.frame` containing the results of the search.
-#' @param query A `list` containing the up-regulated (`upset`) and down-regulated (`downset`) gene sets.
-#' @param signature_method A `character` string representing the method used (e.g., "CMAP").
-#' @param refdb A `character` string specifying the reference database used (e.g., "cmap").
-#'
-#' @return A `SignatureBasedDrugSearching` object.
+#' @slot result Data frame of method-specific scores or ranks. Its schema is
+#'   documented by the generating method.
+#' @slot parameters List of retained inputs and method settings.
+#' @seealso [DrugSearchingPipeline-class]
 #' @importFrom methods new
 #' @export
 setClass(
@@ -290,8 +290,13 @@ filterNetworkParameters <- function(object) {
 
 #' RankAggregation Class
 #'
-#' A class to store results of rank aggregation analysis.
+#' Stores the result of [CRank()], [Dowdall()] or [RRA()].
 #'
+#' @slot result Data frame containing `Drug` and method-specific consensus
+#'   scores/ranks. Smaller final rank values indicate higher priority.
+#' @slot parameters List containing the original input and retained aggregation
+#'   settings; CRank additionally retains convergence diagnostics.
+#' @seealso [CRank()], [Dowdall()], [RRA()]
 setClass(
   "RankAggregation",
   slots = list(
@@ -442,7 +447,15 @@ DrugAnnotation <- function(
 
 
 #' @title DrugSearchingPipeline Class Definition
-#' @description A class to manage drug signature searching and processing.
+#' @description Stores signature, network or integrated pipeline results.
+#' @slot DrugSearching List with `Raw` and `Processed` search results.
+#' @slot RankAggregation List of aggregation objects and harmonized tables.
+#' @slot type Character analysis label.
+#' @details Annotation and visualization outputs are carried by the corresponding
+#'   pipeline variants when present. A populated object alone does not prove
+#'   that every requested method completed; inspect available methods and warnings.
+#' @seealso [drugSignaturePipeline()], [drugNetworkPipeline()],
+#'   [drugRepurposingPipeline()]
 #' @export
 setClass("DrugSearchingPipeline",
          slots = c(
@@ -465,6 +478,7 @@ setClass("DrugSearchingPipeline",
 #' @slot RankAggregation A list of rank-aggregation results.
 #' @slot DrugAnnotation A list of drug-annotation results.
 #' @slot type A character string identifying the pipeline type.
+#' @seealso [DrugSearchingPipeline-class], [drugRepurposingPipeline()]
 #' @exportClass DrugSearchingPipelineAnnotated
 setClass(
   "DrugSearchingPipelineAnnotated",
@@ -490,6 +504,7 @@ setClass(
 #' @slot RankAggregation A list of rank-aggregation results.
 #' @slot Visualization A list of visualization results.
 #' @slot type A character string identifying the pipeline type.
+#' @seealso [DrugSearchingPipeline-class], [drugRepurposingPipeline()]
 #' @exportClass DrugSearchingPipelineVisualized
 setClass(
   "DrugSearchingPipelineVisualized",
@@ -516,6 +531,7 @@ setClass(
 #' @slot DrugAnnotation A list of drug-annotation results.
 #' @slot Visualization A list of visualization results.
 #' @slot type A character string identifying the pipeline type.
+#' @seealso [DrugSearchingPipeline-class], [drugRepurposingPipeline()]
 #' @exportClass DrugSearchingPipelineAnnotatedVisualized
 setClass(
   "DrugSearchingPipelineAnnotatedVisualized",

@@ -5,5 +5,18 @@
 \alias{RankAggregation-class}
 \title{RankAggregation Class}
 \description{
-A class to store results of rank aggregation analysis.
+Stores the result of \code{\link[=CRank]{CRank()}}, \code{\link[=Dowdall]{Dowdall()}} or \code{\link[=RRA]{RRA()}}.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{result}}{Data frame containing \code{Drug} and method-specific consensus
+scores/ranks. Smaller final rank values indicate higher priority.}
+
+\item{\code{parameters}}{List containing the original input and retained aggregation
+settings; CRank additionally retains convergence diagnostics.}
+}}
+
+\seealso{
+\code{\link[=CRank]{CRank()}}, \code{\link[=Dowdall]{Dowdall()}}, \code{\link[=RRA]{RRA()}}
 }

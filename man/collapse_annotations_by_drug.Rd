@@ -7,10 +7,10 @@
 collapse_annotations_by_drug(ref_tbl)
 }
 \arguments{
-\item{ref_tbl}{A data frame with a `Drug` column.}
+\item{ref_tbl}{A data frame with a \code{Drug} column.}
 }
 \value{
-A data frame with one row per `Drug`.
+A data frame with one row per \code{Drug}.
 }
 \description{
 Internal helper that converts one-to-many annotation tables into one row per

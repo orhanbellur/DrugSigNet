@@ -13,22 +13,22 @@ resolve_network_inputs(
 )
 }
 \arguments{
-\item{ppi_network}{A data frame with `gene1`, `gene2` columns, or `NULL`.}
+\item{ppi_network}{A data frame with \code{gene1}, \code{gene2} columns, or \code{NULL}.}
 
-\item{drug_target_network}{A data frame with `ID`, `Drug`, `Target`, `Group`
-columns, or `NULL`.}
+\item{drug_target_network}{A data frame with \code{ID}, \code{Drug}, \code{Target}, \code{Group}
+columns, or \code{NULL}.}
 
-\item{group_drug_targets}{Logical; if `TRUE`, drugs sharing identical target
-sets are collapsed into grouped drug nodes via `Drug_target_reformat()`.}
+\item{group_drug_targets}{Logical; if \code{TRUE}, drugs sharing identical target
+sets are collapsed into grouped drug nodes via \code{Drug_target_reformat()}.}
 
 \item{force}{Logical; if defaults are loaded from Synapse, force cache refresh.}
 
 \item{auth_token}{Optional Synapse token used when default network inputs need
-to be downloaded and no valid cache is available. If `NULL`,
-`SYNAPSE_AUTH_TOKEN` is used.}
+to be downloaded and no valid cache is available. If \code{NULL},
+\code{SYNAPSE_AUTH_TOKEN} is used.}
 }
 \value{
-A named list containing `ppi_network` and `drug_target_network`.
+A named list containing \code{ppi_network} and \code{drug_target_network}.
 }
 \description{
 Internal helper to resolve default network datasets from Synapse/cache when

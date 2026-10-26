@@ -200,8 +200,29 @@ setMethod(
 #' Converts raw results from [lincs_method()] into the standardized ranking
 #' format used by the signature pipeline.
 #'
+#' @inheritSection cmap_rank_score Scoring and ties
+#' @inheritSection cmap_rank_score Output columns
+#' @seealso [cmap_rank_score()], [drugSignaturePipeline()]
+#'
+#' @details Required columns are `pert`, `cell`, `trend`, `WTCS` and `WTCS_Pval`.
+#' The BY correction is applied to p-values of the retained strongest profiles;
+#' only adjusted p-values <= 0.05 receive nonzero scores. `scaled_score` is
+#' min-max-scaled `abs(WTCS)`. A constant absolute-score range yields undefined
+#' (`NaN`) scaled values, although reciprocal ranks are still computed.
+#'
 #' @param lincs_signature A data frame of raw LINCS signature results.
 #' @param ties_method Character string passed to [base::rank()], or `"dense"`.
+#' @examples
+#' raw <- data.frame(
+#'   pert = c("drug_a", "drug_b", "drug_c", "drug_d"),
+#'   cell = "A375", trend = "down",
+#'   WTCS = c(-0.9, -0.8, -0.8, -0.01),
+#'   WTCS_Pval = c(0.9, 1e-6, 1e-6, 0.9)
+#' )
+#' scores <- lincs_rank_score(raw, ties_method = "max")
+#' scores[, c("perturbation", "WTCS", "rank_score")]
+#' # drug_a fails the gate; tied drug_b and drug_c each retain rank_score 1/3.
+#'
 #' @return A data frame of standardized LINCS rank scores.
 #' @export
 lincs_rank_score <- function(lincs_signature, ties_method = "max") {

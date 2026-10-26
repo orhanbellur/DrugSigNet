@@ -7,20 +7,20 @@
 validate_network_inputs(ppi, dti, disease_genes, strict = TRUE)
 }
 \arguments{
-\item{ppi}{A data frame with columns `gene1` and `gene2`.}
+\item{ppi}{A data frame with columns \code{gene1} and \code{gene2}.}
 
-\item{dti}{A data frame with columns `Drug` and `Target`.}
+\item{dti}{A data frame with columns \code{Drug} and \code{Target}.}
 
-\item{disease_genes}{A data frame with column `gene`.}
+\item{disease_genes}{A data frame with column \code{gene}.}
 
-\item{strict}{Logical; if `TRUE`, overlap failures stop with an error.
-If `FALSE`, overlap failures emit a warning.}
+\item{strict}{Logical; if \code{TRUE}, overlap failures stop with an error.
+If \code{FALSE}, overlap failures emit a warning.}
 }
 \value{
-Invisibly returns `TRUE` when checks pass.
+Invisibly returns \code{TRUE} when checks pass.
 }
 \description{
-Validates network analysis inputs (`ppi`, `dti`, `disease_genes`) before
+Validates network analysis inputs (\code{ppi}, \code{dti}, \code{disease_genes}) before
 expensive method execution. This helper checks required schemas, missing
 values, duplicated edges, self-loops, and disease-gene overlap with the PPI
 network.

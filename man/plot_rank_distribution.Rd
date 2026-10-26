@@ -22,46 +22,45 @@ plot_rank_distribution(
 \S4method{plot_rank_distribution}{PlotObject}(object, methods, top_k, point_size, alpha)
 }
 \arguments{
-\item{object}{Optional `PlotObject`. For pipe-friendly use, a data frame can
-also be supplied as `object` when `drug_ranks_df` is omitted.}
+\item{object}{Optional \code{PlotObject}. For pipe-friendly use, a data frame can
+also be supplied as \code{object} when \code{drug_ranks_df} is omitted.}
 
-\item{drug_ranks_df}{Data frame containing `Drug`, optional `Status`, optional
+\item{drug_ranks_df}{Data frame containing \code{Drug}, optional \code{Status}, optional
 facet columns, and numeric rank columns. Smaller ranks are better.}
 
 \item{methods}{Optional character vector of ranking-method columns to plot.
-If `NULL`, all numeric columns are used.}
+If \code{NULL}, all numeric columns are used.}
 
-\item{top_k}{Positive rank threshold. Default is `100`.}
+\item{top_k}{Positive rank threshold. Default is \code{100}.}
 
-\item{point_size}{Point size. Default is `1.5`.}
+\item{point_size}{Point size. Default is \code{1.5}.}
 
-\item{alpha}{Point transparency in `(0, 1]`. Default is `0.6`.}
+\item{alpha}{Point transparency in \verb{(0, 1]}. Default is \code{0.6}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{units}{Units for saved plot dimensions. One of `"in"`, `"cm"`, `"mm"`,
-or `"px"`. Default is `"in"`.}
+\item{units}{Units for saved plot dimensions. One of \code{"in"}, \code{"cm"}, \code{"mm"},
+or \code{"px"}. Default is \code{"in"}.}
 }
 \value{
-A `ggplot` object.
+A \code{ggplot} object.
 }
 \description{
 Creates pairwise scatter plots comparing rank values across selected ranking
 methods.
 }
 \details{
-`plot_rank_distribution()` compares numeric ranking columns by plotting all
-pairwise method combinations. If `top_k` is supplied, only drugs appearing
+\code{plot_rank_distribution()} compares numeric ranking columns by plotting all
+pairwise method combinations. If \code{top_k} is supplied, only drugs appearing
 within the top-k threshold in at least one selected method are retained.
 }
 \examples{
-\dontrun{
 rank_df <- data.frame(
   Drug = c("drug_a", "drug_b", "drug_c"),
   Method1 = c(1, 2, 3),
@@ -76,6 +75,5 @@ plot_rank_distribution(
   methods = c("Method1", "Method2"),
   top_k = 100
 )
-}
 
 }

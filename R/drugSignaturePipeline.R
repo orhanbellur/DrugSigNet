@@ -56,8 +56,10 @@
 #'   `auth_token` or the `SYNAPSE_AUTH_TOKEN` environment variable is used.
 #' @param validate_signature_refdb Logical; whether to validate frozen HDF5
 #'   reference databases before use. Default is `TRUE`.
-#' @param top_k Number of top-ranked drugs used for downstream annotation and
-#'   target enrichment. Default is `100`.
+#' @param top_k Positive rank threshold for downstream annotation/enrichment.
+#'   The union of drugs with rank <= `top_k` in any selected consensus column
+#'   is used; ties and differing methods can select more than `top_k` drugs.
+#'   This does not truncate the core ranking tables. Default is `100`.
 #' @param trial_condition Optional condition used to retrieve matching clinical
 #'   trial annotations. Default is `NULL`.
 #' @param target_id_from Optional AnnotationDbi keytype or supported alias
@@ -71,6 +73,20 @@
 #'   target set enrichment. Default is `TRUE`.
 #' @param run_visualization Logical; if `TRUE`, build visualization metadata and
 #'   plots. Default is `TRUE`.
+#'
+#' @section Reference identity and completeness:
+#' With multiple workers, default mode resolves frozen local reference files
+#' before dispatch. Frozen LINCS2 perturbation IDs are normalized to compound
+#' names before filtering and scoring; unmapped IDs remain distinct. Cache
+#' contents can refresh when remote versions change, so retain versions/checksums.
+#' Some failed searches can be skipped and unavailable families omitted from
+#' aggregation. A warning/partial result is not a successful complete analysis:
+#' inspect raw/processed method names, aggregation inputs and CRank convergence.
+#' Expected aggregation first combines references within each family, then family
+#' consensus ranks using the matching CRank, Dowdall or RRA method.
+#'
+#' @seealso [cmap_rank_score()], [drugRepurposingPipeline()],
+#'   [integrateSignatureNetwork()], [write_report()]
 #'
 #' @return
 #' A `DrugSearchingPipeline` S4 object containing raw signature-search results,

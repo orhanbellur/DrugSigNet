@@ -54,55 +54,55 @@ plot_drug_signature_overlay(
 )
 }
 \arguments{
-\item{object}{Optional `PlotObject`. For pipe-friendly use, a data frame can
-also be supplied as `object` when `drug_ranks_df` is omitted.}
+\item{object}{Optional \code{PlotObject}. For pipe-friendly use, a data frame can
+also be supplied as \code{object} when \code{drug_ranks_df} is omitted.}
 
-\item{Drug, refdb, res}{Optional workflow-style inputs. When `res` is supplied,
-`subgraph_result` is taken from `res[[Drug]][[refdb]]`.}
+\item{Drug, refdb, res}{Optional workflow-style inputs. When \code{res} is supplied,
+\code{subgraph_result} is taken from \code{res[[Drug]][[refdb]]}.}
 
 \item{disease_genes}{Optional disease-gene table used as
-`disease_seed_genes` when `res` is supplied.}
+\code{disease_seed_genes} when \code{res} is supplied.}
 
 \item{gene_map}{Optional gene ID-to-symbol mapping table used when
-`symbol_map` is not supplied.}
+\code{symbol_map} is not supplied.}
 
-\item{subgraph_result}{Result returned by `extract_drug_subgraph()`.}
+\item{subgraph_result}{Result returned by \code{extract_drug_subgraph()}.}
 
 \item{disease_seed_genes}{Disease seed genes as a character vector or
 one-column data frame.}
 
 \item{drug_signature_genes}{Drug-signature genes as a character vector,
-one-column data frame, or result from `get_drug_signature()`.}
+one-column data frame, or result from \code{get_drug_signature()}.}
 
-\item{drug_signature_use}{Component of a `get_drug_signature()` result to
-use. One of `"top"`, `"up"`, `"down"`, or `"signature"`.}
+\item{drug_signature_use}{Component of a \code{get_drug_signature()} result to
+use. One of \code{"top"}, \code{"up"}, \code{"down"}, or \code{"signature"}.}
 
 \item{symbol_map}{Optional two-column data frame with graph gene IDs and gene
 symbols.}
 
 \item{max_signature_path_distance}{Maximum shortest-path distance from drug
-targets to disease or signature genes. Default is `Inf`.}
+targets to disease or signature genes. Default is \code{Inf}.}
 
-\item{include_all_drug_targets}{Logical; if `TRUE`, include all direct drug
-targets in the visualization. Default is `FALSE`.}
+\item{include_all_drug_targets}{Logical; if \code{TRUE}, include all direct drug
+targets in the visualization. Default is \code{FALSE}.}
 
-\item{node_alpha}{Node transparency. Default is `0.85`.}
+\item{node_alpha}{Node transparency. Default is \code{0.85}.}
 
-\item{seed}{Random seed used for graph layout. Default is `1`.}
+\item{seed}{Random seed used for graph layout. Default is \code{1}.}
 
-\item{layout}{Graph layout passed to `ggraph::create_layout()`. Default is
-`"fr"`.}
+\item{layout}{Graph layout passed to \code{ggraph::create_layout()}. Default is
+\code{"fr"}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{units}{Units for saved plot dimensions. One of `"in"`, `"cm"`, `"mm"`,
-or `"px"`. Default is `"in"`.}
+\item{units}{Units for saved plot dimensions. One of \code{"in"}, \code{"cm"}, \code{"mm"},
+or \code{"px"}. Default is \code{"in"}.}
 }
 \value{
 A list containing the plot, graph, node table, edge table, disease seed
@@ -114,14 +114,14 @@ Visualizes a drug-centered subgraph with drug targets, disease seed genes,
 and drug-signature genes overlaid.
 }
 \details{
-`plot_drug_signature_overlay()` plots an extracted drug-centered PPI subgraph
-returned by `extract_drug_subgraph()`. Drug-target edges are retained to show
+\code{plot_drug_signature_overlay()} plots an extracted drug-centered PPI subgraph
+returned by \code{extract_drug_subgraph()}. Drug-target edges are retained to show
 the target context, while disease seed and drug-signature evidence are
 highlighted on the graph.
 
 Disease seed genes can be supplied as a character vector or one-column data
 frame. Drug-signature genes can be supplied as a character vector,
-one-column data frame, or a result from `get_drug_signature()`.
+one-column data frame, or a result from \code{get_drug_signature()}.
 
 When direct target evidence is unavailable, the function can use one-step
 disease seed neighbors or shortest paths between drug targets and

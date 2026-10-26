@@ -8,12 +8,12 @@ createNodeToEdge(ppi_network, drug_target_network)
 }
 \arguments{
 \item{ppi_network}{Protein-protein interaction network. Expected to contain
-columns `gene1` and `gene2`. If `NULL`, the default `"gene_gene"` network
+columns \code{gene1} and \code{gene2}. If \code{NULL}, the default \code{"gene_gene"} network
 is loaded.}
 
 \item{drug_target_network}{Drug-target interaction network. Expected to
-contain columns `ID`, `Drug`, `Target`, and `Group`. If `NULL`, the default
-`"drug_target"` network is loaded.}
+contain columns \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL}, the default
+\code{"drug_target"} network is loaded.}
 }
 \value{
 A list containing PPI and drug graph components.

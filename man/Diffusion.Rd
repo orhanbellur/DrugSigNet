@@ -17,70 +17,80 @@ Diffusion(
   force = FALSE,
   auth_token = NULL
 )
+
 \S4method{Diffusion}{NetworkBased}(object)
 }
 \arguments{
-\item{object}{Optional `NetworkBased` object. If `NULL`, a new object is
+\item{object}{Optional \code{NetworkBased} object. If \code{NULL}, a new object is
 created from the supplied network inputs and method parameters.}
 
 \item{ppi_network}{Protein-protein interaction network. Expected to contain
-columns `gene1` and `gene2`. If `NULL`, the default `"gene_gene"` network
+columns \code{gene1} and \code{gene2}. If \code{NULL}, the default \code{"gene_gene"} network
 is loaded.}
 
 \item{drug_target_network}{Drug-target interaction network. Expected to
-contain columns `ID`, `Drug`, `Target`, and `Group`. If `NULL`, the default
-`"drug_target"` network is loaded.}
+contain columns \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL}, the default
+\code{"drug_target"} network is loaded.}
 
 \item{disease_genes}{Data frame containing disease seed genes in a column
-named `gene`.}
+named \code{gene}.}
 
 \item{include_indirect_drugs}{Logical; whether to include drugs indirectly
-connected to disease genes. Default is `TRUE`.}
+connected to disease genes. Default is \code{TRUE}.}
 
 \item{include_non_approved_drugs}{Logical; whether to include non-approved or
-investigational drugs. Default is `TRUE`.}
+investigational drugs. Default is \code{TRUE}.}
 
 \item{ties_method}{Method used to resolve ties in diffusion-based rankings.
-Default is `"max"`.}
+Default is \code{"max"}.}
 
 \item{output_dir}{Directory used to store diffusion similarity matrices and
-related intermediate files. Defaults to `tempdir()`.}
+related intermediate files. Defaults to \code{tempdir()}.}
 
 \item{force}{Logical; force redownload of default networks from Synapse
 instead of using the local cache.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `NetworkBased` object containing diffusion results in `object@result` and
-method parameters in `object@parameters`. The resolved output directory is
-stored in `object@parameters$output_dir`.
+A \code{NetworkBased} object containing diffusion results in \code{object@result} and
+method parameters in \code{object@parameters}. The resolved output directory is
+stored in \code{object@parameters$output_dir}.
 }
 \description{
 Prioritizes candidate drugs using diffusion-based scoring on an integrated
 protein-protein interaction and drug-target network.
 }
 \details{
-Diffusion methods propagate signal from disease seed genes across a network so
-that nearby nodes receive higher scores. In network-based drug repurposing,
-this prioritizes drugs whose targets are close to disease-associated genes in
-the integrated interactome.
+Cached PPI diffusion matrices summarize target-to-disease relationships
+through diffusion-state distance (DSD), Kullback-Leibler divergence (KL)
+and Jensen-Shannon divergence (JS). The returned measures are distances
+or divergences: smaller values, not larger scores, indicate greater proximity.
 
 The integrated network is built from a protein-protein interaction network
-(`ppi_network`) and a drug-target interaction network
-(`drug_target_network`). Disease genes are used as seed nodes. If either
-network is `NULL`, the corresponding high-confidence default DrugSigNet
-network is loaded with `load_drugsignet_network()` from the local cache or
+(\code{ppi_network}) and a drug-target interaction network
+(\code{drug_target_network}). Disease genes are used as seed nodes. If either
+network is \code{NULL}, the corresponding high-confidence default DrugSigNet
+network is loaded with \code{load_drugsignet_network()} from the local cache or
 Synapse.
 
-Diffusion intermediate files are stored in `output_dir`. If the required
+Diffusion intermediate files are stored in \code{output_dir}. If the required
 similarity matrices are missing, they are generated automatically and reused
 in later analyses that use the same directory.
 
 This implementation follows the network medicine framework used to identify
 drug-repurposing opportunities for COVID-19.
 }
+\section{Result schema}{
+
+The result retains \code{Drug}, \code{APP-Drugs}, \code{Degree} and \code{Targets}, together with
+\code{DSD-min}, \code{KL-med}, \code{KL-min}, \code{JS-med} and \code{JS-min} and their corresponding
+\code{-Rank} columns. Lower distances/divergences and lower ranks indicate stronger
+priority. The network pipeline aggregates the five rank columns before
+combining diffusion with centrality and proximity evidence.
+}
+
 \examples{
 \dontrun{
 disease_genes <- data.frame(
@@ -122,4 +132,7 @@ Patten JJ, Davey RA, Loscalzo J, Barabási AL. Network medicine framework for
 identifying drug-repurposing opportunities for COVID-19. \emph{Proceedings of
 the National Academy of Sciences of the United States of America}.
 2021;118(19):e2025581118. \doi{10.1073/pnas.2025581118}
+}
+\seealso{
+\code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}}, \code{\link[=Network_proximity]{Network_proximity()}}
 }

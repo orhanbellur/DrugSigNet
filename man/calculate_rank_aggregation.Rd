@@ -35,8 +35,10 @@ A \code{RankAggregation} object.
 \description{
 This implementation is intentionally compatible with the original
 Harmonize_Signature_Network() signature harmonization behaviour:
-  - input rows are preserved as-is (no duplicate collapsing),
-  - missing rank_score values remain NA (no NA -> 0 replacement),
-  - the identifier remains `perturbation` during the first aggregation stage,
-  - rank input columns are generated dynamically as rank_score_1 ... rank_score_n.
+\itemize{
+\item input rows are preserved as-is (no duplicate collapsing),
+\item missing rank_score values remain NA (no NA -> 0 replacement),
+\item the identifier remains \code{perturbation} during the first aggregation stage,
+\item rank input columns are generated dynamically as rank_score_1 ... rank_score_n.
+}
 }

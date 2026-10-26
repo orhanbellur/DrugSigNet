@@ -7,52 +7,51 @@
 Dowdall(object = NULL, input_data, ties_method = "max", reverse = FALSE)
 }
 \arguments{
-\item{object}{Optional `RankAggregation` object. For pipe-friendly use, this
-can also be a data frame used as `input_data`.}
+\item{object}{Optional \code{RankAggregation} object. For pipe-friendly use, this
+can also be a data frame used as \code{input_data}.}
 
 \item{input_data}{Data frame containing items and ranking scores. The first
 column should contain item identifiers, and at least two additional columns
 must be numeric.}
 
 \item{ties_method}{Method used to resolve ties during rank conversion. One of
-`"max"`, `"min"`, `"average"`, `"first"`, `"last"`, `"random"`, or
-`"dense"`. Default is `"max"`.}
+\code{"max"}, \code{"min"}, \code{"average"}, \code{"first"}, \code{"last"}, \code{"random"}, or
+\code{"dense"}. Default is \code{"max"}.}
 
-\item{reverse}{Logical; if `FALSE`, smaller input values are treated as
+\item{reverse}{Logical; if \code{FALSE}, smaller input values are treated as
 better, which is appropriate when numeric columns already represent ranks.
-If `TRUE`, larger input values are treated as better. Default is `FALSE`.}
+If \code{TRUE}, larger input values are treated as better. Default is \code{FALSE}.}
 }
 \value{
-A `RankAggregation` object containing the Dowdall aggregation results in
-`object@result`.
+A \code{RankAggregation} object containing the Dowdall aggregation results in
+\code{object@result}.
 }
 \description{
 Aggregates multiple ranked drug lists using the Dowdall method.
 }
 \details{
-`Dowdall()` combines rankings from at least two numeric columns in
-`input_data`. The first column is treated as the item identifier, typically
-`Drug`, and the remaining numeric columns are converted to ranks before
+\code{Dowdall()} combines rankings from at least two numeric columns in
+\code{input_data}. The first column is treated as the item identifier, typically
+\code{Drug}, and the remaining numeric columns are converted to ranks before
 aggregation.
 
 The Dowdall method is a positional voting system that assigns each item a
-reciprocal rank score (`1 / rank`) within each input ranking. These reciprocal
+reciprocal rank score (\code{1 / rank}) within each input ranking. These reciprocal
 scores are summed across ranking columns to produce a consensus score. Items
 ranked highly across several methods receive larger Dowdall scores and better
 final consensus ranks.
 
-In DrugSigNet, reciprocal rank scores are scaled to the range `[0, 1]` before
+In DrugSigNet, reciprocal rank scores are scaled to the range \verb{[0, 1]} before
 summation so that different ranking methods contribute comparably.
 
 Missing numeric values are replaced with zero before ranking. Values equal to
 zero are treated as unranked entries and contribute zero to the final
 consensus score.
 
-For pipe-friendly use, a data frame can be supplied as `object`; in that case,
-it is used as `input_data`.
+For pipe-friendly use, a data frame can be supplied as \code{object}; in that case,
+it is used as \code{input_data}.
 }
 \examples{
-\dontrun{
 rank_df <- data.frame(
   Drug = c("drug_a", "drug_b", "drug_c"),
   Method1 = c(1, 2, 3),
@@ -67,7 +66,6 @@ res <- Dowdall(
 
 # Pipe-friendly use
 res_pipe <- Dowdall(rank_df, reverse = FALSE)
-}
 
 }
 \references{

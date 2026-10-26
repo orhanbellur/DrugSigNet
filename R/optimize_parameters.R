@@ -44,6 +44,14 @@
 #'   sequentially for Python/reticulate backend stability; CRank optimization can
 #'   use multiple workers. Default is `8`.
 #'
+#' @details This function returns a parameter grid of results; it does not choose
+#' an optimum or evaluate clinical efficacy. Select a comparison criterion and
+#' controls independently. For CRank, avoid priors producing an empty
+#' high-confidence group, especially on small inputs. The benchmarking drug
+#' arguments are reserved and do not currently compute performance metrics.
+#'
+#' @seealso [CRank()], [TrustRank()], [Harmonic_centrality()]
+#'
 #' @return
 #' A named list of optimization results. Each element contains the parameter
 #' label, tested parameter values, and the corresponding method result.
@@ -59,8 +67,8 @@
 #' crank_grid <- optimize_parameters(
 #'   method = "CRank",
 #'   input_data = rank_df,
-#'   prior = c(0.01, 0.05, 0.093),
-#'   num_bin = c(100, 200),
+#'   prior = c(0.4, 0.8), # nonempty groups for this three-item toy input
+#'   num_bin = c(3, 4),
 #'   reverse = TRUE,
 #'   n_workers = 2
 #' )

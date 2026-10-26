@@ -30,62 +30,62 @@ plot_top_k_hits(
 )
 }
 \arguments{
-\item{object}{Optional `PlotObject`. For pipe-friendly use, a data frame can
-also be supplied as `object` when `drug_ranks_df` is omitted.}
+\item{object}{Optional \code{PlotObject}. For pipe-friendly use, a data frame can
+also be supplied as \code{object} when \code{drug_ranks_df} is omitted.}
 
-\item{drug_ranks_df}{Data frame containing `Drug`, optional `Status`, optional
+\item{drug_ranks_df}{Data frame containing \code{Drug}, optional \code{Status}, optional
 facet columns, and numeric rank columns. Smaller ranks are better.}
 
-\item{plottype}{Plot type. One of `"Barplot"`, `"dotplot"`, or
-`"lineplot"`. Default is `"Barplot"`.}
+\item{plottype}{Plot type. One of \code{"Barplot"}, \code{"dotplot"}, or
+\code{"lineplot"}. Default is \code{"Barplot"}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{status_df}{Optional data frame containing `Drug` and `status_col`.}
+\item{status_df}{Optional data frame containing \code{Drug} and \code{status_col}.}
 
-\item{status_col}{Column in `status_df` containing status labels. Drugs with
-non-missing values are counted in parentheses. Default is `"Status"`.}
+\item{status_col}{Column in \code{status_df} containing status labels. Drugs with
+non-missing values are counted in parentheses. Default is \code{"Status"}.}
 
-\item{split_grouped_drugs}{Logical; if `TRUE`, grouped `Drug` labels are
-expanded using `drug_sep` after top-k selection. Default is `FALSE`.}
+\item{split_grouped_drugs}{Logical; if \code{TRUE}, grouped \code{Drug} labels are
+expanded using \code{drug_sep} after top-k selection. Default is \code{FALSE}.}
 
-\item{drug_sep}{Separator used for grouped drug labels. Default is `"\\|"`.}
+\item{drug_sep}{Separator used for grouped drug labels. Default is \code{"\\\\|"}.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{units}{Units for saved plot dimensions. One of `"in"`, `"cm"`, `"mm"`,
-or `"px"`. Default is `"in"`.}
+\item{units}{Units for saved plot dimensions. One of \code{"in"}, \code{"cm"}, \code{"mm"},
+or \code{"px"}. Default is \code{"in"}.}
 }
 \value{
-A `ggplot` object.
+A \code{ggplot} object.
 }
 \description{
 Visualizes annotated hits recovered among top-ranked drugs across ranking
 methods.
 }
 \details{
-`plot_top_k_hits()` counts drugs with non-missing status annotations within
+\code{plot_top_k_hits()} counts drugs with non-missing status annotations within
 selected top-k thresholds and supports bar, dot, and line plots.
 
 Top-ranked rows are selected before status matching or grouped-drug
 expansion, so annotation does not affect ranking.
 
-When `split_grouped_drugs = FALSE`, a grouped label such as
-`"daratumumab|felzartamab|isatuximab"` is treated as one ranked entity but
+When \code{split_grouped_drugs = FALSE}, a grouped label such as
+\code{"daratumumab|felzartamab|isatuximab"} is treated as one ranked entity but
 matched against status annotations using its individual members. It
 therefore contributes at most one hit, even when multiple members are
 annotated. If matched members have different status labels, the group is
-assigned `"Multiple"`.
+assigned \code{"Multiple"}.
 
-When `split_grouped_drugs = TRUE`, grouped labels are expanded after top-k
+When \code{split_grouped_drugs = TRUE}, grouped labels are expanded after top-k
 selection and individual drugs can contribute separately.
 
-If `status_df` is not supplied, status annotations are taken from
-`drug_ranks_df`.
+If \code{status_df} is not supplied, status annotations are taken from
+\code{drug_ranks_df}.
 }
 \examples{
 \dontrun{
