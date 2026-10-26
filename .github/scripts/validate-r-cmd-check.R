@@ -1,5 +1,4 @@
-# R CMD check must complete without errors or warnings. Notices remain visible
-# in the check log but are not promoted to failures by this validator.
+# R CMD check must complete without errors, warnings, or notes.
 
 logs <- list.files(
   ".",
@@ -18,9 +17,25 @@ if (length(logs) != 1L) {
 }
 
 lines <- readLines(logs[[1L]], warn = FALSE, encoding = "UTF-8")
-error_lines <- grep("^\\* checking .* \\.\\.\\. ERROR$", lines, value = TRUE)
-warning_indices <- grep("^\\* checking .* \\.\\.\\. WARNING$", lines)
+error_lines <- grep("^\\* checking .* ERROR$", lines, value = TRUE)
+warning_indices <- grep("^\\* checking .* WARNING$", lines)
+note_indices <- grep("^\\* checking .* NOTE$", lines)
 status_lines <- grep("^Status:", lines, value = TRUE)
+
+# Show the check's own diagnostic blocks, including source file names and
+# undefined symbols. Test output alone cannot explain package metadata notes.
+problem_indices <- grep(
+  "^\\* checking .* \\.\\.\\.(?: \\[[^]]+\\])? (?:ERROR|WARNING|NOTE)$",
+  lines, perl = TRUE
+)
+if (length(problem_indices)) {
+  blocks <- vapply(problem_indices, function(index) {
+    following <- which(seq_along(lines) > index & grepl("^\\* (checking|DONE)", lines))
+    end <- if (length(following)) following[[1L]] - 1L else length(lines)
+    paste(lines[seq.int(index, end)], collapse = "\n")
+  }, character(1L))
+  message("R CMD check diagnostic blocks:\n", paste(blocks, collapse = "\n\n"))
+}
 
 test_outputs <- list.files(
   dirname(logs[[1L]]),
@@ -101,10 +116,18 @@ if (length(warning_indices)) {
   )
 }
 
-if (length(status_lines) && !grepl("OK$", status_lines[[length(status_lines)]])) {
+if (length(note_indices)) {
+  stop(
+    "R CMD check reported NOTEs:\n",
+    paste(lines[note_indices], collapse = "\n"),
+    call. = FALSE
+  )
+}
+
+if (length(status_lines) != 1L || !identical(status_lines, "Status: OK")) {
   stop(
     "R CMD check reported a failing status: ",
-    status_lines[[length(status_lines)]],
+    if (length(status_lines)) paste(status_lines, collapse = "; ") else "missing Status summary",
     diagnostic_tail(),
     call. = FALSE
   )
@@ -112,11 +135,11 @@ if (length(status_lines) && !grepl("OK$", status_lines[[length(status_lines)]]))
 
 if (!identical(Sys.getenv("RWORKFLOWS_OUTCOME"), "success")) {
   stop(
-    "The R CMD check process failed without writing a standard ERROR/WARNING ",
+    "The R CMD check process failed without writing a standard ERROR/WARNING/NOTE ",
     "summary (for example, a test process may have crashed).",
     diagnostic_tail(),
     call. = FALSE
   )
 }
 
-message("R CMD check passed with 0 ERRORs and 0 WARNINGs.")
+message("R CMD check passed with 0 ERRORs, 0 WARNINGs, and 0 NOTEs.")

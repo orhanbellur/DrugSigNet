@@ -38,7 +38,7 @@
     '<button class="ds-download" type="button" title="Download every matching row across all pages">Download CSV</button></div>',
     '<div class="ds-table-scroll" tabindex="0" role="region" aria-label="', esc(caption), '">',
     '<table><caption>', esc(caption), '</caption><thead><tr>',
-    paste0('<th scope="col" aria-sort="none"><button type="button" data-column="', seq_along(df) - 1L, '">', esc(names(df)), '<span aria-hidden="true"> ↕</span></button></th>', collapse = ""),
+    paste0('<th scope="col" aria-sort="none"><button type="button" data-column="', seq_along(df) - 1L, '">', esc(names(df)), '<span aria-hidden="true"> \u2195</span></button></th>', collapse = ""),
     '</tr></thead><tbody></tbody></table></div>',
     '<div class="ds-table-footer"><span class="ds-table-status" role="status" aria-live="polite"></span><div>',
     '<button class="ds-prev" type="button" aria-label="Previous page">Previous</button> ',
@@ -146,8 +146,8 @@
       tbl(coverage, "coverage", "Rank availability across eligible candidates"),
       para(sprintf("Relevant annotations are available for %d of %d prioritized candidates. Candidates without an identifier or any valid positive rank are excluded (%d source rows).", annotated, nrow(rank$top), rank$excluded))))
     tie_note <- "CRank ties are preserved. Binned evidence and the configured tie method can produce repeated ranks; ranks alone cannot establish the exact cause of a tie."
-    if (nrow(rank$top) && is.finite(tail(rank$top$CRank, 1L)) && tail(rank$top$CRank, 1L) > 0) {
-      cutoff <- tail(rank$top$CRank, 1L)
+    if (nrow(rank$top) && is.finite(utils::tail(rank$top$CRank, 1L)) && utils::tail(rank$top$CRank, 1L) > 0) {
+      cutoff <- utils::tail(rank$top$CRank, 1L)
       tie_note <- paste(tie_note, sprintf("At CRank cutoff %s, %d of %d tied candidates are displayed.", cutoff, sum(rank$top$CRank == cutoff, na.rm = TRUE), sum(rank$all$CRank == cutoff, na.rm = TRUE)))
     }
     add("candidates", c(para(sprintf("Selection: up to %d unique drugs ordered by increasing stored CRank, then Dowdall, RRA, and identifier. Missing/nonpositive ranks sort last. Ties do not expand the fixed-size shortlist. Table sorting only reorders these selected candidates.", top_n)),
@@ -167,7 +167,7 @@
       lines
     }
     add("comparison", c(para("Spearman correlation uses candidates with finite positive ranks in both methods and average ranks for ties. Fewer than three shared candidates or constant ranks produce an unavailable coefficient."),
-      tbl(transform(agreement, Spearman = round(Spearman, 3L)), "agreement", "Pairwise aggregation agreement"), figure_lines("comparison"),
+      tbl(transform(agreement, Spearman = round(agreement$Spearman, 3L)), "agreement", "Pairwise aggregation agreement"), figure_lines("comparison"),
       if (!any(plot_groups == "comparison")) para("No comparison plots were stored in this result object.")))
     add("annotation", c(para("Annotations are matched by case-insensitive drug identifier to the shortlist, without synonym expansion. Main-table fields are abridged to 180 characters per cell. Full annotations, including structures and synonyms, are available in Complete Results. Missing annotations do not imply absence of a biological property."),
       tbl(annotation, "annotations", "Relevant annotations for prioritized candidates"), figure_lines("annotation")))
@@ -200,8 +200,8 @@
   quote_yaml <- function(x) encodeString(paste(x, collapse = ", "), quote = '"')
   yaml <- c("---", paste0("title: ", quote_yaml(esc(title))), "output:", "  html_document:", "    self_contained: true", "    theme: null", "    toc: false", "---", "")
   setup <- c("```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, results='asis', comment=NA)", "```", "")
-  header <- c('<a class="ds-skip" href="#ds-main">Skip to report content</a>', '<header class="ds-header"><span class="ds-eyebrow">DrugSigNet · Scientific report</span>',
-    paste0('<h1>', esc(title), '</h1>'), para(paste(c(if (!is.null(author)) paste(author, collapse = ", "), as.character(Sys.Date())), collapse = " · ")), '</header>',
+  header <- c('<a class="ds-skip" href="#ds-main">Skip to report content</a>', '<header class="ds-header"><span class="ds-eyebrow">DrugSigNet \u00b7 Scientific report</span>',
+    paste0('<h1>', esc(title), '</h1>'), para(paste(c(if (!is.null(author)) paste(author, collapse = ", "), as.character(Sys.Date())), collapse = " \u00b7 ")), '</header>',
     '<div class="ds-shell"><aside class="ds-nav" aria-label="Report sections"><div class="ds-nav-title">Contents</div>', nav, '</aside><main id="ds-main" tabindex="-1">')
   rmd <- paste0(base_name, ".Rmd"); output <- paste0(base_name, ".html")
   writeLines(c(yaml, setup, "<style>", .report_html_assets("report.css"), "</style>", header, body, '</main></div>',
