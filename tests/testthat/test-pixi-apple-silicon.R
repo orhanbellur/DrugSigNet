@@ -54,6 +54,8 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       expect_true(any(grepl(paste0('SDKROOT = "', sdk, '"'), manifest, fixed = TRUE)))
       expect_true(any(grepl(paste0('CONDA_BUILD_SYSROOT = "', sdk, '"'), manifest, fixed = TRUE)))
     }
+    expect_identical(any(grepl('"libintl-devel"', manifest, fixed = TRUE)), startsWith(platform, "osx-"))
+    expect_identical(file.exists(file.path(runtime, "arch")), startsWith(platform, "osx-"))
     bioc <- grepl('^"bioconductor-', manifest)
     expect_equal(sum(bioc), if (platform == "osx-arm64") 0L else 2L)
     expect_equal(any(grepl('^"r-rcdk"', manifest)), platform != "osx-arm64")

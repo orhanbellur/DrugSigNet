@@ -81,7 +81,7 @@ pixi_toml="${project_dir}/pixi.toml"
     "platforms = [\"${pixi_platform}\"]" \
     '' \
     '[dependencies]'
-  awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" {
+  awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
     if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
@@ -186,6 +186,12 @@ if [[ ! -x "${runtime_bin}/sh" ]]; then
   ln -s bash "${runtime_bin}/sh"
   echo "[DrugSigNet] Added the missing project-local sh -> bash runtime link."
 fi
+# Some R configure scripts call the macOS arch utility. Clean Pixi PATHs
+# need an explicit project-local bridge to this standard host executable.
+if [[ "${pixi_platform}" == osx-* && ! -x "${runtime_bin}/arch" ]]; then
+  [[ -x /usr/bin/arch ]] || { echo "ERROR: macOS arch utility is missing." >&2; exit 1; }
+  ln -s /usr/bin/arch "${runtime_bin}/arch"
+fi
 
 repository="${package_ref%%@*}"
 ref=""
@@ -237,7 +243,7 @@ message("Using project OpenJDK: ", actual_java)
 if (getRversion() < "4.5" || getRversion() >= "4.6") {
   stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
 }
-cran_required <- c("fingerprint", "rcdk")
+cran_required <- c("fingerprint", "rcdk", "gdtools")
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(cran_missing)) install.packages(cran_missing)
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]

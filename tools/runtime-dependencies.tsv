@@ -69,6 +69,7 @@ conda	r-tidyr
 conda	r-tidyselect
 conda	r-wordcloud
 pixi	r-boutroslabplottinggeneral
+pixi-osx	libintl-devel
 pixi	bioconductor-signaturesearch
 pixi	bioconductor-signaturesearchdata
 conda	pandoc
