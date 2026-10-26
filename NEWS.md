@@ -80,3 +80,18 @@
   controlled fixtures. Randomized proximity backgrounds can differ across
   Python versions despite a fixed seed because collection iteration order can
   change; retain runtime versions when reproducing those statistics.
+
+## Isolated network Python runtime
+
+* Run graph construction, centrality, proximity and diffusion through the
+  configured Python in separate processes. This fixes graph-tool GLIBCXX
+  import failures when host RStudio has already loaded an older system C++
+  runtime, despite successful Pixi installation validation. Existing Python
+  algorithms and rank aggregation are unchanged.
+* Default worker hash seeding to zero (unless explicitly configured) so a
+  fixed simulation seed remains reproducible across fresh worker processes.
+* Preserve typed inputs, leading-zero identifiers and complete result tables;
+  diffusion target sets now contain serializable R vectors. Worker failures
+  report the selected interpreter and the native error instead of partial data.
+* Clarify that activating a Pixi package library does not replace the running
+  R executable; document clean session restart after reinstallation.

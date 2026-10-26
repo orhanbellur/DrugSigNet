@@ -374,7 +374,7 @@ setup_python_dependencies <- function(
 }
 
 .drugsignet_python_system2 <- function(python, args, stdout = FALSE,
-                                        stderr = FALSE) {
+                                        stderr = FALSE, extra_env = character()) {
   python_prefix <- .drugsignet_python_prefix(python)
   active_prefix <- Sys.getenv("CONDA_PREFIX")
   if (nzchar(active_prefix) &&
@@ -384,7 +384,7 @@ setup_python_dependencies <- function(
       args,
       stdout = stdout,
       stderr = stderr,
-      env = .drugsignet_python_process_env(python)
+      env = c(.drugsignet_python_process_env(python), extra_env)
     ))
   }
 
@@ -408,7 +408,7 @@ setup_python_dependencies <- function(
       ),
       stdout = stdout,
       stderr = stderr,
-      env = .drugsignet_python_process_env(python)
+      env = c(.drugsignet_python_process_env(python), extra_env)
     ))
   }
 
@@ -417,7 +417,7 @@ setup_python_dependencies <- function(
     args,
     stdout = stdout,
     stderr = stderr,
-    env = .drugsignet_python_process_env(python)
+    env = c(.drugsignet_python_process_env(python), extra_env)
   )
 }
 
@@ -680,9 +680,11 @@ setup_python_dependencies <- function(
   # No configured interpreter was found. An interpreter that was deliberately
   # initialized by the caller may still provide graph_tool; only then is it
   # safe to accept it without provisioning DrugSigNet's environment.
-  if (reticulate::py_available(initialize = FALSE) &&
-      reticulate::py_module_available("graph_tool")) {
-    return(invisible(TRUE))
+  if (reticulate::py_available(initialize = FALSE)) {
+    current_python <- reticulate::py_config()$python
+    if (.drugsignet_python_has_modules(current_python, "graph_tool")) {
+      return(invisible(TRUE))
+    }
   }
 
   tryCatch(
@@ -697,39 +699,20 @@ setup_python_dependencies <- function(
       )
     }
   )
-  if (!reticulate::py_module_available("graph_tool")) {
-    stop(
-      "DrugSigNet provisioned Python, but graph_tool is still unavailable. ",
-      "Run setup_python_dependencies(force = TRUE) and retry.",
-      call. = FALSE
-    )
-  }
+  python <- .drugsignet_discover_pixi_python()
+  if (!nzchar(python)) python <- reticulate::py_config()$python
+  .drugsignet_use_configured_graph_tool(python)
   invisible(TRUE)
 }
 
 .drugsignet_use_configured_graph_tool <- function(python) {
-  selection_error <- tryCatch({
-    .drugsignet_select_python(python)
-    NULL
-  }, error = identity)
-  if (!is.null(selection_error)) {
-    stop(
-      "DrugSigNet could not select its configured Python interpreter: ",
-      python, "\n", conditionMessage(selection_error),
-      "\nRestart R, load DrugSigNet first, and retry the network pipeline.",
-      call. = FALSE
-    )
-  }
-  import_error <- tryCatch({
-    reticulate::import("graph_tool", delay_load = FALSE)
-    NULL
-  }, error = identity)
-  if (!is.null(import_error)) {
-    stop(
-      "DrugSigNet selected the configured Python interpreter, but could not ",
-      "import graph_tool: ", python, "\n", conditionMessage(import_error),
-      call. = FALSE
-    )
+  # Validate in the same process boundary used by network calculations. Loading
+  # graph-tool into RStudio can bind it to the host's older libstdc++, even when
+  # the configured Python successfully imports it in its own environment.
+  probe <- .drugsignet_python_module_probe(python, "graph_tool")
+  if (!isTRUE(probe$available)) {
+    stop("DrugSigNet's configured Python cannot import graph_tool in its own runtime: ",
+      python, "\n", paste(probe$output, collapse = "\n"), call. = FALSE)
   }
   invisible(TRUE)
 }

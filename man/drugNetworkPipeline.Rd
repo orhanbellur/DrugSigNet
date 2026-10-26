@@ -70,7 +70,8 @@ drug-target network.}
 
 \item{n_workers}{Number of workers used by methods that support parallel
 execution, currently network proximity. Centrality methods are run
-sequentially for reticulate/Python backend stability. Default is \code{5}.}
+sequentially to bound graph memory use. Python calculations use isolated
+processes rather than embedding graph-tool into R. Default is \code{5}.}
 
 \item{prior}{Numeric prior used by CRank aggregation. Default is \code{0.093}.}
 
@@ -142,6 +143,15 @@ enrichment analysis is performed on targets of top-ranked drugs. If
 \code{run_visualization = TRUE}, visualization-ready outputs are included in the
 returned pipeline object.
 }
+\section{Python runtime}{
+
+Network calculations execute in separate processes using the configured
+Python. This avoids loading Pixi/Conda graph-tool against RStudio's already
+loaded system C++ libraries. Inputs and numeric outputs are retained;
+diffusion target sets are returned as serializable R character vectors
+rather than process-bound Python objects.
+}
+
 \section{Aggregation stages}{
 
 With \code{run_all_network_methods = FALSE}, only the three centrality rank lists

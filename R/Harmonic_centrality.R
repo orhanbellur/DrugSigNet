@@ -130,16 +130,15 @@ setMethod("Harmonic_centrality", signature = "NetworkBased", function(object) {
     unique() %>%
     intersect(as.character(files_path$ppi_graph$gene_nodes$gene)) %>%
     as.list()
-  seed_genes <- reticulate::r_to_py(seed_genes)
 
   # Prepare parameters for Python
   params <- list(
-    include_indirect_drugs = reticulate::r_to_py(params$include_indirect_drugs),
-    include_non_approved_drugs = reticulate::r_to_py(params$include_non_approved_drugs),
-    filter_paths = reticulate::r_to_py(params$filter_paths),
-    hub_penalty = reticulate::r_to_py(params$hub_penalty),
-    max_deg = reticulate::r_to_py(ifelse(is.null(params$max_deg), .Machine$integer.max, params$max_deg)),
-    result_size = reticulate::r_to_py(params$result_size),
+    include_indirect_drugs = params$include_indirect_drugs,
+    include_non_approved_drugs = params$include_non_approved_drugs,
+    filter_paths = params$filter_paths,
+    hub_penalty = params$hub_penalty,
+    max_deg = ifelse(is.null(params$max_deg), .Machine$integer.max, params$max_deg),
+    result_size = params$result_size,
     target = params$target,
     ignored_edge_types = list()
   )
@@ -152,9 +151,7 @@ setMethod("Harmonic_centrality", signature = "NetworkBased", function(object) {
 
 
   # Run the Python script for harmonic centrality
-  py <- reticulate::py_run_file(HarmonicCentrality_script)
-
-  harmonic_centrality_result <- py$harmonic_centrality(
+  harmonic_centrality_result <- .drugsignet_network_python_call("Harmonic_centrality", "harmonic_centrality", list(
     file_path = paste0(files_path$graph_file_path, ".gt"),
     file_name = NULL,
     seeds = seed_genes,
@@ -166,11 +163,10 @@ setMethod("Harmonic_centrality", signature = "NetworkBased", function(object) {
     hub_penalty = params$hub_penalty,
     target = params$target,
     ignored_edge_types = params$ignored_edge_types
-  )
+  ), result_index = 1L)
 
-  #object@result <- harmonic_centrality_result[[2]]
   object@result <- .clean_python_result(
-    harmonic_centrality_result[[2]]
+    harmonic_centrality_result
   )
   object@parameters <- filterNetworkParameters(object)
 

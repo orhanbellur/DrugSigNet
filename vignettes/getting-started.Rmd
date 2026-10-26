@@ -425,6 +425,22 @@ reached and disables dependency-vignette rebuilding, so a LaTeX installation is
 not needed. Set `options(DrugSigNet.auto_install_synapser = FALSE)` to disable
 installation on first use.
 
+## RStudio reports a missing `GLIBCXX` symbol
+
+A successful Pixi installation does not replace an already running RStudio R
+process. That process may have loaded a system `libstdc++` older than the one
+required by Pixi's `graph-tool`. Network calculations now run in separate
+processes using the configured Python and its runtime libraries, avoiding this
+in-process mismatch. Restart R after updating DrugSigNet so the new methods are
+loaded; rerun the analysis with the same configured Pixi project.
+
+Do not remove DrugSigNet before reinstalling it. If RStudio restores old S4
+objects after the package was removed, startup can report that the DrugSigNet
+namespace is missing. Reinstall the package and restart without restoring the
+old workspace. A "built under R version" warning concerns the running R version,
+not the Python version; use `pixi run --manifest-path <project>/pixi.toml R` for
+the fully matched Pixi R runtime.
+
 ## Network methods are slow
 
 Start with `run_all_network_methods = FALSE`. This runs the core topology-based

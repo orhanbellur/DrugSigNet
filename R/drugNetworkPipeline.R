@@ -58,7 +58,8 @@
 #'   `Network_proximity()`. Default is `1000`.
 #' @param n_workers Number of workers used by methods that support parallel
 #'   execution, currently network proximity. Centrality methods are run
-#'   sequentially for reticulate/Python backend stability. Default is `5`.
+#'   sequentially to bound graph memory use. Python calculations use isolated
+#'   processes rather than embedding graph-tool into R. Default is `5`.
 #' @param prior Numeric prior used by CRank aggregation. Default is `0.093`.
 #' @param num_bin Number of bins used by CRank aggregation. Default is `200`.
 #' @param ties_method Method used to resolve ranking ties. One of `"max"`,
@@ -84,6 +85,13 @@
 #'   target set enrichment. Default is `TRUE`.
 #' @param run_visualization Logical; if `TRUE`, build visualization metadata and
 #'   plots. Default is `TRUE`.
+#'
+#' @section Python runtime:
+#' Network calculations execute in separate processes using the configured
+#' Python. This avoids loading Pixi/Conda graph-tool against RStudio's already
+#' loaded system C++ libraries. Inputs and numeric outputs are retained;
+#' diffusion target sets are returned as serializable R character vectors
+#' rather than process-bound Python objects.
 #'
 #' @section Aggregation stages:
 #' With `run_all_network_methods = FALSE`, only the three centrality rank lists
@@ -249,12 +257,9 @@ drugNetworkPipeline <- function(
 
   res <- list()
 
-  # Select and initialize graph-tool before resolving any Synapse-backed
-  # inputs. Synapse helpers can otherwise initialize reticulate first, after
-  # which R cannot switch to the project-local Pixi interpreter in this
-  # process. Doing this once at the pipeline boundary also prevents individual
-  # methods from reaching reticulate's Conda discovery despite an explicitly
-  # configured RETICULATE_PYTHON.
+  # Validate graph-tool in the configured Python process, before any network
+  # downloads. Do not initialize embedded Python: RStudio's loaded C++ runtime
+  # can differ from the Pixi/Conda runtime required by graph-tool.
   .drugsignet_require_graph_tool()
 
   # -------------------------------------------------------------------------
@@ -429,7 +434,7 @@ drugNetworkPipeline <- function(
   if (n_workers > 1L) {
     .pipeline_message(
       "Network",
-      "Centrality methods use Python/reticulate backends; running sequentially for stability.",
+      "Centrality methods run sequentially; Python calculations use isolated processes.",
       3,
       9
     )

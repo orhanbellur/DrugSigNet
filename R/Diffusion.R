@@ -197,7 +197,7 @@ setMethod("Diffusion", signature = "NetworkBased", function(object) {
 
   # Prepare parameters for Python
   diffusion_params <- list(
-    ties_method = reticulate::r_to_py(params$ties_method)
+    ties_method = params$ties_method
   )
 
   # Define the required pickle files
@@ -223,11 +223,15 @@ setMethod("Diffusion", signature = "NetworkBased", function(object) {
     }
 
     cat("Generating similarity matrices for the PPI network...\n")
-    process_ppi <- reticulate::py_run_file(python_script_path)
 
-    num_random_walks <- reticulate::r_to_py(as.integer(100))
+    num_random_walks <- as.integer(100)
 
-    generated_files <- process_ppi$process_ppi_network(ppi_file = diffusion_files$ppi_graph_file, num_random_walks = num_random_walks)
+    generated_files <- .drugsignet_network_python_call(
+      "Diffusion_matrix_generator", "process_ppi_network", list(
+        ppi_file = diffusion_files$ppi_graph_file,
+        num_random_walks = num_random_walks
+      )
+    )
 
     file.copy(generated_files$id2node, file.path(out_path, "ppi_id_2_node.p"), overwrite = TRUE)
     file.copy(generated_files$node2id, file.path(out_path, "ppi_node_2_id.p"), overwrite = TRUE)
@@ -243,16 +247,15 @@ setMethod("Diffusion", signature = "NetworkBased", function(object) {
   }
 
   # Load the Python function for Diffusion-Based method
-  py <- reticulate::py_run_file(python_script2_path)
 
   # Run the diffusion-based pipelines using Python
-  Diffusion_methods_results <- .clean_python_result(py$Diff_run_pipelines(
+  Diffusion_methods_results <- .clean_python_result(.drugsignet_network_python_call("Diffusion_run_pipelines", "Diff_run_pipelines", list(
     drug_edges_df = files_path$drug_graph$drug_edges,
     seed_genes = seed_genes,
     gene_edges_df = files_path$ppi_graph$gene_edges,
     ties_method = diffusion_params$ties_method,
     path = out_path
-  )) %>%
+  ))) %>%
     dplyr::rename("ID" = "Drug") %>%
     left_join(., unique(params$drug_target_network[, c("ID","Drug")])) %>%
     dplyr::select(-ID) %>%

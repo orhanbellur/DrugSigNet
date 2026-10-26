@@ -1,4 +1,4 @@
-test_that("reticulate remains lazy until a Python-backed method is called", {
+test_that("network methods use isolated Python without importing it into R", {
   namespace_imports <- names(getNamespaceImports("DrugSigNet"))
   expect_false("reticulate" %in% namespace_imports)
 
@@ -12,7 +12,8 @@ test_that("reticulate remains lazy until a Python-backed method is called", {
     collapse = "\n"
   )
 
-  expect_match(implementations, "reticulate::py_run_file", fixed = TRUE)
-  expect_match(implementations, "reticulate::r_to_py", fixed = TRUE)
+  expect_match(implementations, ".drugsignet_network_python_call", fixed = TRUE)
+  expect_false(grepl("reticulate::py_run_file", implementations, fixed = TRUE))
+  expect_false(grepl("reticulate::r_to_py", implementations, fixed = TRUE))
   expect_false(grepl("@importFrom reticulate", implementations, fixed = TRUE))
 })

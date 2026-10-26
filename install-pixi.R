@@ -155,10 +155,10 @@ install_drugsignet_pixi <- function(
     project_dir, pixi_python, pixi_library, validation_marker
   )
   message(
-    "DrugSigNet's Pixi library and Python are now active in the current R session; ",
+    "DrugSigNet's Pixi library and Python selection are configured for this R session; ",
     "library(DrugSigNet) can be called directly. The generated RStudio project ",
     "and the managed ~/.Rprofile entry restore the same library on later sessions. ",
-    "For a fully isolated R use:\n  ",
+    "Network calculations use separate Python processes to avoid host native-library conflicts. This does not replace the running R executable. For a fully isolated R use:\n  ",
     file.path(path.expand("~"), ".pixi", "bin", "pixi"),
     " run --manifest-path ", file.path(project_dir, "pixi.toml"), " R"
   )
