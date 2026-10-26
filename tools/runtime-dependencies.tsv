@@ -118,7 +118,7 @@ conda	libgit2
 conda	udunits2
 conda	gmp
 conda	mpfr
-conda	python=3.10
+conda	python=3.12
 pixi	conda
 pixi	synapseclient=4.13
 conda	graph-tool

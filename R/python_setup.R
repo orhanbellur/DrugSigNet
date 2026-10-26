@@ -3,13 +3,17 @@
 #' @description
 #' Installs required Python modules for DrugSigNet using `reticulate`.
 #'
-#' By default, this creates a dedicated conda environment containing the core
-#' Python modules, `kaleido`, and, on supported operating systems, `graph_tool`.
+#' By default, this creates a dedicated Conda environment containing
+#' Python 3.12, the core modules, `kaleido`, and, on supported systems, `graph_tool`.
 #' Native Windows installations skip `graph_tool` because it is unavailable.
 #' A dedicated environment is
 #' necessary because `graph_tool` is distributed by conda-forge rather than
 #' PyPI. It also prevents reticulate's `uv` environment from being initialized
-#' before the graph stack has been selected.
+#' before the graph stack has been selected. Newly created Conda environments
+#' use Python 3.12. A complete existing or explicitly selected runtime is reused
+#' without an in-place Python upgrade, including legacy environments. To migrate
+#' an existing project, create a separate Python 3.12 runtime and select its
+#' interpreter with `RETICULATE_PYTHON` before starting a fresh R session.
 #'
 #' If `RETICULATE_PYTHON` already names an interpreter containing every
 #' requested module (for example the generated Pixi environment), that runtime
@@ -293,7 +297,7 @@ setup_python_dependencies <- function(
     if (!quiet) message("Creating DrugSigNet conda environment: ", envname)
     reticulate::conda_create(
       envname = envname,
-      packages = c("python=3.10", "pip"),
+      packages = c("python=3.12", "pip"),
       channel = "conda-forge"
     )
     python <- reticulate::conda_python(envname)
@@ -664,7 +668,7 @@ setup_python_dependencies <- function(
   python <- .drugsignet_discover_pixi_python()
   if (nzchar(python) && file.exists(python)) {
     # Preserve the lexical `bin/python` entry point. normalizePath() resolves
-    # Pixi's symlink to `bin/python3.10`; reticulate then classifies that target
+    # Pixi's symlink to `bin/python3.12`; reticulate then classifies that target
     # as a Conda-managed interpreter and calls conda_binary(), although Pixi
     # intentionally provides no Conda executable. The explicit `bin/python`
     # path is a standalone interpreter request and avoids that false discovery.

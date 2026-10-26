@@ -68,3 +68,15 @@
 * Unmapped frozen perturbation IDs remain distinct instead of becoming a shared
   missing identifier. Method score formulas, significance thresholds, tie rules,
   and aggregation directions are unchanged from main.
+
+## Python 3.12 installation default
+
+* New Conda, Pixi/manifest and Docker environments now select Python 3.12;
+  Windows CI uses the same version. Remove legacy NumPy/pandas pins that cannot
+  support Python 3.12 from the local and Docker installers.
+* Existing complete runtimes remain reusable and are not upgraded in place.
+  Select a separate Python 3.12 interpreter when migrating an existing project.
+* Cross-runtime checks confirm deterministic CRank/diffusion agreement on
+  controlled fixtures. Randomized proximity backgrounds can differ across
+  Python versions despite a fixed seed because collection iteration order can
+  change; retain runtime versions when reproducing those statistics.

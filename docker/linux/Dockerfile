@@ -66,15 +66,15 @@ RUN set -eux; \
     conda config --set always_yes yes --set changeps1 no; \
     conda config --set channel_priority strict; \
     conda create -n drugsignet -c conda-forge \
-      python=3.10 \
+      python=3.12 \
       graph-tool \
       jinja2 \
       joblib \
       markupsafe \
       networkx \
-      numpy=1.24 \
+      numpy \
       openpyxl \
-      pandas=2.0.3 \
+      pandas \
       pip \
       scipy \
       tqdm; \

@@ -8,7 +8,7 @@ test_that("shared runtime manifest drives every installer", {
 
   expect_true(all(c("apt", "conda", "pip") %in% manifest$manager))
   expect_true(all(c("libglpk-dev", "zlib1g-dev") %in% manifest$package))
-  expect_true(all(c("r-base=4.5", "graph-tool", "libxml2-devel") %in% manifest$package))
+  expect_true(all(c("r-base=4.5", "python=3.12", "graph-tool", "libxml2-devel") %in% manifest$package))
   expect_true(all(c(
     "bash", "coreutils", "diffutils", "file", "findutils", "gawk", "git",
     "grep", "gzip", "patch", "sed", "tar", "which"
@@ -52,4 +52,15 @@ test_that("shared runtime manifest drives every installer", {
   expect_match(micromamba_installer, "DRUGSIGNET_DEPENDENCY_MANIFEST_URL", fixed = TRUE)
   expect_match(micromamba_installer, 'BASH_SOURCE[0]:-', fixed = TRUE)
   expect_false(grepl("printf '%s\\n' '  - pip:'", micromamba_installer, fixed = TRUE))
+})
+
+
+test_that("legacy installer entry points use the supported Python version", {
+  root <- drugsignet_repository_root()
+  for (path in c("tools/install_local_drugsignet.R", "docker/linux/Dockerfile")) {
+    text <- paste(readLines(file.path(root, path), warn = FALSE), collapse = "\n")
+    expect_match(text, "python=3.12", fixed = TRUE)
+    expect_false(grepl("numpy=1.24", text, fixed = TRUE))
+    expect_false(grepl("pandas=2.0.3", text, fixed = TRUE))
+  }
 })

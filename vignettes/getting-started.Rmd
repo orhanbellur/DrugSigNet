@@ -72,7 +72,7 @@ stages, and optional interpretation steps.
 | Component | When needed |
 |---|---|
 | R >= 4.5.0 | Current package version |
-| Python >= 3.10 | CRank and Python-backed network methods |
+| Python >= 3.12 | CRank and Python-backed network methods |
 | `graph-tool` | Network centrality methods; supported Linux/macOS runtime |
 | Synapse access and a local cache | Default networks, frozen signature references, and some annotations |
 | Pandoc and a LaTeX engine | PDF reports; HTML does not require LaTeX |
@@ -166,6 +166,15 @@ health <- DrugSigNet::check_drugsignet_installation(
 health$ok
 health$python
 ```
+
+New Conda and manifest-based installations select Python 3.12. Existing complete
+runtimes are reused and are not upgraded automatically. To migrate an existing
+project, create a separate Python 3.12 environment, set `RETICULATE_PYTHON` to its
+interpreter, and restart R before analysis. Retain the previous environment for
+comparison and reproduction. A fixed seed does not guarantee identical
+randomized proximity Z-scores across Python/dependency versions: unordered
+collection iteration can change the sampled background. Record the complete
+runtime versions alongside the seed when comparing analyses.
 
 For a signature-only runtime on native Windows, use
 `include_graph_tool = FALSE`; network analysis still requires Docker or WSL.
