@@ -151,7 +151,9 @@ jobs:
         # Keep the entire R 4.4 CRAN stack from the same Bioconductor-era
         # snapshot. Mixing current ggplot extensions with ggplot2 3.x can
         # embed incompatible from_theme() defaults in binary packages.
-        extra-packages: any::rcmdcheck
+        # later 1.4.1 predates glibc's C11 thread typedefs. The isolated
+        # native-library update below uses prefixed TinyCThread symbols.
+        extra-packages: ${{ matrix.config.bioc == '3.20' && runner.os == 'Linux' && 'any::rcmdcheck, url::https://cloud.r-project.org/src/contrib/Archive/later/later_1.4.7.tar.gz' || 'any::rcmdcheck' }}
         cache-version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || (matrix.config.bioc == '3.20' && 'r44-cran-2025-04-30-v1' || 'cache-v2') }}
     - name: Validate R 4.4 plotting stack
       if: ${{ matrix.config.bioc == '3.20' }}

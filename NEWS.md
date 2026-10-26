@@ -16,7 +16,8 @@
   wordcloud as optional dependencies; their plotting functions retain existing
   availability checks. Complete runtime installers still install these packages.
 - Use one dated CRAN snapshot (2025-04-30) with Bioconductor 3.20 CI,
-  avoiding mixed plotting binaries from different ggplot2 generations.
+  avoiding mixed plotting binaries from different ggplot2 generations. Update
+  only later on native Linux for compatibility with modern glibc thread types.
 - Build HTML vignettes with local shared assets rather than embedding duplicate
   images and scripts in each HTML file. Keep the installed doc directory together
   when sharing vignettes. Render workflow diagrams as compact SVGs, and display
