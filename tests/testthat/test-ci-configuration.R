@@ -29,6 +29,8 @@ test_that("CI uses a compatible fixed R and Bioconductor release", {
   expect_true(all(grepl("https://packagemanager.posit.co/cran/2025-04-30", older, fixed = TRUE)))
   expect_match(workflow, "cran: ${{ matrix.config.rspm }}", fixed = TRUE)
   expect_match(workflow, "r44-cran-2025-04-30-v1", fixed = TRUE)
+  expect_match(workflow, "Register macOS Java with R 4.4", fixed = TRUE)
+  expect_match(workflow, 'CMD javareconf JAVA_HOME="$JAVA_HOME"', fixed = TRUE)
   expect_match(workflow, 'source(".github/scripts/check-r44-plotting.R")', fixed = TRUE)
   expect_match(workflow, "RETICULATE_USE_MANAGED_VENV: 'no'", fixed = TRUE)
   expect_match(workflow, "r-lib/actions/setup-r-dependencies@v2", fixed = TRUE)
