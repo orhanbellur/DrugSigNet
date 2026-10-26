@@ -26,3 +26,12 @@
   incompatible `rjson 0.2.23` and avoids rebuilding dependency vignettes.
 - Treat `enrichR` as a runtime-checked optional dependency so it does not keep
   an incompatible `rjson` namespace loaded when Synapser setup replaces it.
+
+## Signature ranking identity correction
+
+* Signature pipelines now normalize LINCS2 identifiers using the effective
+  reference mode. Parallel default-mode runs resolve frozen references and must
+  apply frozen identifier normalization before filtering and rank scoring.
+* Unmapped frozen perturbation IDs remain distinct instead of becoming a shared
+  missing identifier. Method score formulas, significance thresholds, tie rules,
+  and aggregation directions are unchanged from main.
