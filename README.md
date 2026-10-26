@@ -1045,3 +1045,9 @@ PDF options such as `figure_dpi = 300`, `include_methods = FALSE`, and
 `table_orientation = "landscape"` use the same concise renderer. Passing an
 explicit option does not restore exhaustive tables. `table_rows` bounds summary
 tables; candidate and prioritized annotation tables follow `top_n`.
+
+PDFs include a linked contents page and the stored pipeline figures under their
+comparison, annotation, or enrichment sections. Plot captions distinguish the
+original plot scope from the report Top-N. If static Plotly export is unavailable,
+a sunburst can be summarized from its stored branch values; unsupported plots
+receive an explicit availability note and remain available in HTML.

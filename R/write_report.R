@@ -135,6 +135,9 @@
 #' in the input object or optional supplementary RDS / Excel exports.
 #' Section, orientation, DPI, and table-row controls all use the same concise
 #' PDF renderer; explicitly passing a control never selects a legacy layout.
+#' PDFs include a linked contents page and stored pipeline figures, placed in
+#' the comparison, annotation, or enrichment section. Unavailable Plotly sunbursts
+#' may use a labelled summary of stored branch values as a static fallback.
 #'
 #' In HTML, the visualization section is generated from every entry in
 #' `object@Visualization$plots`; it is not limited to a fixed set of plot names.

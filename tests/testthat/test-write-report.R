@@ -222,23 +222,32 @@ test_that("PDF renders long tables, large parameters and optional complete expor
     result = data.frame(Drug = "compound2"), method = "TrustRank",
     ppi_network = data.frame(a = rep("NO_RAW_DUMP", 10000), b = "gene")
   )
+  obj$Visualization <- list(plots = list(top_k_hits = list(plot =
+    ggplot2::ggplot(data.frame(x = 1:3, y = 1:3), ggplot2::aes(x = x, y = y)) + ggplot2::geom_point())))
   tmp <- tempfile("pdf-regression-")
   dir.create(tmp)
   on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
   path <- file.path(tmp, "report")
-  before <- serialize(obj, NULL)
+  immutable_fields <- c("RankAggregation", "DrugSearching", "DrugAnnotation")
+  before <- serialize(obj[immutable_fields], NULL)
   output <- write_report(obj, title = 'Scientific report: "quoted" & validated',
                          file = path, device = "pdf", top_n = 40L, figure_dpi = 300, supplementary = TRUE)
   expect_true(file.exists(output))
   expect_gt(file.info(output)$size, 10000)
-  expect_identical(readRDS(paste0(path, "_supplementary.rds")), obj)
-  expect_identical(serialize(obj, NULL), before)
+  exported <- readRDS(paste0(path, "_supplementary.rds"))
+  expect_identical(exported[immutable_fields], obj[immutable_fields])
+  expect_s3_class(exported$Visualization$plots$top_k_hits$plot, "ggplot")
+  expect_identical(serialize(obj[immutable_fields], NULL), before)
   tex <- paste(readLines(paste0(path, ".tex")), collapse = "\n")
   expect_false(grepl("NO_RAW_DUMP|Session Info|SMILES|tab:analyses", tex))
   expect_match(paste(readLines(paste0(path, ".Rmd")), collapse = "\n"), "dpi=300", fixed = TRUE)
   expect_match(tex, "\\pagestyle{plain}", fixed = TRUE)
   expect_match(tex, "\\endhead", fixed = TRUE)
   expect_match(tex, "Executive Summary", fixed = TRUE)
+  expect_match(tex, "\\tableofcontents", fixed = TRUE)
+  expect_match(tex, "fig:stored-figure-1-1", fixed = TRUE)
+  expect_match(tex, "Top K hits. Stored pipeline visualization", fixed = TRUE)
+  expect_match(tex, "bookmarksopen=true", fixed = TRUE)
   expect_match(tex, "Interpretation and Limitations", fixed = TRUE)
   # Compile the retained TeX once more so layout regressions have an observable
   # log (rmarkdown normally cleans successful compilation logs).
@@ -376,4 +385,35 @@ test_that("DPI applies to stored static figures", {
   expect_equal(decode(header[17:20]), 700)
   # Raster devices may truncate a fractional pixel from 4.6 inches.
   expect_lte(abs(decode(header[21:24]) - 460), 1)
+  grDevices::pdf(NULL)
+  grob <- tryCatch(ggplot2::ggplotGrob(plot), finally = grDevices::dev.off())
+  expect_true(DrugSigNet:::.report_static_plot(grob, path, dpi = 100))
+})
+
+test_that("every stored pipeline figure is included once in its scientific section", {
+  p <- ggplot2::ggplot(data.frame(x = 1:3, y = 3:1), ggplot2::aes(x = x, y = y)) + ggplot2::geom_point()
+  obj <- report_fixture()
+  obj$Visualization <- list(plots = list(top_k_hits = p, rank_agreement = list(plot = p),
+    drug_indications = p, enriched_terms = p, custom_plot = list(result = list(plot = p))))
+  model <- DrugSigNet:::.report_pdf_body(obj, 1, 20, 12, FALSE)
+  text <- paste(model$lines, collapse = "\n")
+  for (i in 1:5) expect_equal(sum(grepl(paste0("stored-figure-1-", i, ","), model$lines, fixed = TRUE)), 1)
+  expect_lt(regexpr("Top K hits", text, fixed = TRUE)[1], regexpr("Drug Annotation", text, fixed = TRUE)[1])
+  expect_gt(regexpr("Drug indications", text, fixed = TRUE)[1], regexpr("Drug Annotation", text, fixed = TRUE)[1])
+  expect_match(text, "Functional Enrichment", fixed = TRUE)
+  expect_s3_class(DrugSigNet:::.report_unwrap_plot(obj$Visualization$plots$custom_plot), "ggplot")
+})
+
+test_that("sunburst fallback uses stored branch values without Plotly image export", {
+  testthat::local_mocked_bindings(.report_plotly_export = function(...) stop("static exporter unavailable"), .package = "DrugSigNet")
+  p <- structure(list(x = list(data = list(list(type = "sunburst",
+    ids = c("root", "a", "b"), labels = c("Root", "Branch A", "Branch B"),
+    parents = c("", "root", "root"), values = c(10, 6, 4))))), class = "plotly")
+  path <- tempfile(fileext = ".png")
+  on.exit(unlink(path), add = TRUE)
+  out <- DrugSigNet:::.report_prepare_figure(p, path, dpi = 100)
+  expect_true(file.exists(out$path))
+  expect_match(out$note, "does not reproduce", fixed = TRUE)
+  fallback <- DrugSigNet:::.report_hierarchy_fallback(p)
+  expect_equal(fallback$data$Value, c(6, 4))
 })

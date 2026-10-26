@@ -44,3 +44,8 @@
   renderer, fixing the legacy routing regression that produced raw-data tables
   and repeated `tab:analyses` labels. Resolution and section controls are honored
   without changing candidate selection or stored ranks.
+
+* Restored a linked contents page and PDF outline. All stored pipeline figures
+  are included once under the relevant scientific section, including wrapped
+  plot objects. Unavailable Plotly sunbursts get a labelled static branch-summary
+  fallback; export notes no longer render as console output.

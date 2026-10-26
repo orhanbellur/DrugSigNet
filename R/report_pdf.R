@@ -189,25 +189,101 @@
   }))
 }
 
-.report_plotly_export <- function(plot, file, dpi = 300) {
-  if (!requireNamespace("plotly", quietly = TRUE)) stop("Plotly is unavailable.")
-  suppressWarnings(plotly::save_image(plot, file = file, width = 7 * dpi, height = 4.6 * dpi))
+.report_unwrap_plot <- function(item) {
+  for (i in seq_len(8L)) {
+    if (inherits(item, c("ggplot", "plotly", "recordedplot", "grob", "gTree", "gtable"))) return(item)
+    if (isS4(item) && "result" %in% methods::slotNames(item)) {
+      item <- methods::slot(item, "result")
+    } else if (is.list(item) && !is.null(item$plot)) {
+      item <- item$plot
+    } else if (is.list(item) && !is.null(item$result) && !is.data.frame(item$result)) {
+      item <- item$result
+    } else break
+  }
+  item
 }
 
-.report_static_plot <- function(item, file, dpi = 300) {
-  p <- item
-  if (isS4(p) && "result" %in% methods::slotNames(p)) p <- methods::slot(p, "result")
-  if (is.list(p) && !is.null(p$plot)) p <- p$plot
-  if (is.list(p) && !is.null(p$result) && !is.data.frame(p$result)) p <- p$result
+.report_hierarchy_fallback <- function(plot) {
+  traces <- plot$x$data
+  if (requireNamespace("plotly", quietly = TRUE)) {
+    traces <- tryCatch(plotly::plotly_build(plot)$x$data, error = function(e) traces)
+  }
+  for (trace in traces) {
+    if (!identical(trace$type, "sunburst")) next
+    labels <- as.character(unlist(trace$labels))
+    parents <- as.character(unlist(trace$parents))
+    ids <- as.character(unlist(trace$ids))
+    values <- suppressWarnings(as.numeric(unlist(trace$values)))
+    if (!length(labels) || length(parents) != length(labels) || length(values) != length(labels)) next
+    if (length(ids) != length(labels)) ids <- labels
+    roots <- which(!is.na(parents) & !nzchar(parents))
+    selected <- if (length(roots) == 1L && any(parents %in% ids[roots])) which(parents %in% ids[roots]) else roots
+    selected <- selected[is.finite(values[selected]) & values[selected] > 0 & !is.na(labels[selected])]
+    if (!length(selected)) next
+    selected <- utils::head(selected[order(-values[selected], labels[selected])], 12L)
+    df <- data.frame(Label = factor(seq_along(selected), levels = rev(seq_along(selected))), Value = values[selected])
+    names_by_id <- stats::setNames(stringr::str_wrap(labels[selected], 40L), seq_along(selected))
+    return(ggplot2::ggplot(df, ggplot2::aes(x = .data$Label, y = .data$Value)) +
+      ggplot2::geom_col(fill = "#246080", width = 0.65) + ggplot2::coord_flip() +
+      ggplot2::scale_x_discrete(labels = names_by_id) +
+      ggplot2::labs(x = NULL, y = "Stored branch value", title = "Hierarchy: top-level branches",
+        subtitle = "Static summary of up to 12 branches; full interactive hierarchy remains in HTML") +
+      ggplot2::theme_minimal(base_size = 11))
+  }
+  NULL
+}
+
+.report_prepare_figure <- function(item, file, dpi = 300, height = 4.6) {
+  if (.report_static_plot(item, file, dpi, height = height)) return(list(path = file, note = NULL))
+  p <- .report_unwrap_plot(item)
+  if (inherits(p, "plotly")) {
+    fallback <- .report_hierarchy_fallback(p)
+    if (!is.null(fallback) && .report_static_plot(fallback, file, dpi, height = height)) {
+      return(list(path = file, note = "Static Plotly export was unavailable. This figure summarizes stored top-level hierarchy branch values; it does not reproduce the interactive sunburst. These values are not inferred candidate counts."))
+    }
+  }
+  list(path = NULL, note = "Static figure export is unavailable for this stored visualization. Inspect its interactive version in the HTML report or original object.")
+}
+
+.report_stored_figure_blocks <- function(plots, index) {
+  blocks <- list(comparison = character(), annotation = character(), enrichment = character())
+  for (i in seq_along(plots)) {
+    key <- names(plots)[i]
+    if (is.null(key) || is.na(key) || !nzchar(key)) key <- paste("Stored figure", i)
+    section <- if (key %in% c("drug_indications", "drug_status", "drug_similarity", "drug_hierarchy")) "annotation" else if (key %in% c("enriched_terms", "functional_enrichment")) "enrichment" else "comparison"
+    title <- .report_visualization_title(key)
+    height <- if (key %in% c("rank_agreement", "rank_distribution_scatter", "drug_hierarchy", "enriched_terms")) 5.2 else 4.4
+    caption <- paste0(title, ". Stored pipeline visualization; candidate scope and thresholds follow the original plot and may differ from the report Top-N.")
+    blocks[[section]] <- c(blocks[[section]],
+      sprintf("```{r stored-figure-%d-%d, results='asis', fig.height=%s, fig.cap=%s}", index, i, height, encodeString(caption, quote = '"')),
+      sprintf("image_file <- paste0(knitr::opts_chunk$get('fig.path'), 'stored-%d-%d.png')", index, i),
+      "dir.create(dirname(image_file), recursive = TRUE, showWarnings = FALSE)",
+      sprintf("prepared <- prepare_figure(pdf_models[[%d]]$plots[[%d]], image_file, height = %s)", index, i, height),
+      "if (!is.null(prepared$path)) knitr::include_graphics(prepared$path)",
+      sprintf("if (!is.null(prepared$note)) cat(paste0('\\n\\n', %s, ': ', prepared$note, '\\n\\n'))", encodeString(title, quote = '"')),
+      "```", "")
+  }
+  blocks
+}
+
+.report_plotly_export <- function(plot, file, dpi = 300, width = 7, height = 4.6) {
+  if (!requireNamespace("plotly", quietly = TRUE)) stop("Plotly is unavailable.")
+  suppressWarnings(plotly::save_image(plot, file = file, width = width * dpi, height = height * dpi))
+}
+
+.report_static_plot <- function(item, file, dpi = 300, width = 7, height = 4.6) {
+  p <- .report_unwrap_plot(item)
   tryCatch({
     if (inherits(p, "plotly")) {
-      .report_plotly_export(p, file, dpi)
+      .report_plotly_export(p, file, dpi, width, height)
     } else if (inherits(p, "ggplot")) {
       p <- p + ggplot2::theme(plot.margin = ggplot2::margin(12, 18, 12, 12), text = ggplot2::element_text(size = 11))
-      ggplot2::ggsave(file, p, width = 7, height = 4.6, units = "in", limitsize = TRUE, dpi = dpi)
+      ggplot2::ggsave(file, p, width = width, height = height, units = "in", limitsize = TRUE, dpi = dpi)
     } else if (inherits(p, "recordedplot")) {
-      grDevices::png(file, width = 7, height = 4.6, units = "in", res = dpi)
+      grDevices::png(file, width = width, height = height, units = "in", res = dpi)
       tryCatch(grDevices::replayPlot(p), finally = grDevices::dev.off())
+    } else if (inherits(p, c("grob", "gTree", "gtable"))) {
+      ggplot2::ggsave(file, p, width = width, height = height, units = "in", limitsize = TRUE, dpi = dpi)
     } else return(FALSE)
     file.exists(file) && file.info(file)$size > 0
   }, error = function(e) FALSE)
@@ -334,28 +410,20 @@
     group_shown <- sum(top$CRank == cutoff, na.rm = TRUE)
     lines <- c(lines, text(sprintf("At the displayed CRank cutoff (%s), %d of %d tied candidates are shown. The fixed Top-N display does not expand ties; omitted tied candidates remain in the complete results.", format(cutoff, trim = TRUE), group_shown, group_total)))
   }
+  plots <- .report_visualization_items(object$Visualization)
+  stored_figures <- .report_stored_figure_blocks(plots, index)
   agreement <- .report_agreement(all)
   lines <- c(lines, heading("Method Comparison and Visualizations"), text("Pairwise Spearman correlation is computed across candidates with finite positive ranks in both methods, using average ranks for correlation ties. This diagnostic does not alter prioritization. A coefficient is unavailable for fewer than three shared candidates or a constant ranking."), table(transform(agreement, Spearman = round(Spearman, 3L)), c(0.55, 0.15, 0.3)))
   # The full-rank scatter adds distribution and tie structure, rather than
   # repeating the coefficients or the Top-N candidate table in a heatmap.
-  if (sum(is.finite(all$CRank) & all$CRank > 0 & is.finite(all$Dowdall) & all$Dowdall > 0) >= 3L) {
+  if (!any(names(plots) %in% c("rank_distribution_scatter", "rank_distribution")) && sum(is.finite(all$CRank) & all$CRank > 0 & is.finite(all$Dowdall) & all$Dowdall > 0) >= 3L) {
     lines <- c(lines,
       sprintf("```{r rank-scatter-%d, fig.height=3.6, fig.cap='Stored CRank versus Dowdall ranks across all candidates with valid ranks in both methods. The diagonal marks equal ranks; vertical bands reveal CRank ties. Points may overlap.'}", index),
       sprintf("ranks <- pdf_models[[%d]]$ranks", index),
       "ok <- is.finite(ranks$CRank) & ranks$CRank > 0 & is.finite(ranks$Dowdall) & ranks$Dowdall > 0",
       "ggplot2::ggplot(ranks[ok, ], ggplot2::aes(x = .data$CRank, y = .data$Dowdall)) + ggplot2::geom_abline(slope = 1, intercept = 0, colour = 'grey65', linewidth = 0.4) + ggplot2::geom_point(colour = '#246080', alpha = 0.4, size = 1.2) + ggplot2::labs(x = 'CRank (smaller is better)', y = 'Dowdall rank (smaller is better)') + ggplot2::theme_minimal(base_size = 11)", "```", "")
   }
-  # Stored top-hits, overlap, annotation and enrichment figures repeat tables or
-  # have potentially different Top-K scopes. Keep them in HTML and the object.
-  plots <- .report_visualization_items(object$Visualization)
-  keep <- intersect(c("drug_hierarchy"), names(plots))
-  for (key in keep) {
-    lines <- c(lines, sprintf("```{r stored-plot-%d, fig.height=4.2, fig.cap='Stored drug hierarchy visualization. Scope and thresholds follow the original visualization object and may differ from the report Top-N.'}", index),
-      sprintf("image_file <- tempfile(fileext = '.png')"),
-      sprintf("if (static_plot(pdf_models[[%d]]$plots[['%s']], image_file)) {", index, key),
-      "  knitr::include_graphics(image_file)",
-      "} else cat('Static drug hierarchy export unavailable. The interactive visualization remains accessible in the HTML report or original object.\\n')", "```", "")
-  }
+  lines <- c(lines, stored_figures$comparison)
   if (nrow(annotation)) {
     lines <- c(lines, heading("Drug Annotation"), text("Annotations are matched by case-insensitive drug identifier to the displayed candidates only; no synonym expansion is performed. Fields are abridged to 180 characters per cell. Missing values indicate absent annotations, not absence of a biological property. Status and indication describe source annotations and do not establish efficacy for the analyzed condition."))
     cols <- setdiff(names(annotation), "Drug")
@@ -365,10 +433,13 @@
     }, character(1))
     lines <- c(lines, .report_pdf_table(data.frame(Drug = .report_display_ids(annotation$Drug, top$Drug), Annotation = evidence), c(0.3, 0.7)))
   } else lines <- c(lines, heading("Drug Annotation"), text("No supported annotation fields were available for the prioritized candidates. Full annotation payloads, if supplied, remain in the original objects."))
+  lines <- c(lines, stored_figures$annotation)
   if (enrichment$total) {
     lines <- c(lines, heading("Functional Enrichment"), text(sprintf("The %d displayed terms are the smallest stored adjusted p-values across all available libraries (not per library); ties are ordered by library and term. Identical term-library-p-overlap records are collapsed. No additional multiple-testing adjustment is applied. Overlap is reproduced as supplied (usually hit count / term-set size); missing denominators are not inferred.", nrow(enrichment$top))), .report_pdf_table(enrichment$top, c(0.48, 0.16, 0.18, 0.18)), text("Enrichment describes overrepresentation in the supplied gene or target set. Related terms may share genes and are not independent mechanisms. Background, library versions, and the original correction scope must be checked in the source analysis; ranking across libraries does not harmonize their statistical tests."))
   }
-  if (enrichment$total && length(unique(enrichment$all$Library)) > 1L) {
+  if (length(stored_figures$enrichment) && !enrichment$total) lines <- c(lines, heading("Functional Enrichment"))
+  lines <- c(lines, stored_figures$enrichment)
+  if (!length(stored_figures$enrichment) && enrichment$total && length(unique(enrichment$all$Library)) > 1L) {
     lines <- c(lines, sprintf("```{r enrichment-scope-%d, fig.height=3.3, fig.cap='Full enrichment scope by library, including terms outside the displayed shortlist. Counts use stored adjusted p < 0.05 as a descriptive threshold; correction scopes may differ between libraries.'}", index),
       sprintf("terms <- pdf_models[[%d]]$enrichment", index),
       "terms$Threshold <- ifelse(terms[['Adjusted p']] < 0.05, 'Adjusted p < 0.05', 'Adjusted p >= 0.05')",
@@ -435,14 +506,14 @@
   yaml <- c("---", paste0("title: ", quote_yaml(title)), paste0("date: ", quote_yaml(Sys.Date())),
     if (!is.null(author)) paste0("author: ", quote_yaml(author)),
     "documentclass: article", "fontsize: 11pt", if (identical(options$table_orientation, "landscape")) "geometry: [margin=22mm, landscape]" else "geometry: margin=22mm", "colorlinks: true",
-    "output:", "  pdf_document:", paste0("    latex_engine: ", engine), "    keep_tex: true", "    toc: false",
+    "output:", "  pdf_document:", paste0("    latex_engine: ", engine), "    keep_tex: true", "    toc: true", "    toc_depth: 2", "    number_sections: true",
     "header-includes:", "  - \\usepackage{longtable,booktabs,array,needspace,float}",
     "  - \\usepackage[section]{placeins}", "  - \\usepackage{caption}",
     "  - \\captionsetup{font=small,labelfont=bf}", "  - \\setlength{\\parindent}{0pt}",
     "  - \\setlength{\\parskip}{5pt}", "  - \\setlength{\\tabcolsep}{5pt}",
-    "  - \\raggedbottom", "  - \\pagestyle{plain}", "---", "")
+    "  - \\AtBeginDocument{\\hypersetup{bookmarksopen=true,bookmarksnumbered=true}}", "  - \\raggedbottom", "  - \\pagestyle{plain}", "---", "")
   setup <- c("```{r setup, include=FALSE}",
-    sprintf("knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.7, fig.height=4, dpi=%s, fig.align='center', out.width='100%%', fig.pos='H', dev='png')", format(options$figure_dpi, scientific = FALSE)), "```", "")
+    sprintf("knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.7, fig.height=4, dpi=%s, fig.align='center', out.width='100%%', fig.pos='H', dev='png')", format(options$figure_dpi, scientific = FALSE)), "```", "", "\\clearpage", "")
   packages <- c("DrugSigNet", "ggplot2", "rmarkdown", "knitr", "RobustRankAggreg", "reticulate", "plotly")
   versions <- vapply(packages, function(pkg) if (requireNamespace(pkg, quietly = TRUE)) as.character(utils::packageVersion(pkg)) else "Not installed", character(1))
   software <- data.frame(Component = c("R", packages, "LaTeX engine", "Pandoc"), Version = c(R.version.string, versions, engine, as.character(rmarkdown::pandoc_version())))
@@ -450,7 +521,7 @@
   rmd <- paste0(base_name, ".Rmd")
   output <- paste0(base_name, ".pdf")
   writeLines(c(yaml, setup, unlist(lapply(models, `[[`, "lines"), use.names = FALSE), footer), rmd)
-  rmarkdown::render(rmd, output_format = rmarkdown::pdf_document(latex_engine = engine, keep_tex = TRUE), output_file = basename(output),
-    envir = list2env(list(pdf_models = models, static_plot = function(item, file) .report_static_plot(item, file, dpi = options$figure_dpi)), parent = asNamespace("DrugSigNet")), quiet = TRUE)
+  rmarkdown::render(rmd, output_format = rmarkdown::pdf_document(latex_engine = engine, keep_tex = TRUE, toc = TRUE, toc_depth = 2, number_sections = TRUE), output_file = basename(output),
+    envir = list2env(list(pdf_models = models, prepare_figure = function(item, file, height) .report_prepare_figure(item, file, dpi = options$figure_dpi, height = height)), parent = asNamespace("DrugSigNet")), quiet = TRUE)
   invisible(normalizePath(output, winslash = "/", mustWork = FALSE))
 }
