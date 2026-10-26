@@ -1018,3 +1018,25 @@ If DrugSigNet contributes to your analysis or publication, please cite the packa
 ## Issues and feature requests
 
 Please report bugs, questions, and feature requests through [GitHub issues](https://github.com/compneurobio/DrugSigNet/issues).
+
+### Scientific PDF reports
+
+```r
+write_report(result, device = "pdf", file = "DrugSigNet_report",
+             top_n = 20, enrichment_n = 12, supplementary = TRUE)
+```
+
+PDFs summarize retained inputs and methods, present one candidate shortlist,
+limit annotations to that shortlist, and select enrichment terms by stored
+adjusted p-value across libraries. Candidates are displayed by increasing
+CRank, then Dowdall rank, RRA rank, and identifier. Ties retain their original
+values; the fixed-size display does not expand ties at its cutoff. The report
+states how many tied candidates are shown and does not rerun prioritization.
+Long identifiers are explicitly abbreviated in the PDF when necessary.
+
+`supplementary = TRUE` saves the complete original input to
+`DrugSigNet_report_supplementary.rds`, including annotations, parameters, and
+visualizations. `write_results = TRUE` continues to create Excel exports.
+Detailed HTML reports and Shiny dashboards retain their existing behavior.
+PDF generation requires `rmarkdown`, `knitr`, and a LaTeX engine; no additional
+R dependencies are introduced for the scientific layout.

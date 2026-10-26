@@ -46,6 +46,10 @@
   if ("Visualization" %in% object_slots) {
     result$Visualization <- methods::slot(x, "Visualization")
   }
+  for (name in c("metadata", "provenance")) {
+    value <- attr(x, name, exact = TRUE)
+    if (!is.null(value)) result[[name]] <- value
+  }
   result
 }
 
@@ -63,7 +67,7 @@
   lapply(sections, function(section) {
     raw <- result$DrugSearching$Raw[[section]]
     processed <- result$DrugSearching$Processed[[section]]
-    list(
+    expanded <- list(
       DrugSearching = list(
         Raw = if (is.null(raw)) list() else raw,
         Processed = if (is.null(processed)) list() else processed
@@ -73,6 +77,10 @@
       Visualization = result$Visualization[[section]],
       type = if (identical(section, "integrated")) "integration" else section
     )
+    for (name in intersect(c("metadata", "provenance", "parameters"), names(result))) {
+      expanded[[name]] <- result[[name]]
+    }
+    expanded
   })
 }
 
@@ -120,7 +128,15 @@
 #' installed but no LaTeX engine is available, `write_report()` attempts to
 #' install TinyTeX automatically before rendering the PDF.
 #'
-#' The visualization section is generated from every entry in
+#' PDF reports use a concise scientific layout, prioritized annotations, compact
+#' input and parameter summaries, and a report-time software inventory. Stored
+#' ranks are never recalculated. Invalid/nonpositive ranks sort after valid
+#' ranks; candidates without any valid rank are excluded. Full results remain
+#' in the input object or optional supplementary RDS / Excel exports.
+#' Explicit legacy section, orientation, DPI, or table-row controls continue
+#' to select the previous configurable PDF renderer.
+#'
+#' In HTML, the visualization section is generated from every entry in
 #' `object@Visualization$plots`; it is not limited to a fixed set of plot names.
 #' Optional DrugAnnotation and Visualization sections are omitted when those
 #' components are absent from the pipeline result.
@@ -147,7 +163,6 @@
 #'   `"shinydashboard"`.
 #' @param template PDF template. `"scientific"` produces the publication-style
 #'   layout. This argument does not alter HTML or Shiny reports.
-#' @param top_n Number of top candidates to show; one of 10, 20, or 50.
 #' @param include_summary,include_methods,include_interpretation Logical PDF
 #'   section controls.
 #' @param include_reproducibility,include_appendix Logical PDF section controls.
@@ -156,6 +171,14 @@
 #' @param figure_dpi Resolution used for PDF figures.
 #' @param table_rows Maximum rows shown per PDF table. Complete results remain
 #'   in the pipeline object and optional Excel export.
+#'
+#' @param top_n Positive integer number of candidates in the PDF (default 10).
+#'   Selection uses increasing stored CRank, Dowdall, RRA, then identifier;
+#'   ties are preserved and the display does not expand ties at the cutoff.
+#' @param enrichment_n Positive integer number of enrichment terms across all
+#'   libraries in the PDF (default 12), ordered by stored adjusted p-value.
+#' @param supplementary Logical; save the complete original input as a companion
+#'   `_supplementary.rds` file (default `FALSE`).
 #'
 #' @return
 #' Invisibly returns the path to the generated report.
@@ -212,14 +235,25 @@ write_report <- function(object,
                          include_appendix = TRUE,
                          table_orientation = c("auto", "portrait", "landscape"),
                          figure_dpi = 300,
-                         table_rows = 50L) {
+                         table_rows = 50L,
+                         enrichment_n = 12L,
+                         supplementary = FALSE) {
   device <- match.arg(device)
   dashboard <- match.arg(dashboard)
   table_orientation <- match.arg(table_orientation)
   if (!identical(template, "scientific")) stop("`template` must be 'scientific'.", call. = FALSE)
-  if (length(top_n) != 1L || !top_n %in% c(10L, 20L, 50L)) stop("`top_n` must be 10, 20, or 50.", call. = FALSE)
   if (length(figure_dpi) != 1L || !is.finite(figure_dpi) || figure_dpi <= 0) stop("`figure_dpi` must be positive.", call. = FALSE)
   if (length(table_rows) != 1L || !is.finite(table_rows) || table_rows < 1) stop("`table_rows` must be a positive integer.", call. = FALSE)
+
+  for (nm in c("top_n", "enrichment_n")) {
+    value <- get(nm)
+    if (!is.numeric(value) || length(value) != 1L || !is.finite(value) || value < 1 || value != floor(value) || value > .Machine$integer.max) {
+      stop("`", nm, "` must be a positive integer.", call. = FALSE)
+    }
+  }
+  if (!is.logical(supplementary) || length(supplementary) != 1L || is.na(supplementary)) {
+    stop("`supplementary` must be TRUE or FALSE.", call. = FALSE)
+  }
 
   if (is.null(object)) {
     stop("`object` cannot be NULL.", call. = FALSE)
@@ -256,25 +290,26 @@ write_report <- function(object,
     }
   }
 
+  if (isTRUE(supplementary)) saveRDS(object, paste0(base_name, "_supplementary.rds"))
+
   rmd_file <- paste0(base_name, ".Rmd")
   output_file <- paste0(base_name, ".", ifelse(device == "html", "html", "pdf"))
 
   if (device == "pdf") {
-    latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
-    if (!any(nzchar(latex_engines))) {
-      if (requireNamespace("tinytex", quietly = TRUE)) {
-        message("No LaTeX engine found; installing TinyTeX before rendering the PDF report.")
-        try(tinytex::install_tinytex(), silent = TRUE)
-        latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
-      }
-      if (!any(nzchar(latex_engines))) stop("PDF reports require pdflatex, xelatex, or lualatex. Install a TeX distribution (for example TinyTeX) and retry.", call. = FALSE)
+    legacy_controls <- c("include_summary", "include_methods", "include_interpretation",
+                         "include_reproducibility", "include_appendix", "table_orientation",
+                         "figure_dpi", "table_rows")
+    if (any(legacy_controls %in% names(match.call()))) {
+      .report_latex_engine()
+      return(.report_render_scientific_pdf(
+        objects, report_title, author, rmd_file, output_file, as.integer(top_n),
+        include_summary, include_methods, include_interpretation,
+        include_reproducibility, include_appendix, table_orientation,
+        as.integer(figure_dpi), as.integer(table_rows)
+      ))
     }
-    return(.report_render_scientific_pdf(
-      objects, report_title, author, rmd_file, output_file, as.integer(top_n),
-      include_summary, include_methods, include_interpretation,
-      include_reproducibility, include_appendix, table_orientation,
-      as.integer(figure_dpi), as.integer(table_rows)
-    ))
+    return(.write_pdf_report(objects, report_title, base_name, author,
+                             top_n, enrichment_n, supplementary))
   }
 
   if (dashboard == "shinydashboard") {
@@ -1201,38 +1236,6 @@ write_report <- function(object,
   )
 
   writeLines(c(yaml, setup_chunk, style_block, body, footer), con = rmd_file)
-
-  if (device == "pdf") {
-    latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
-    if (!any(nzchar(latex_engines))) {
-      if (requireNamespace("tinytex", quietly = TRUE)) {
-        message("No LaTeX engine found; installing TinyTeX before rendering the PDF report.")
-        install_error <- tryCatch(
-          {
-            tinytex::install_tinytex()
-            NULL
-          },
-          error = function(e) conditionMessage(e)
-        )
-        latex_engines <- Sys.which(c("pdflatex", "xelatex", "lualatex"))
-        if (!is.null(install_error) || !any(nzchar(latex_engines))) {
-          stop(
-            "PDF reports require a LaTeX engine, and automatic TinyTeX installation did not make one available. ",
-            if (!is.null(install_error)) paste0("TinyTeX install error: ", install_error, " ") else "",
-            "Run `tinytex::install_tinytex()` manually or install a system TeX distribution, then rerun `write_report(..., device = 'pdf')`.",
-            call. = FALSE
-          )
-        }
-      } else {
-        stop(
-          "PDF reports require a LaTeX engine, but none of pdflatex, xelatex, or lualatex was found. ",
-          "Install TinyTeX with `install.packages('tinytex'); tinytex::install_tinytex()` ",
-          "or install a system TeX distribution, then rerun `write_report(..., device = 'pdf')`.",
-          call. = FALSE
-        )
-      }
-    }
-  }
 
   render_format <- if (device == "html") "html_document" else "pdf_document"
   rmarkdown::render(

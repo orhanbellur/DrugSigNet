@@ -21,3 +21,4 @@
 ^install\.R$
 ^install-pixi\.R$
 ^install\.sh$
+^work$

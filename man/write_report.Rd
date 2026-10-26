@@ -22,7 +22,9 @@ write_report(
   include_appendix = TRUE,
   table_orientation = c("auto", "portrait", "landscape"),
   figure_dpi = 300,
-  table_rows = 50L
+  table_rows = 50L,
+  enrichment_n = 12L,
+  supplementary = FALSE
 )
 }
 \arguments{
@@ -50,8 +52,6 @@ be exported as Excel files. Default is `FALSE`.}
 
 \item{template}{PDF template. `"scientific"` produces the publication-oriented layout.}
 
-\item{top_n}{Number of top-ranked candidates shown: 10, 20, or 50.}
-
 \item{include_summary, include_methods, include_interpretation}{Logical controls for PDF sections.}
 
 \item{include_reproducibility, include_appendix}{Logical controls for PDF sections.}
@@ -61,6 +61,15 @@ be exported as Excel files. Default is `FALSE`.}
 \item{figure_dpi}{Positive PDF figure resolution in dots per inch.}
 
 \item{table_rows}{Maximum rows shown per PDF table; complete results remain in the pipeline object and optional Excel export.}
+\item{top_n}{Positive integer number of candidates in the PDF (default 10).
+Selection uses increasing stored CRank, Dowdall, RRA, then identifier;
+ties are preserved and the display does not expand ties at the cutoff.}
+
+\item{enrichment_n}{Positive integer number of enrichment terms across all
+libraries in the PDF (default 12), ordered by stored adjusted p-value.}
+
+\item{supplementary}{Logical; save the complete original input as a companion
+`_supplementary.rds` file (default `FALSE`).}
 }
 \value{
 Invisibly returns the path to the generated report.
@@ -91,7 +100,15 @@ Reports can optionally export pipeline results as Excel files using
 installed but no LaTeX engine is available, `write_report()` attempts to
 install TinyTeX automatically before rendering the PDF.
 
-The visualization section is generated from every entry in
+PDF reports use a concise scientific layout, prioritized annotations, compact
+input and parameter summaries, and a report-time software inventory. Stored
+ranks are never recalculated. Invalid/nonpositive ranks sort after valid
+ranks; candidates without any valid rank are excluded. Full results remain
+in the input object or optional supplementary RDS / Excel exports.
+Explicit legacy section, orientation, DPI, or table-row controls continue
+to select the previous configurable PDF renderer.
+
+In HTML, the visualization section is generated from every entry in
 `object@Visualization$plots`; it is not limited to a fixed set of plot names.
 Optional DrugAnnotation and Visualization sections are omitted when those
 components are absent from the pipeline result.
