@@ -68,7 +68,7 @@ pixi_toml="${project_dir}/pixi.toml"
   awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" {
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
-    if (platform == "osx-arm64" && $2 ~ /^bioconductor-/) next
+    if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
@@ -188,11 +188,29 @@ pixi_clean_run git "${clone_args[@]}"
 # Use the Bioconductor release matching the maintained Pixi R 4.5 runtime.
 # Run before building vignettes: they load signatureSearch as well.
 if [[ "${pixi_platform}" == "osx-arm64" ]]; then
-  echo "[DrugSigNet] Installing Apple Silicon Bioconductor dependencies with Pixi R (Bioconductor 3.22)."
+  echo "[DrugSigNet] Configuring Pixi Java and installing Apple Silicon R dependencies."
+  [[ -x "${runtime_prefix}/lib/jvm/bin/java" ]] || {
+    echo "ERROR: Pixi OpenJDK is missing from ${runtime_prefix}/lib/jvm." >&2
+    exit 1
+  }
+  pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm"
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 if (getRversion() < "4.5" || getRversion() >= "4.6") {
   stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
+}
+cran_required <- c("fingerprint", "rcdk")
+cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(cran_missing)) install.packages(cran_missing)
+cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(cran_missing)) {
+  stop("Apple Silicon CRAN installation failed: ", paste(cran_missing, collapse = ", "))
+}
+# Exercise rJava/CDK as well as namespace loading before claiming success.
+molecule <- rcdk::parse.smiles("CCO")[[1L]]
+fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
+if (!inherits(fingerprint, "fingerprint")) {
+  stop("Apple Silicon CDK fingerprint validation failed.")
 }
 required <- c("signatureSearch", "signatureSearchData")
 BiocManager::install(version = "3.22", ask = FALSE, update = FALSE)

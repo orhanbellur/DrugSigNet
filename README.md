@@ -63,7 +63,7 @@ install_drugsignet_pixi(
 
 The installer provisions the environment, installs DrugSigNet, and validates it. It reuses `pixi.lock` and the existing environment on subsequent runs. HTML vignettes are omitted by default for faster installation; use `build_vignettes = TRUE` if needed.
 
-On Apple Silicon Macs, the installer obtains `signatureSearch` and `signatureSearchData` through Bioconductor 3.22 using the project's R 4.5, because Bioconda does not provide these packages for `osx-arm64`. This step requires internet access and may compile R dependencies. These R installations are outside `pixi.lock`; retain the printed installation logs and package versions when reproducing an analysis. The R version used to launch the installer does not change the project's R version.
+On Apple Silicon Macs, the installer obtains `signatureSearch` and `signatureSearchData` through Bioconductor 3.22 using the project's R 4.5, because Bioconda does not provide these packages for `osx-arm64`. The installer also obtains `rcdk` and its `fingerprint` dependency through CRAN, configures the project's OpenJDK for R, and validates a CDK fingerprint calculation. These steps require internet access and may compile R dependencies. These R installations are outside `pixi.lock`; retain the printed installation logs and package versions when reproducing an analysis. The R version used to launch the installer does not change the project's R version.
 
 The installer configures access from RStudio as well. Restart R if a different Python interpreter was already initialized, and retain the generated `.pixi/` directory and lock file for reproducibility.
 

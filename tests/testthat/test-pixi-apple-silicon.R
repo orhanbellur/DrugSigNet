@@ -13,6 +13,10 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       writeLines(c("#!/bin/sh", "exit 0"), file.path(runtime, name))
       Sys.chmod(file.path(runtime, name), "0755")
     }
+    java <- file.path(dirname(runtime), "lib", "jvm", "bin")
+    dir.create(java, recursive = TRUE)
+    writeLines(c("#!/bin/sh", "exit 0"), file.path(java, "java"))
+    Sys.chmod(file.path(java, "java"), "0755")
     pixi_home <- file.path(project, "fake-pixi")
     dir.create(file.path(pixi_home, "bin"), recursive = TRUE)
     fake <- file.path(pixi_home, "bin", "pixi")
@@ -40,6 +44,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     manifest <- readLines(file.path(project, "pixi.toml"))
     bioc <- grepl('^"bioconductor-', manifest)
     expect_equal(sum(bioc), if (platform == "osx-arm64") 0L else 2L)
+    expect_equal(any(grepl('^"r-rcdk"', manifest)), platform != "osx-arm64")
     script <- file.path(project, "bioconductor.R")
     expect_identical(file.exists(script), platform == "osx-arm64")
     if (platform == "osx-arm64") {
@@ -48,7 +53,11 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       expect_match(code, 'version = "3.22"', fixed = TRUE)
       expect_match(code, '"signatureSearchData"', fixed = TRUE)
       expect_match(code, 'stop("Apple Silicon Bioconductor installation failed:', fixed = TRUE)
+      expect_match(code, 'install.packages(cran_missing)', fixed = TRUE)
+      expect_match(code, 'rcdk::get.fingerprint', fixed = TRUE)
+      expect_match(code, 'stop("Apple Silicon CRAN installation failed:', fixed = TRUE)
       calls <- readLines(file.path(project, "calls"))
+      expect_lt(grep("R CMD javareconf", calls), grep("Rscript --vanilla -$", calls))
       expect_lt(grep("Rscript --vanilla -$", calls), grep("R CMD build", calls))
     }
   }

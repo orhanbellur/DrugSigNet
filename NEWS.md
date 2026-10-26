@@ -6,6 +6,8 @@
 
 - Install signatureSearch and signatureSearchData through Bioconductor 3.22
   inside Pixi R on Apple Silicon, avoiding unavailable Bioconda ARM64 packages.
+- Install rcdk/fingerprint from CRAN on Apple Silicon and validate the Pixi
+  Java connection with a CDK fingerprint calculation.
 - Add a dedicated macOS ARM64 Pixi installation check with vignette builds.
 
 ### Initial release
