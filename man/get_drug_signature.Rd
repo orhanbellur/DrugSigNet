@@ -21,72 +21,72 @@ get_drug_signature(
 \item{drug}{Character string specifying the drug name.}
 
 \item{cell}{Optional character vector specifying one or more cell lines to
-retain. If `NULL`, all matching cell lines are used.}
+retain. If \code{NULL}, all matching cell lines are used.}
 
 \item{profile_ids}{Optional character vector of exact reference-database HDF5
 column names to retain. When supplied, this takes precedence over automatic
-drug matching and `cell` filtering.}
+drug matching and \code{cell} filtering.}
 
-\item{refdb}{Reference database. One of `"cmap"` or `"lincs2"`.}
+\item{refdb}{Reference database. One of \code{"cmap"} or \code{"lincs2"}.}
 
 \item{signature_refdb_mode}{Signature reference database mode. Use
-`"default"` for the default ExperimentHub reference, `"frozen"` for the
-cached Synapse HDF5 reference database, or `"frozen_force"` to redownload
+\code{"default"} for the default ExperimentHub reference, \code{"frozen"} for the
+cached Synapse HDF5 reference database, or \code{"frozen_force"} to redownload
 the frozen database.}
 
 \item{auth_token}{Optional Synapse authentication token used when
-`signature_refdb_mode` requests a frozen database. If `NULL`,
-`SYNAPSE_AUTH_TOKEN` is used.}
+\code{signature_refdb_mode} requests a frozen database. If \code{NULL},
+\code{SYNAPSE_AUTH_TOKEN} is used.}
 
 \item{validate_signature_refdb}{Logical; whether to validate frozen HDF5
-reference databases before use. Default is `TRUE`.}
+reference databases before use. Default is \code{TRUE}.}
 
 \item{gene_map}{Optional data frame mapping gene identifiers. Supported
-columns include Entrez, Ensembl, and gene symbol columns such as `Entrez`,
-`ENTREZID`, `Ensembl`, `ENSEMBL`, `Gene_symbol`, `Symbol`, or `SYMBOL`.}
+columns include Entrez, Ensembl, and gene symbol columns such as \code{Entrez},
+\code{ENTREZID}, \code{Ensembl}, \code{ENSEMBL}, \code{Gene_symbol}, \code{Symbol}, or \code{SYMBOL}.}
 
 \item{n_up}{Optional positive integer specifying the number of top
-up-regulated genes to return. If `NULL`, no separate up-regulated gene table
+up-regulated genes to return. If \code{NULL}, no separate up-regulated gene table
 is returned.}
 
 \item{n_down}{Optional positive integer specifying the number of top
-down-regulated genes to return. If `NULL`, no separate down-regulated gene
+down-regulated genes to return. If \code{NULL}, no separate down-regulated gene
 table is returned.}
 }
 \value{
 A list containing the drug name, reference database, selected treatment
-profiles, extracted signature table, and optionally `up_genes` and
-`down_genes`.
+profiles, extracted signature table, and optionally \code{up_genes} and
+\code{down_genes}.
 }
 \description{
 Retrieves drug-induced gene expression signatures from CMAP or LINCS2
 reference databases.
 }
 \details{
-`get_drug_signature()` extracts perturbation profiles for a specified drug
+\code{get_drug_signature()} extracts perturbation profiles for a specified drug
 from CMAP or LINCS2 reference databases. By default, all matching treatment
 profiles are used.
 
-Profile selection can be restricted with `cell` or `profile_ids`. For CMAP,
-`cell` may contain one or more cell lines; the requested cell order is
+Profile selection can be restricted with \code{cell} or \code{profile_ids}. For CMAP,
+\code{cell} may contain one or more cell lines; the requested cell order is
 preserved so the resulting profile collapse matches cell-restricted legacy
-analyses. For LINCS2, `profile_ids` can be used to select exact HDF5 profile
-columns such as `pert_id__cell__type`. When `profile_ids` is supplied, it
+analyses. For LINCS2, \code{profile_ids} can be used to select exact HDF5 profile
+columns such as \code{pert_id__cell__type}. When \code{profile_ids} is supplied, it
 takes precedence over automatic drug and cell matching.
 
 By default, reference data are loaded from ExperimentHub. Frozen Synapse
-reference databases can be used by setting `signature_refdb_mode = "frozen"`
-or `"frozen_force"`. In this case, the corresponding HDF5 reference database
-is downloaded through `load_signature_refdb()` and cached locally.
+reference databases can be used by setting \code{signature_refdb_mode = "frozen"}
+or \code{"frozen_force"}. In this case, the corresponding HDF5 reference database
+is downloaded through \code{load_signature_refdb()} and cached locally.
 
 For LINCS2, drug names are resolved to perturbation identifiers using the
-`lincs_pert_info2` metadata table from the `signatureSearch` package.
+\code{lincs_pert_info2} metadata table from the \code{signatureSearch} package.
 
 Gene identifiers are returned as Entrez IDs and, when available, mapped to
-Ensembl IDs and HGNC gene symbols. A user-supplied `gene_map` is used first;
+Ensembl IDs and HGNC gene symbols. A user-supplied \code{gene_map} is used first;
 missing gene symbols are then resolved through the package fallback mapping.
 
-If `n_up` or `n_down` is supplied, treatment profiles are collapsed per gene
+If \code{n_up} or \code{n_down} is supplied, treatment profiles are collapsed per gene
 by selecting the signed value with the largest absolute magnitude, and the top
 up- or down-regulated genes are returned separately.
 }

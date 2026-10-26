@@ -13,41 +13,43 @@ RRA(
   ties_method = "max",
   reverse = FALSE
 )
+
 \S4method{RRA}{RankAggregation}(object)
 }
 \arguments{
-\item{object}{Optional `RankAggregation` object. For pipe-friendly use, this
-can also be a data frame used as `input_data`.}
+\item{object}{Optional \code{RankAggregation} object. For pipe-friendly use, this
+can also be a data frame used as \code{input_data}.}
 
 \item{input_data}{Data frame containing items and ranking scores. The first
 column should contain item identifiers, and at least two additional columns
 must be numeric.}
 
-\item{full}{Logical; whether to return the full RRA output. Default is
-`TRUE`.}
+\item{full}{Compatibility argument retained in \verb{@parameters}. The current
+implementation always returns \code{Drug}, \code{RRA_pval} and \code{RRA_rank}; changing
+\code{full} does not change the output schema.}
 
 \item{exact}{Logical; whether to calculate exact p-values from rho scores.
-Default is `FALSE`.}
+Default is \code{FALSE}.}
 
 \item{ties_method}{Method used to resolve ties during rank conversion. One of
-`"max"`, `"min"`, `"average"`, `"first"`, `"last"`, `"random"`, or
-`"dense"`. Default is `"max"`.}
+\code{"max"}, \code{"min"}, \code{"average"}, \code{"first"}, \code{"last"}, \code{"random"}, or
+\code{"dense"}. Default is \code{"max"}.}
 
-\item{reverse}{Logical; if `FALSE`, smaller input values are treated as
+\item{reverse}{Logical; if \code{FALSE}, smaller input values are treated as
 better, which is appropriate when numeric columns already represent ranks.
-If `TRUE`, larger input values are treated as better. Default is `FALSE`.}
+If \code{TRUE}, larger input values are treated as better. Default is \code{FALSE}.}
 }
 \value{
-A `RankAggregation` object containing RRA results in `object@result`,
-including `Drug`, `RRA_pval`, and `RRA_rank`.
+A \code{RankAggregation} object containing RRA results in \code{object@result},
+including \code{Drug}, \code{RRA_pval}, and \code{RRA_rank}.
 }
 \description{
 Aggregates multiple ranked drug lists using the Robust Rank Aggregation
 (RRA) algorithm.
 }
 \details{
-`RRA()` combines rankings from at least two numeric columns in `input_data`.
-The first column is treated as the item identifier, typically `Drug`, and the
+\code{RRA()} combines rankings from at least two numeric columns in \code{input_data}.
+The first column is treated as the item identifier, typically \code{Drug}, and the
 remaining numeric columns are converted to ranks before aggregation.
 
 Robust Rank Aggregation identifies items that appear consistently near the top
@@ -57,17 +59,16 @@ ordered. For each item, it calculates a rho score that reflects how
 unexpectedly high the item appears across the input rankings.
 
 In DrugSigNet, ranks are normalized before applying the RRA scoring procedure.
-The resulting rho score is reported as `RRA_pval`, and items with smaller
-`RRA_pval` values receive better final `RRA_rank` values.
+The resulting rho score is reported as \code{RRA_pval}, and items with smaller
+\code{RRA_pval} values receive better final \code{RRA_rank} values.
 
 Missing values are preserved during rank conversion and ignored by the RRA
 scoring procedure. The final output is sorted by increasing RRA p-value.
 
-For pipe-friendly use, a data frame can be supplied as `object`; in that case,
-it is used as `input_data`.
+For pipe-friendly use, a data frame can be supplied as \code{object}; in that case,
+it is used as \code{input_data}.
 }
 \examples{
-\dontrun{
 rank_df <- data.frame(
   Drug = c("drug_a", "drug_b", "drug_c"),
   Method1 = c(1, 2, 3),
@@ -84,7 +85,6 @@ res <- RRA(
 
 # Pipe-friendly use
 res_pipe <- RRA(rank_df, reverse = FALSE)
-}
 
 }
 \references{

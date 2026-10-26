@@ -24,49 +24,49 @@ Harmonic_centrality(
 \S4method{Harmonic_centrality}{NetworkBased}(object)
 }
 \arguments{
-\item{object}{Optional `NetworkBased` object. If `NULL`, a new object is
+\item{object}{Optional \code{NetworkBased} object. If \code{NULL}, a new object is
 created from the supplied network inputs and method parameters.}
 
 \item{ppi_network}{Protein-protein interaction network. Expected to contain
-columns `gene1` and `gene2`. If `NULL`, the default `"gene_gene"` network
+columns \code{gene1} and \code{gene2}. If \code{NULL}, the default \code{"gene_gene"} network
 is loaded.}
 
 \item{drug_target_network}{Drug-target interaction network. Expected to
-contain columns `ID`, `Drug`, `Target`, and `Group`. If `NULL`, the default
-`"drug_target"` network is loaded.}
+contain columns \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL}, the default
+\code{"drug_target"} network is loaded.}
 
 \item{disease_genes}{Data frame containing disease seed genes in a column
-named `gene`.}
+named \code{gene}.}
 
 \item{hub_penalty}{Numeric hub penalty used to reduce the influence of highly
-connected nodes. Default is `0.01`.}
+connected nodes. Default is \code{0.01}.}
 
 \item{max_deg}{Maximum allowed node degree. Nodes with degree greater than
-this value are excluded. If `NULL`, defaults to `.Machine$integer.max`.}
+this value are excluded. If \code{NULL}, defaults to \code{.Machine$integer.max}.}
 
-\item{result_size}{Number of top-ranked results to return. If `NULL`, it is
-inferred from the number of unique drugs in `drug_target_network`.}
+\item{result_size}{Number of top-ranked results to return. If \code{NULL}, it is
+inferred from the number of unique drugs in \code{drug_target_network}.}
 
-\item{target}{Node type to prioritize. Default is `"drug"`.}
+\item{target}{Node type to prioritize. Default is \code{"drug"}.}
 
 \item{include_indirect_drugs}{Logical; whether to include drugs indirectly
-connected to disease genes. Default is `TRUE`.}
+connected to disease genes. Default is \code{TRUE}.}
 
 \item{include_non_approved_drugs}{Logical; whether to include non-approved or
-investigational drugs. Default is `TRUE`.}
+investigational drugs. Default is \code{TRUE}.}
 
 \item{filter_paths}{Logical; whether to restrict graph paths according to the
-backend implementation. Default is `TRUE`.}
+backend implementation. Default is \code{TRUE}.}
 
 \item{force}{Logical; force redownload of default networks from Synapse
 instead of using the local cache.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `NetworkBased` object containing harmonic centrality results in
-`object@result` and method parameters in `object@parameters`.
+A \code{NetworkBased} object containing harmonic centrality results in
+\code{object@result} and method parameters in \code{object@parameters}.
 }
 \description{
 Prioritizes candidate drugs or target nodes using harmonic centrality on an
@@ -78,11 +78,11 @@ to reachable nodes. Unlike classical closeness centrality, it remains defined
 in disconnected graphs, making it suitable for fragmented biological networks.
 
 The integrated network is built from a protein-protein interaction network
-(`ppi_network`) and a drug-target interaction network
-(`drug_target_network`). Disease genes are used as seed nodes to identify
-drugs or targets close to the disease module. If either network is `NULL`,
+(\code{ppi_network}) and a drug-target interaction network
+(\code{drug_target_network}). Disease genes are used as seed nodes to identify
+drugs or targets close to the disease module. If either network is \code{NULL},
 the corresponding high-confidence default DrugSigNet network is loaded with
-`load_drugsignet_network()` from the local cache or Synapse.
+\code{load_drugsignet_network()} from the local cache or Synapse.
 
 This implementation follows the network-based drug search setting used in
 CADDIE, where disease seed genes are analyzed on a combined interactome of
@@ -93,6 +93,14 @@ protein-protein and drug-target interactions.
 \item \code{Harmonic_centrality(NetworkBased)}: Implements the Harmonic Centrality calculation for the NetworkCentrality object.
 
 }}
+\section{Result schema}{
+
+\verb{@result} contains \code{Drug} and \code{Score}; higher \code{Score} indicates greater
+method-specific priority. The network pipeline converts scores to
+smaller-is-better ranks before aggregation. The method's score is not a
+probability of therapeutic benefit.
+}
+
 \examples{
 \dontrun{
 disease_genes <- data.frame(
@@ -112,4 +120,7 @@ Hartung M, Anastasi E, Mamdouh ZM, Nogales C, Schmidt HHHW, Baumbach J,
 Zolotareva O, List M. Cancer driver drug interaction explorer.
 \emph{Nucleic Acids Research}. 2022;50(W1):W138-W144.
 \doi{10.1093/nar/gkac384}
+}
+\seealso{
+\code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}}, \code{\link[=load_drugsignet_network]{load_drugsignet_network()}}
 }

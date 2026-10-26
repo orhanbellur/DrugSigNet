@@ -12,16 +12,16 @@ load_signature_refdb(
 )
 }
 \arguments{
-\item{refdb}{Reference database to download. One of `"cmap"` or `"lincs2"`.}
+\item{refdb}{Reference database to download. One of \code{"cmap"} or \code{"lincs2"}.}
 
-\item{force}{Logical; if `TRUE`, redownload the file even when the cached
-Synapse version is current. Default is `FALSE`.}
+\item{force}{Logical; if \code{TRUE}, redownload the file even when the cached
+Synapse version is current. Default is \code{FALSE}.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 
 \item{validate_hdf5}{Logical; whether to validate the cached or downloaded
-file with `rhdf5::h5ls()` before returning it. Default is `TRUE`.}
+file with \code{rhdf5::h5ls()} before returning it. Default is \code{TRUE}.}
 }
 \value{
 Character path to the cached HDF5 reference database.
@@ -31,20 +31,20 @@ Downloads frozen DrugSigNet signature reference databases from Synapse and
 caches them in the user cache directory.
 }
 \details{
-`load_signature_refdb()` retrieves a fixed HDF5 reference database for
+\code{load_signature_refdb()} retrieves a fixed HDF5 reference database for
 signature-based drug searching. The returned file path can be supplied to
-DrugSigNet signature methods, such as `cmap_method()`, `lincs_method()`,
-`gcmap_method()`, and `correlation_method()`, when a reproducible frozen
+DrugSigNet signature methods, such as \code{cmap_method()}, \code{lincs_method()},
+\code{gcmap_method()}, and \code{correlation_method()}, when a reproducible frozen
 reference database is preferred over package defaults.
 
-Cached files are stored under `tools::R_user_dir("DrugSigNet", "cache")`.
+Cached files are stored under \code{tools::R_user_dir("DrugSigNet", "cache")}.
 On each call, the function compares the cached metadata with the current
 Synapse file version. If the cached version is current, the local file is
-reused. If the remote version has changed, or if `force = TRUE`, the file is
+reused. If the remote version has changed, or if \code{force = TRUE}, the file is
 downloaded again and the cache metadata is updated.
 
-When `validate_hdf5 = TRUE`, the downloaded or cached file is checked with
-`rhdf5::h5ls()` before the path is returned.
+When \code{validate_hdf5 = TRUE}, the downloaded or cached file is checked with
+\code{rhdf5::h5ls()} before the path is returned.
 }
 \examples{
 \dontrun{

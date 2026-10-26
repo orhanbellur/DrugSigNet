@@ -176,6 +176,32 @@ setMethod(
 #' Converts raw results from [cmap_method()] into the standardized ranking
 #' format used by the signature pipeline.
 #'
+#' @section Scoring and ties:
+#' For each compound (`pert`), the strongest absolute native score is retained;
+#' equally strong profiles can remain tied. Available cell labels are collapsed.
+#' Retained profiles are ranked by decreasing absolute score before the
+#' method-specific significance gate is applied. A qualifying profile receives
+#' `rank_score = 1 / rank`; other profiles receive zero. Nonzero scores are not
+#' renumbered, so gaps are expected. With `ties_method = "max"`, tied profiles
+#' receive the largest occupied rank. Larger `rank_score` means higher priority.
+#' Direction remains in `trend`; absolute-score priority is not evidence that a
+#' compound reverses disease biology.
+#'
+#' @section Output columns:
+#' The processed table contains `perturbation`, `rank_score`, the native score,
+#' `trend` and `scaled_score`, plus available metadata. Optional annotations are
+#' not manufactured when absent. Equally strong retained profiles may produce
+#' multiple rows for one compound. Harmonize compound identities before scoring;
+#' these helpers do not load a synonym resource or run a reference search.
+#'
+#' @details CMAP requires `pert`, `cell`, `trend`, `raw_score`, `scaled_score`,
+#' `N_upset` and `N_downset`. The first row's summed query-set sizes determine the
+#' KS critical value. The gate is `abs(raw_score)` >= that critical value; the
+#' input `scaled_score` is retained. Supply nonempty, analysis-consistent inputs.
+#'
+#' @seealso [lincs_rank_score()], [gcmap_rank_score()],
+#'   [correlation_rank_score()], [drugSignaturePipeline()]
+#'
 #' @param cmap_signature A data frame of raw CMAP signature results.
 #' @param confidence_level Numeric confidence level for the Kolmogorov-Smirnov
 #'   critical-value cutoff.

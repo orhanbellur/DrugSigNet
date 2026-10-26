@@ -15,14 +15,14 @@ annotate_drugs(
 }
 \arguments{
 \item{object}{Optional input for pipe-friendly workflows. Used only when
-`drugs` is not supplied. Accepts a character vector, a one-column data
-frame, or a data frame containing a `Drug` column.}
+\code{drugs} is not supplied. Accepts a character vector, a one-column data
+frame, or a data frame containing a \code{Drug} column.}
 
 \item{drugs}{Drugs to annotate. Accepts a character vector, a one-column
-data frame, or a data frame containing a `Drug` column.}
+data frame, or a data frame containing a \code{Drug} column.}
 
-\item{source}{Annotation source. One of `"All"`, `"CHEMBL"`,
-`"OpenTargets"`, or `"TTD"`.}
+\item{source}{Annotation source. One of \code{"All"}, \code{"CHEMBL"},
+\code{"OpenTargets"}, or \code{"TTD"}.}
 
 \item{condition}{Optional disease or indication used to retrieve matching
 clinical trial information.}
@@ -30,8 +30,8 @@ clinical trial information.}
 \item{force}{Logical; force refresh of cached annotation resources when
 downloading data from Synapse.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`,
-the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL},
+the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
 A data frame containing one row per drug with all available annotation
@@ -49,7 +49,7 @@ Annotation layers unavailable for the selected source are skipped
 automatically. Available layers include drug synonyms, approval status,
 indications, mechanism of action, blood-brain barrier permeability, ATC
 classification, adverse events, SMILES structures, and clinical trials when
-`condition` is provided.
+\code{condition} is provided.
 }
 \examples{
 \dontrun{

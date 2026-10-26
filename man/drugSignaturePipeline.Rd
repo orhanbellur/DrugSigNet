@@ -27,72 +27,74 @@ drugSignaturePipeline(
 )
 }
 \arguments{
-\item{signature_input}{Data frame with columns `Entrez` and `FC`.}
+\item{signature_input}{Data frame with columns \code{Entrez} and \code{FC}.}
 
 \item{padj}{Optional adjusted p-value threshold passed to supported
-signature-search methods. Default is `NULL`.}
+signature-search methods. Default is \code{NULL}.}
 
-\item{trend}{Optional character filter for perturbation direction. Use `"up"`,
-`"down"`, or `NULL`. Default is `NULL`.}
+\item{trend}{Optional character filter for perturbation direction. Use \code{"up"},
+\code{"down"}, or \code{NULL}. Default is \code{NULL}.}
 
 \item{drug_name_synonym}{Optional drug synonym table used to harmonize drug
-names across signature databases. Must contain `ID`, `Drug`,
-`name_synonym_list`, and `Group` columns. Legacy lowercase `name` and
-`group` column names are also accepted.}
+names across signature databases. Must contain \code{ID}, \code{Drug},
+\code{name_synonym_list}, and \code{Group} columns. Legacy lowercase \code{name} and
+\code{group} column names are also accepted.}
 
 \item{ties_method}{Method used to resolve ranking ties. Common options are
-`"max"`, `"min"`, and `"dense"`. Default is `"max"`.}
+\code{"max"}, \code{"min"}, and \code{"dense"}. Default is \code{"max"}.}
 
-\item{prior}{Numeric prior used by CRank aggregation. Default is `0.093`.}
+\item{prior}{Numeric prior used by CRank aggregation. Default is \code{0.093}.}
 
-\item{num_bin}{Number of bins used by CRank aggregation. Default is `200`.}
+\item{num_bin}{Number of bins used by CRank aggregation. Default is \code{200}.}
 
 \item{n_workers}{Requested worker count. Values above one enable independent
-PSOCK workers within both the CMAP and LINCS2 reference phases. The CMAP phase
-always completes before LINCS2 begins, and workers are recreated between
-batches. Completed methods are checkpointed so a terminated worker causes only
-unfinished methods to be retried sequentially. Parallel runs resolve immutable
-local reference files before workers start. Default is `1`.}
+PSOCK workers within both the CMAP and LINCS2 reference phases. The CMAP
+phase always completes before LINCS2 begins, and workers are recreated
+between batches. Completed methods are checkpointed so a terminated worker
+causes only unfinished methods to be retried sequentially. Parallel runs
+resolve immutable local reference files before workers start. Default is \code{1}.}
 
 \item{chunk_size}{Integer; number of reference signatures processed per
-chunk by each signature-search method. Default is `5000`.}
+chunk by each signature-search method. Default is \code{5000}.}
 
 \item{signature_refdb_mode}{Signature reference database mode. Use
-`"default"` for the default ExperimentHub reference, `"frozen"` for the
-cached Synapse HDF5 reference database, or `"frozen_force"` to redownload
+\code{"default"} for the default ExperimentHub reference, \code{"frozen"} for the
+cached Synapse HDF5 reference database, or \code{"frozen_force"} to redownload
 the frozen database.}
 
 \item{signature_refdb_auth_token}{Optional Synapse authentication token used
-when downloading frozen signature reference databases. If `NULL`,
-`auth_token` or the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+when downloading frozen signature reference databases. If \code{NULL},
+\code{auth_token} or the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 
 \item{validate_signature_refdb}{Logical; whether to validate frozen HDF5
-reference databases before use. Default is `TRUE`.}
+reference databases before use. Default is \code{TRUE}.}
 
-\item{top_k}{Number of top-ranked drugs used for downstream annotation and
-target enrichment. Default is `100`.}
+\item{top_k}{Positive rank threshold for downstream annotation/enrichment.
+The union of drugs with rank <= \code{top_k} in any selected consensus column
+is used; ties and differing methods can select more than \code{top_k} drugs.
+This does not truncate the core ranking tables. Default is \code{100}.}
 
 \item{trial_condition}{Optional condition used to retrieve matching clinical
-trial annotations. Default is `NULL`.}
+trial annotations. Default is \code{NULL}.}
 
 \item{target_id_from}{Optional AnnotationDbi keytype or supported alias
-describing target identifiers used for enrichment. If `NULL`, targets are
+describing target identifiers used for enrichment. If \code{NULL}, targets are
 treated as HGNC symbols unless Ensembl gene IDs are detected.}
 
 \item{force}{Logical; force refresh of Synapse-backed annotation or reference
-resources where supported. Default is `FALSE`.}
+resources where supported. Default is \code{FALSE}.}
 
 \item{auth_token}{Optional Synapse authentication token used by annotation and
 reference database helpers.}
 
-\item{run_drug_annotation}{Logical; if `TRUE`, annotate ranked drugs and run
-target set enrichment. Default is `TRUE`.}
+\item{run_drug_annotation}{Logical; if \code{TRUE}, annotate ranked drugs and run
+target set enrichment. Default is \code{TRUE}.}
 
-\item{run_visualization}{Logical; if `TRUE`, build visualization metadata and
-plots. Default is `TRUE`.}
+\item{run_visualization}{Logical; if \code{TRUE}, build visualization metadata and
+plots. Default is \code{TRUE}.}
 }
 \value{
-A `DrugSearchingPipeline` S4 object containing raw signature-search results,
+A \code{DrugSearchingPipeline} S4 object containing raw signature-search results,
 processed rankings, rank aggregation results, and optionally drug annotation
 and visualization sections.
 }
@@ -101,30 +103,43 @@ Runs a complete signature-based drug repurposing workflow from differential
 expression input.
 }
 \details{
-`drugSignaturePipeline()` performs signature-based drug searching using
+\code{drugSignaturePipeline()} performs signature-based drug searching using
 multiple methods, including CMAP, LINCS, gCMAP, and correlation-based search.
 The resulting method-specific drug rankings are harmonized and integrated
 using rank aggregation methods.
 
-The input `signature_input` should contain two columns: `Entrez`, containing
-Entrez gene identifiers, and `FC`, containing fold-change values, typically
+The input \code{signature_input} should contain two columns: \code{Entrez}, containing
+Entrez gene identifiers, and \code{FC}, containing fold-change values, typically
 log2 fold changes. Positive and negative fold changes are used to define
 up- and down-regulated gene sets.
 
-Drug names can optionally be harmonized using `drug_name_synonym`. When
+Drug names can optionally be harmonized using \code{drug_name_synonym}. When
 provided, the synonym table is standardized internally and used to map
 perturbation names across reference databases.
 
 Frozen signature reference databases can be used by setting
-`signature_refdb_mode = "frozen"` or `"frozen_force"`. In this case,
-reference databases are downloaded through `load_signature_refdb()` and
+\code{signature_refdb_mode = "frozen"} or \code{"frozen_force"}. In this case,
+reference databases are downloaded through \code{load_signature_refdb()} and
 cached locally using the supplied Synapse authentication token.
 
-If `run_drug_annotation = TRUE`, top-ranked drugs are annotated and target set
-enrichment analysis is performed using targets of the selected `top_k` drugs.
-If `run_visualization = TRUE`, visualization-ready outputs are added to the
+If \code{run_drug_annotation = TRUE}, top-ranked drugs are annotated and target set
+enrichment analysis is performed using targets of the selected \code{top_k} drugs.
+If \code{run_visualization = TRUE}, visualization-ready outputs are added to the
 returned pipeline object.
 }
+\section{Reference identity and completeness}{
+
+With multiple workers, default mode resolves frozen local reference files
+before dispatch. Frozen LINCS2 perturbation IDs are normalized to compound
+names before filtering and scoring; unmapped IDs remain distinct. Cache
+contents can refresh when remote versions change, so retain versions/checksums.
+Some failed searches can be skipped and unavailable families omitted from
+aggregation. A warning/partial result is not a successful complete analysis:
+inspect raw/processed method names, aggregation inputs and CRank convergence.
+Expected aggregation first combines references within each family, then family
+consensus ranks using the matching CRank, Dowdall or RRA method.
+}
+
 \examples{
 \dontrun{
 signature_input <- data.frame(
@@ -147,4 +162,8 @@ res_frozen <- drugSignaturePipeline(
 )
 }
 
+}
+\seealso{
+\code{\link[=cmap_rank_score]{cmap_rank_score()}}, \code{\link[=drugRepurposingPipeline]{drugRepurposingPipeline()}},
+\code{\link[=integrateSignatureNetwork]{integrateSignatureNetwork()}}, \code{\link[=write_report]{write_report()}}
 }

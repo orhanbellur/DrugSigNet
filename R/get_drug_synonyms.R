@@ -19,7 +19,8 @@
 #' sources. Annotation resources are loaded from the local cache or Synapse using
 #' `force` and `auth_token`.
 #'
-#' @inheritParams annotate_drugs
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @param source Annotation source. One of `"All"`, `"OpenTargets"`,
 #'   `"CHEMBL"`, or `"TTD"`. Default is `"All"`.
 #'

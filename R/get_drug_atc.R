@@ -10,10 +10,6 @@
 #' returns a `DrugAnnotation` object with ATC information stored in
 #' `object@result`.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' Supported sources are `"All"`, `"WHO"`, and `"CHEMBL"`. Returned annotations
 #' may include ATC codes and descriptions across hierarchy levels 1 to 5,
 #' depending on the selected source.
@@ -21,7 +17,8 @@
 #' Multiple ATC classifications may be associated with a single drug across
 #' sources; these are collapsed with `|` by the shared annotation helpers.
 #'
-#' @inheritParams annotate_drugs
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @param source Annotation source. One of `"All"`, `"WHO"`, or `"CHEMBL"`.
 #'   Default is `"All"`.
 #'

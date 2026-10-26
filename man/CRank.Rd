@@ -14,40 +14,44 @@ CRank(
   num_iter = 1000,
   reverse = FALSE
 )
+
 \S4method{CRank}{RankAggregation}(object)
 }
 \arguments{
-\item{object}{Optional `RankAggregation` object. For pipe-friendly use, this
-can also be a data frame used as `input_data`.}
+\item{object}{Optional \code{RankAggregation} object. For pipe-friendly use, this
+can also be a data frame used as \code{input_data}.}
 
 \item{input_data}{Data frame containing items and ranking scores. The first
 column should contain item identifiers, and at least two additional columns
 must be numeric.}
 
 \item{ties_method}{Method used to resolve ties during rank conversion. One of
-`"max"`, `"min"`, `"average"`, `"first"`, `"last"`, `"random"`, or
-`"dense"`. Default is `"max"`.}
+\code{"max"}, \code{"min"}, \code{"average"}, \code{"first"}, \code{"last"}, \code{"random"}, or
+\code{"dense"}. Default is \code{"max"}.}
 
-\item{prior}{Numeric prior used by CRank. Default is `0.093`.}
+\item{prior}{Fraction defining the temporary high-confidence group. Its size
+is \code{floor(nrow(input_data) * prior)}; use settings giving a nonempty group
+smaller than the candidate universe. Default is \code{0.093}.}
 
-\item{num_bin}{Number of bins used by CRank. Default is `200`.}
+\item{num_bin}{Number of bins used by CRank; at least three are needed by
+the smoothing step. Default is \code{200}.}
 
-\item{num_iter}{Number of CRank iterations. Default is `1000`.}
+\item{num_iter}{Number of CRank iterations. Default is \code{1000}.}
 
-\item{reverse}{Logical; if `TRUE`, smaller input values are treated as better,
+\item{reverse}{Logical; if \code{TRUE}, smaller input values are treated as better,
 which is appropriate when numeric columns already represent ranks. If
-`FALSE`, larger input values are treated as better. Default is `FALSE`.}
+\code{FALSE}, larger input values are treated as better. Default is \code{FALSE}.}
 }
 \value{
-A `RankAggregation` object containing the aggregated CRank results in
-`object@result` and convergence information in `object@parameters`.
+A \code{RankAggregation} object containing the aggregated CRank results in
+\code{object@result} and convergence information in \code{object@parameters}.
 }
 \description{
 Aggregates multiple ranked drug lists using the CRank algorithm.
 }
 \details{
-`CRank()` combines rankings from at least two numeric columns in `input_data`.
-The first column is treated as the item identifier, typically `Drug`, and the
+\code{CRank()} combines rankings from at least two numeric columns in \code{input_data}.
+The first column is treated as the item identifier, typically \code{Drug}, and the
 remaining numeric columns are converted to ranks before running the
 Python-based CRank implementation.
 
@@ -64,9 +68,20 @@ single consensus ranking.
 Missing numeric values are replaced with zero before ranking. Values equal to
 zero are treated as unranked entries and remain zero in the CRank input.
 
-For pipe-friendly use, a data frame can be supplied as `object`; in that case,
-it is used as `input_data`.
+For pipe-friendly use, a data frame can be supplied as \code{object}; in that case,
+it is used as \code{input_data}.
 }
+\section{Input and interpretation}{
+
+Use positive ranks or nonnegative priority scores; do not pass signed native
+connectivity scores directly. An all-nonpositive input uses the no-evidence
+fallback. \code{reverse = TRUE} is appropriate for smaller-is-better ranks, whereas
+Dowdall and RRA use the opposite convention. Returned rows need not be sorted;
+explicitly order by \code{CRank} before selecting candidates. Ties are retained and
+consensus is not experimental validation. Configure Python with
+\code{\link[=setup_python_dependencies]{setup_python_dependencies()}} before running this method.
+}
+
 \examples{
 \dontrun{
 rank_df <- data.frame(
@@ -78,14 +93,14 @@ rank_df <- data.frame(
 res <- CRank(
   input_data = rank_df,
   ties_method = "max",
-  prior = 0.093,
-  num_bin = 200,
+  prior = 0.5, # one high-confidence item in this three-item toy input
+  num_bin = 3,
   num_iter = 1000,
   reverse = TRUE
 )
 
 # Pipe-friendly use
-res_pipe <- CRank(rank_df, reverse = TRUE)
+res_pipe <- CRank(rank_df, prior = 0.5, num_bin = 3, reverse = TRUE)
 }
 
 }
@@ -93,4 +108,7 @@ res_pipe <- CRank(rank_df, reverse = TRUE)
 Zitnik M, Sosič R, Leskovec J. Prioritizing network communities.
 \emph{Nature Communications}. 2018;9:2544.
 \doi{10.1038/s41467-018-04948-5}
+}
+\seealso{
+\code{\link[=Dowdall]{Dowdall()}}, \code{\link[=RRA]{RRA()}}, \code{\link[=optimize_parameters]{optimize_parameters()}}
 }

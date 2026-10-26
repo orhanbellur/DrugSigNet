@@ -13,28 +13,28 @@ check_drugsignet_installation(
 )
 }
 \arguments{
-\item{check_python}{Logical; if `TRUE`, check Python modules used by
-DrugSigNet through `reticulate`.}
+\item{check_python}{Logical; if \code{TRUE}, check Python modules used by
+DrugSigNet through \code{reticulate}.}
 
-\item{check_synapser}{Logical; if `TRUE`, require the optional `synapser`
+\item{check_synapser}{Logical; if \code{TRUE}, require the optional \code{synapser}
 package to be installed and loadable.}
 
-\item{check_optional}{Logical; if `TRUE`, check optional report-generation
-packages such as `kableExtra` and `tinytex`.}
+\item{check_optional}{Logical; if \code{TRUE}, check optional report-generation
+packages such as \code{kableExtra} and \code{tinytex}.}
 
-\item{install_missing_synapser}{Logical; if `TRUE` and `check_synapser = TRUE`,
-attempt to install/load `synapser` through the DrugSigNet Synapse helper
+\item{install_missing_synapser}{Logical; if \code{TRUE} and \code{check_synapser = TRUE},
+attempt to install/load \code{synapser} through the DrugSigNet Synapse helper
 before reporting check results.}
 
-\item{stop_on_error}{Logical; if `TRUE`, stop when any requested check fails.}
+\item{stop_on_error}{Logical; if \code{TRUE}, stop when any requested check fails.}
 }
 \value{
-A list with logical `ok` plus data frames for package, function, and Python
+A list with logical \code{ok} plus data frames for package, function, and Python
 module checks.
 }
 \description{
 Performs a lightweight post-installation smoke check for DrugSigNet. This is
-useful after installing from Git with `remotes::install_git()` to confirm that
+useful after installing from Git with \code{remotes::install_git()} to confirm that
 core R dependencies, key exported functions, optional Synapse support, and
 Python modules used by reticulate-backed workflows are available.
 }

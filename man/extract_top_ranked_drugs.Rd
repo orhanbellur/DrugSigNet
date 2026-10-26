@@ -14,35 +14,37 @@ get_top_union_drugs(df, rank_cols, top_n = 100, id_col = "Drug")
 numeric rank columns.}
 
 \item{rank_cols}{Character vector of rank columns to evaluate. Missing
-columns are ignored. If `NULL`, all numeric columns except `id_col` are
+columns are ignored. If \code{NULL}, all numeric columns except \code{id_col} are
 used.}
 
 \item{top_n}{Positive integer number of top-ranked entries to keep per rank
-column. Default is `100`.}
+column. Default is \code{100}.}
 
-\item{id_col}{Name of the drug identifier column. Default is `"Drug"`.}
+\item{id_col}{Name of the drug identifier column. Default is \code{"Drug"}.}
 }
 \value{
 A data frame containing one row per selected drug, the identifier column, and
-the selected rank columns. \code{get_top_union_drugs()} returns a one-column
-data frame containing the unique selected drug identifiers.
+the selected rank columns.
+
+\code{get_top_union_drugs()} returns a one-column data frame containing
+the unique selected drug identifiers.
 }
 \description{
-Extracts the union of drugs ranked within the top `top_n` in one or more
+Extracts the union of drugs ranked within the top \code{top_n} in one or more
 selected rank columns.
 }
 \details{
-`extract_top_ranked_drugs()` is used to collect drugs that appear among the
+\code{extract_top_ranked_drugs()} is used to collect drugs that appear among the
 top-ranked candidates in at least one ranking method. A drug is retained if
-any selected rank column is less than or equal to `top_n`.
+any selected rank column is less than or equal to \code{top_n}.
 
 If multiple rows are present for the same drug, the function returns one row
 per drug and keeps the minimum rank observed for each selected rank column.
-Missing rank columns are ignored. If `rank_cols = NULL`, all numeric columns
+Missing rank columns are ignored. If \code{rank_cols = NULL}, all numeric columns
 except the identifier column are used.
 
-`get_top_union_drugs()` is a convenience wrapper that returns only the unique
-drug identifiers from `extract_top_ranked_drugs()`.
+\code{get_top_union_drugs()} is a convenience wrapper that returns only the unique
+drug identifiers from \code{extract_top_ranked_drugs()}.
 }
 \examples{
 rank_df <- data.frame(

@@ -6,35 +6,38 @@
 \title{Extract Blood-Brain Barrier Permeability Information}
 \usage{
 get_drug_bbb(object = NULL, drugs = NULL, force = FALSE, auth_token = NULL)
+
 \S4method{get_drug_bbb}{DrugAnnotation}(object)
 }
 \arguments{
-\item{object}{Optional input for pipe-friendly workflows. Used only when
-`drugs` is not supplied. Accepts a character vector, a one-column data
-frame, or a data frame containing a `Drug` column.}
+\item{object}{Optional \code{DrugAnnotation} object. For pipe-friendly use when
+\code{drugs} is omitted, a character vector or exactly one-column data frame
+can be supplied instead. When passing a \code{DrugAnnotation} instance, also
+supply \code{drugs}.}
 
-\item{drugs}{Drugs to annotate. Accepts a character vector, a one-column
-data frame, or a data frame containing a `Drug` column.}
+\item{drugs}{Character vector of drug names or a data frame with exactly one
+column. For a multi-column candidate table, extract its drug-name column
+first, for example \code{candidates$Drug}.}
 
 \item{force}{Logical; force refresh of cached annotation resources when
 downloading data from Synapse.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`,
-the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL},
+the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `DrugAnnotation` object containing a data frame of BBB permeability
-annotations in `object@result`.
+A \code{DrugAnnotation} object containing a data frame of BBB permeability
+annotations in \code{object@result}.
 }
 \description{
 Retrieves blood-brain barrier permeability annotations for one or more drugs
 from curated DrugSigNet BBB annotation data.
 }
 \details{
-`get_drug_bbb()` extracts blood-brain barrier permeability classifications
+\code{get_drug_bbb()} extracts blood-brain barrier permeability classifications
 for the supplied drugs. The function accepts a character vector or a
-one-column data frame and returns a `DrugAnnotation` object with BBB
-information stored in `object@result`.
+one-column data frame and returns a \code{DrugAnnotation} object with BBB
+information stored in \code{object@result}.
 
 BBB annotations are derived from the Brain-Blood Barrier Database (B3DB), a
 curated molecular database compiled from experimentally measured
@@ -43,18 +46,23 @@ DrugSigNet processes these records into a drug-level annotation resource by
 collapsing multiple records for the same drug and retaining BBB
 classifications together with supporting metadata.
 
-Drug matching is performed by drug name and is case-insensitive through the
-shared annotation-matching helpers. Annotation resources are loaded from the
-local cache or Synapse using `force` and `auth_token`.
-
-The returned annotation may include `BBB_class` together with available
+The returned annotation may include \code{BBB_class} together with available
 supporting metadata such as compound identifiers, PubChem CID, SMILES,
 logBB values, decision thresholds, reference identifiers, data group, and
 comments.
 
 Multiple BBB annotations may be associated with a single drug; these are
-collapsed with `|` by the shared annotation helpers.
+collapsed with \code{|} by the shared annotation helpers.
 }
+\section{Matching and resources}{
+
+Matching is case-insensitive by default; trials expose \code{ignore_case}.
+Missing annotations mean missing source coverage,
+not evidence that a biological property is absent. Resource tables are resolved
+from the cache or Synapse; \code{force} and \code{auth_token} control resource retrieval.
+Keep the returned object and resource provenance with the analysis.
+}
+
 \examples{
 \dontrun{
 res <- get_drug_bbb(

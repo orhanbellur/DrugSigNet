@@ -7,7 +7,7 @@
 validateInputs(object)
 }
 \arguments{
-\item{object}{Optional `NetworkBased` object. If `NULL`, a new object is
+\item{object}{Optional \code{NetworkBased} object. If \code{NULL}, a new object is
 created from the supplied network inputs and method parameters.}
 }
 \value{

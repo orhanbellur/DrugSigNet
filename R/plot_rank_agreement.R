@@ -33,7 +33,6 @@
 #'   `top_k`.
 #'
 #' @examples
-#' \dontrun{
 #' rank_df <- data.frame(
 #'   Drug = c("drug_a", "drug_b", "drug_c", "drug_d"),
 #'   Method1 = c(1, 2, 3, 4),
@@ -49,7 +48,6 @@
 #'
 #' res$plot
 #' res$cor_matrix
-#' }
 #'
 #' @importFrom ggplot2 ggplot aes geom_tile geom_text geom_point scale_fill_gradient2 scale_shape_manual guides guide_legend coord_fixed theme_minimal theme element_text element_blank labs ggsave
 #' @importFrom stringr str_to_title

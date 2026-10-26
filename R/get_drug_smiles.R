@@ -9,10 +9,6 @@
 #' function accepts a character vector or a one-column data frame and returns a
 #' `DrugAnnotation` object with SMILES information stored in `object@result`.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' Supported sources are `"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"`, and
 #' `"B3DB_classification"`. When `source = "All"`, SMILES annotations are
 #' combined across available sources.
@@ -20,7 +16,10 @@
 #' Multiple SMILES values may be associated with a single drug across sources;
 #' these are collapsed with `|` by the shared annotation helpers.
 #'
-#' @inheritParams annotate_drugs
+#' @param drugs Character vector, factor, or exactly one-column data frame of
+#'   drug names. Extract `candidates$Drug` from a multi-column candidate table.
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @param source Annotation source. One of `"All"`, `"OpenTargets"`,
 #'   `"CHEMBL"`, `"TTD"`, or `"B3DB_classification"`. Default is `"All"`.
 #'

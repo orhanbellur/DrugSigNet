@@ -26,65 +26,65 @@ plot_drug_hierarchy(
 \S4method{plot_drug_hierarchy}{PlotObject}(object)
 }
 \arguments{
-\item{object}{A `PlotObject` containing parameters for the plot.}
+\item{object}{A \code{PlotObject} containing parameters for the plot.}
 
 \item{data_df}{Data frame containing enrichment results.}
 
 \item{hierarchy_cols}{Character vector of columns defining the hierarchy. If
-`NULL`, hierarchy columns are inferred from non-numeric columns.}
+\code{NULL}, hierarchy columns are inferred from non-numeric columns.}
 
 \item{value_col}{Optional numeric column used as the aggregation value. If
-`NULL`, row counts are used unless a count column can be inferred.}
+\code{NULL}, row counts are used unless a count column can be inferred.}
 
 \item{split_cols}{Optional hierarchy columns to split into multiple rows.}
 
-\item{split_pattern}{Regular expression used to split `split_cols`. Default
-is `"\\|"`.}
+\item{split_pattern}{Regular expression used to split \code{split_cols}. Default
+is \code{"\\\\|"}.}
 
 \item{na_label}{Label used for missing or empty hierarchy values. Default is
-`"Unknown"`.}
+\code{"Unknown"}.}
 
-\item{plot_type}{Plot type. One of `"sunburst"` or `"alluvial"`. Default is
-`"sunburst"`.}
+\item{plot_type}{Plot type. One of \code{"sunburst"} or \code{"alluvial"}. Default is
+\code{"sunburst"}.}
 
-\item{layer_order}{Hierarchy order. Use `"outer_to_inner"` to keep
-`hierarchy_cols` as supplied or `"inner_to_outer"` to reverse them.}
+\item{layer_order}{Hierarchy order. Use \code{"outer_to_inner"} to keep
+\code{hierarchy_cols} as supplied or \code{"inner_to_outer"} to reverse them.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{scale}{Image export scale factor for sunburst plots. Default is `5`.}
+\item{scale}{Image export scale factor for sunburst plots. Default is \code{5}.}
 
 \item{colors}{Optional vector of colors for sunburst sectors.}
 }
 \value{
-A plotly sunburst plot when `plot_type = "sunburst"`, or a ggplot alluvial
-plot when `plot_type = "alluvial"`.
+A plotly sunburst plot when \code{plot_type = "sunburst"}, or a ggplot alluvial
+plot when \code{plot_type = "alluvial"}.
 
-A plotly sunburst plot (`plot_type = "sunburst"`) or a ggplot alluvial plot (`plot_type = "alluvial"`).
+A plotly sunburst plot (\code{plot_type = "sunburst"}) or a ggplot alluvial plot (\code{plot_type = "alluvial"}).
 }
 \description{
 Visualizes hierarchical drug annotations as an interactive sunburst chart or
 static alluvial plot.
 }
 \details{
-`plot_drug_hierarchy()` summarizes hierarchical annotation columns such as
+\code{plot_drug_hierarchy()} summarizes hierarchical annotation columns such as
 ATC class, mechanism of action, indication, or drug name. The hierarchy is
-defined by `hierarchy_cols` in outer-to-inner order by default.
+defined by \code{hierarchy_cols} in outer-to-inner order by default.
 
-If `value_col` is `NULL`, row counts are used unless a numeric count column
-such as `N` can be inferred. If `value_col` is supplied, numeric values are
+If \code{value_col} is \code{NULL}, row counts are used unless a numeric count column
+such as \code{N} can be inferred. If \code{value_col} is supplied, numeric values are
 aggregated across hierarchy levels.
 
-Missing or empty hierarchy values are replaced by `na_label`. Values
-containing multiple terms separated by `"|"` or `";"` are reduced to the
+Missing or empty hierarchy values are replaced by \code{na_label}. Values
+containing multiple terms separated by \code{"|"} or \code{";"} are reduced to the
 first term before plotting. Selected hierarchy columns can also be expanded
-with `split_cols`.
+with \code{split_cols}.
 }
 \examples{
 \dontrun{

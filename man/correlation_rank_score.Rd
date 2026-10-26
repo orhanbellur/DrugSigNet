@@ -11,12 +11,44 @@ correlation_rank_score(correlation_signature, n, ties_method = "max")
 
 \item{n}{Number of observations used to calculate correlation significance.}
 
-\item{ties_method}{Character string passed to [base::rank()], or `"dense"`.}
+\item{ties_method}{Character string passed to \code{\link[base:rank]{base::rank()}}, or \code{"dense"}.}
 }
 \value{
 A data frame of standardized correlation rank scores.
 }
 \description{
-Converts raw results from [correlation_method()] into the standardized
+Converts raw results from \code{\link[=correlation_method]{correlation_method()}} into the standardized
 ranking format used by the signature pipeline.
+}
+\details{
+Required columns are \code{pert}, \code{cell}, \code{trend} and \code{cor_score}.
+Use the matched query-gene count for \code{n} (greater than two). Significance is
+computed with a two-sided t approximation with \code{n - 2} degrees of freedom;
+unadjusted p-values <= 0.05 receive nonzero scores. \code{scaled_score} is min-max
+scaled \code{abs(cor_score)}; constant absolute scores yield \code{NaN} scaled values.
+}
+\section{Scoring and ties}{
+
+For each compound (\code{pert}), the strongest absolute native score is retained;
+equally strong profiles can remain tied. Available cell labels are collapsed.
+Retained profiles are ranked by decreasing absolute score before the
+method-specific significance gate is applied. A qualifying profile receives
+\code{rank_score = 1 / rank}; other profiles receive zero. Nonzero scores are not
+renumbered, so gaps are expected. With \code{ties_method = "max"}, tied profiles
+receive the largest occupied rank. Larger \code{rank_score} means higher priority.
+Direction remains in \code{trend}; absolute-score priority is not evidence that a
+compound reverses disease biology.
+}
+
+\section{Output columns}{
+
+The processed table contains \code{perturbation}, \code{rank_score}, the native score,
+\code{trend} and \code{scaled_score}, plus available metadata. Optional annotations are
+not manufactured when absent. Equally strong retained profiles may produce
+multiple rows for one compound. Harmonize compound identities before scoring;
+these helpers do not load a synonym resource or run a reference search.
+}
+
+\seealso{
+\code{\link[=cmap_rank_score]{cmap_rank_score()}}, \code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}
 }

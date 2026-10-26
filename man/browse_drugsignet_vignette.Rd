@@ -7,13 +7,17 @@
 browse_drugsignet_vignette(vignette = "index", launch = TRUE)
 }
 \arguments{
-\item{vignette}{Vignette basename, without \code{.html}. Use \code{"index"} for the complete vignette list.}
+\item{vignette}{Vignette basename, without \code{.html}. Use \code{"index"} for the
+complete vignette list.}
+
 \item{launch}{Logical; open the copied HTML with the configured R viewer.}
 }
-\value{Invisibly, the copied HTML file path.}
+\value{
+Invisibly, the copied HTML file path.
+}
 \description{
 Copies the installed vignette documentation to a session-owned temporary
-directory before opening it. This avoids the RStudio Server \code{/library/}
-route, which can return HTTP 404 for packages installed system-wide even when
-their HTML vignette files exist and are readable from R.
+directory before opening it. This avoids the RStudio Server \verb{/library/}
+route, which can return HTTP 404 for packages installed system-wide even
+when their HTML vignette files exist and are readable from R.
 }

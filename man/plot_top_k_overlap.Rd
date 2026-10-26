@@ -44,72 +44,72 @@ plot_top_k_overlap(
 )
 }
 \arguments{
-\item{object}{Optional `PlotObject`. For pipe-friendly use, a data frame can
-also be supplied as `object` when `drug_ranks_df` is omitted.}
+\item{object}{Optional \code{PlotObject}. For pipe-friendly use, a data frame can
+also be supplied as \code{object} when \code{drug_ranks_df} is omitted.}
 
-\item{drug_ranks_df}{Data frame containing `Drug`, optional `Status`, optional
+\item{drug_ranks_df}{Data frame containing \code{Drug}, optional \code{Status}, optional
 facet columns, and numeric rank columns. Smaller ranks are better.}
 
-\item{top_k}{Positive rank threshold. Default is `100`.}
+\item{top_k}{Positive rank threshold. Default is \code{100}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{status_df}{Optional data frame containing `Drug` and `status_col`.}
+\item{status_df}{Optional data frame containing \code{Drug} and \code{status_col}.}
 
-\item{status_col}{Column in `status_df` containing status labels. Drugs with
-non-missing values are counted in parentheses. Default is `"Status"`.}
+\item{status_col}{Column in \code{status_df} containing status labels. Drugs with
+non-missing values are counted in parentheses. Default is \code{"Status"}.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{label_size}{Text size for heatmap-cell labels. Default is `3`.}
+\item{label_size}{Text size for heatmap-cell labels. Default is \code{3}.}
 
-\item{base_size}{Base text size passed to `ggplot2::theme_minimal()`.
-Default is `11`.}
+\item{base_size}{Base text size passed to \code{ggplot2::theme_minimal()}.
+Default is \code{11}.}
 
-\item{heatmap_type}{Heatmap layout. One of `"triangle"` or `"full"`.
-Default is `"triangle"`.}
+\item{heatmap_type}{Heatmap layout. One of \code{"triangle"} or \code{"full"}.
+Default is \code{"triangle"}.}
 
-\item{split_grouped_drugs}{Logical; if `TRUE`, grouped `Drug` labels are
-expanded using `drug_sep` after top-k selection. Default is `FALSE`.}
+\item{split_grouped_drugs}{Logical; if \code{TRUE}, grouped \code{Drug} labels are
+expanded using \code{drug_sep} after top-k selection. Default is \code{FALSE}.}
 
-\item{drug_sep}{Separator used for grouped drug labels. Default is `"\\|"`.}
+\item{drug_sep}{Separator used for grouped drug labels. Default is \code{"\\\\|"}.}
 
 \item{facet_cols}{Optional character vector of columns used for faceting.}
 
-\item{facet_type}{Faceting mode. One of `"wrap"` or `"grid"`.}
+\item{facet_type}{Faceting mode. One of \code{"wrap"} or \code{"grid"}.}
 
 \item{facet_rows, facet_grid_cols}{Optional row and column facet variables for
-`facet_type = "grid"`.}
+\code{facet_type = "grid"}.}
 
-\item{units}{Units for saved plot dimensions. One of `"in"`, `"cm"`, `"mm"`,
-or `"px"`. Default is `"in"`.}
+\item{units}{Units for saved plot dimensions. One of \code{"in"}, \code{"cm"}, \code{"mm"},
+or \code{"px"}. Default is \code{"in"}.}
 }
 \value{
-A `ggplot` object. The underlying overlap table is available in `plot$data`.
+A \code{ggplot} object. The underlying overlap table is available in \code{plot$data}.
 }
 \description{
 Visualizes pairwise overlap among top-ranked drugs across ranking methods.
 }
 \details{
-`plot_top_k_overlap()` creates a heatmap of pairwise overlap among drugs with
-ranks less than or equal to `top_k`.
+\code{plot_top_k_overlap()} creates a heatmap of pairwise overlap among drugs with
+ranks less than or equal to \code{top_k}.
 
 When status information is available, the value in parentheses gives the
 number of overlapping entries with at least one status-mapped drug. Top-k
 sets are selected before status matching or grouped-drug expansion, so
 annotation does not affect ranking.
 
-When `split_grouped_drugs = FALSE`, a grouped label such as
-`"daratumumab|felzartamab|isatuximab"` remains one overlap unit but is matched
+When \code{split_grouped_drugs = FALSE}, a grouped label such as
+\code{"daratumumab|felzartamab|isatuximab"} remains one overlap unit but is matched
 to status information using its individual members. It therefore contributes
-at most one status-mapped hit. When `TRUE`, grouped labels are expanded after
+at most one status-mapped hit. When \code{TRUE}, grouped labels are expanded after
 top-k selection and individual drugs can contribute separately.
 
-If `status_df` is omitted, a `Status` column in `drug_ranks_df` is used when
+If \code{status_df} is omitted, a \code{Status} column in \code{drug_ranks_df} is used when
 available. Grouped labels in the status reference are expanded internally
 for matching.
 }

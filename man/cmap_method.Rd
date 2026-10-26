@@ -15,39 +15,40 @@ cmap_method(
   auth_token = NULL,
   validate_signature_refdb = TRUE
 )
+
 \S4method{cmap_method}{SignatureBased}(object)
 }
 \arguments{
-\item{object}{Optional `SignatureBased` object. If `NULL`, a new object is
-created from `upset`, `downset`, and `ref_db`.}
+\item{object}{Optional \code{SignatureBased} object. If \code{NULL}, a new object is
+created from \code{upset}, \code{downset}, and \code{ref_db}.}
 
-\item{upset}{Character vector of up-regulated Entrez gene IDs. May be `NULL`
-if `downset` is provided.}
+\item{upset}{Character vector of up-regulated Entrez gene IDs. May be \code{NULL}
+if \code{downset} is provided.}
 
 \item{downset}{Character vector of down-regulated Entrez gene IDs. May be
-`NULL` if `upset` is provided.}
+\code{NULL} if \code{upset} is provided.}
 
-\item{ref_db}{Reference database. Use `"cmap"` or `"lincs2"`, or provide a
-local HDF5 path returned by `load_signature_refdb()` to use a frozen Synapse
+\item{ref_db}{Reference database. Use \code{"cmap"} or \code{"lincs2"}, or provide a
+local HDF5 path returned by \code{load_signature_refdb()} to use a frozen Synapse
 reference database.}
 
 \item{chunk_size}{Integer; number of reference signatures processed per
-chunk. Default is `5000`.}
+chunk. Default is \code{5000}.}
 
 \item{signature_refdb_mode}{Signature reference database mode. Use
-`"default"` for the default ExperimentHub reference, `"frozen"` for the
-cached Synapse HDF5 reference database, or `"frozen_force"` to redownload
+\code{"default"} for the default ExperimentHub reference, \code{"frozen"} for the
+cached Synapse HDF5 reference database, or \code{"frozen_force"} to redownload
 the frozen database.}
 
 \item{auth_token}{Optional Synapse authentication token used when
-`signature_refdb_mode` requests a frozen database. If `NULL`,
-`SYNAPSE_AUTH_TOKEN` is used.}
+\code{signature_refdb_mode} requests a frozen database. If \code{NULL},
+\code{SYNAPSE_AUTH_TOKEN} is used.}
 
 \item{validate_signature_refdb}{Logical; whether to validate frozen HDF5
-reference databases before use. Default is `TRUE`.}
+reference databases before use. Default is \code{TRUE}.}
 }
 \value{
-A `SignatureBased` object containing the CMAP search results and query
+A \code{SignatureBased} object containing the CMAP search results and query
 metadata.
 }
 \description{
@@ -55,15 +56,15 @@ Performs gene expression signature-based drug repurposing using the CMAP
 algorithm.
 }
 \details{
-The query may contain up-regulated genes (`upset`), down-regulated genes
-(`downset`), or both. At least one of `upset` or `downset` must be provided;
-they cannot both be `NULL`.
+The query may contain up-regulated genes (\code{upset}), down-regulated genes
+(\code{downset}), or both. At least one of \code{upset} or \code{downset} must be provided;
+they cannot both be \code{NULL}.
 
-`ref_db` can be `"cmap"` or `"lincs2"`. A local HDF5 path returned by
-`load_signature_refdb()` can also be supplied to use a frozen Synapse
+\code{ref_db} can be \code{"cmap"} or \code{"lincs2"}. A local HDF5 path returned by
+\code{load_signature_refdb()} can also be supplied to use a frozen Synapse
 reference database. Frozen databases can also be fetched directly by setting
-`signature_refdb_mode = "frozen"` or `"frozen_force"` and providing
-`auth_token`.
+\code{signature_refdb_mode = "frozen"} or \code{"frozen_force"} and providing
+\code{auth_token}.
 }
 \examples{
 \dontrun{

@@ -7,7 +7,7 @@
 \format{
 A data frame with one column:
 \describe{
-  \item{gene}{Ensembl gene identifier of a SARS-CoV-2 host protein target.}
+\item{gene}{Ensembl gene identifier of a SARS-CoV-2 host protein target.}
 }
 }
 \source{

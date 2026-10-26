@@ -17,45 +17,45 @@ setup_python_dependencies(
 \arguments{
 \item{envname}{Name of the Python environment to install into.}
 
-\item{method}{Installation backend passed to [reticulate::py_install()].
-One of `"conda"`, `"auto"`, or `"virtualenv"`. The default is `"conda"`.}
+\item{method}{Installation backend passed to \code{\link[reticulate:py_install]{reticulate::py_install()}}.
+One of \code{"conda"}, \code{"auto"}, or \code{"virtualenv"}. The default is \code{"conda"}.}
 
-\item{include_graph_tool}{Logical; whether to attempt installing `graph_tool`.
-The default is `TRUE`. If `TRUE`, `method` must be `"conda"`; DrugSigNet
-installs the `graph-tool` package from the `conda-forge` channel. This is
-automatically changed to `FALSE` on Windows.}
+\item{include_graph_tool}{Logical; whether to attempt installing \code{graph_tool}.
+The default is \code{TRUE}. If \code{TRUE}, \code{method} must be \code{"conda"}; DrugSigNet
+installs the \code{graph-tool} package from the \code{conda-forge} channel. This is
+automatically changed to \code{FALSE} on Windows.}
 
-\item{force}{Logical; if `TRUE`, reinstall requested modules even if already available.}
+\item{force}{Logical; if \code{TRUE}, reinstall requested modules even if already available.}
 
-\item{install_synapser}{Logical; if `TRUE`, install optional Synapse support
-after configuring Python. This mirrors `DRUGSIGNET_INSTALL_SYNAPSER=true`
-in `tools/install_local_drugsignet.R`.}
+\item{install_synapser}{Logical; if \code{TRUE}, install optional Synapse support
+after configuring Python. This mirrors \code{DRUGSIGNET_INSTALL_SYNAPSER=true}
+in \code{tools/install_local_drugsignet.R}.}
 
-\item{write_renviron}{Logical; if `TRUE`, persist the selected Python by
-writing `RETICULATE_PYTHON` to `~/.Renviron`.}
+\item{write_renviron}{Logical; if \code{TRUE}, persist the selected Python by
+writing \code{RETICULATE_PYTHON} to \verb{~/.Renviron}.}
 
-\item{quiet}{Logical; if `FALSE`, prints progress messages.}
+\item{quiet}{Logical; if \code{FALSE}, prints progress messages.}
 }
 \value{
 Invisibly returns a list with requested packages, missing packages prior
-  to install, graph-tool install status, and installation method.
+to install, graph-tool install status, and installation method.
 }
 \description{
-Installs required Python modules for DrugSigNet using `reticulate`.
+Installs required Python modules for DrugSigNet using \code{reticulate}.
 
 By default, this creates a dedicated conda environment containing the core
-Python modules, `kaleido`, and, on supported operating systems, `graph_tool`.
-Native Windows installations skip `graph_tool` because it is unavailable.
-A dedicated environment is necessary because `graph_tool` is distributed by
-conda-forge rather than PyPI. It also prevents reticulate's `uv` environment
-from being initialized before the graph stack has been selected.
+Python modules, \code{kaleido}, and, on supported operating systems, \code{graph_tool}.
+Native Windows installations skip \code{graph_tool} because it is unavailable.
+A dedicated environment is
+necessary because \code{graph_tool} is distributed by conda-forge rather than
+PyPI. It also prevents reticulate's \code{uv} environment from being initialized
+before the graph stack has been selected.
 
-If `RETICULATE_PYTHON` already names an interpreter containing every requested
-module (for example the generated Pixi environment), that runtime is selected
-directly and no Conda or Micromamba environment is created.
-The default \code{~/DrugSigNet-test} Pixi project,
-\code{DRUGSIGNET_PIXI_PROJECT}, and
+If \code{RETICULATE_PYTHON} already names an interpreter containing every
+requested module (for example the generated Pixi environment), that runtime
+is selected directly and no Conda or Micromamba environment is created.
+The default \verb{~/DrugSigNet-test} Pixi project, \code{DRUGSIGNET_PIXI_PROJECT}, and
 \code{options(DrugSigNet.pixi_project = ...)} are discovered automatically.
-Incomplete dedicated Conda environments left by interrupted installations are
-detected and safely recreated before packages are installed.
+Incomplete dedicated Conda environments left by interrupted installations
+are detected and safely recreated before packages are installed.
 }

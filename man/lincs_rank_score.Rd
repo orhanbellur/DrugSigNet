@@ -9,12 +9,56 @@ lincs_rank_score(lincs_signature, ties_method = "max")
 \arguments{
 \item{lincs_signature}{A data frame of raw LINCS signature results.}
 
-\item{ties_method}{Character string passed to [base::rank()], or `"dense"`.}
+\item{ties_method}{Character string passed to \code{\link[base:rank]{base::rank()}}, or \code{"dense"}.}
 }
 \value{
 A data frame of standardized LINCS rank scores.
 }
 \description{
-Converts raw results from [lincs_method()] into the standardized ranking
+Converts raw results from \code{\link[=lincs_method]{lincs_method()}} into the standardized ranking
 format used by the signature pipeline.
+}
+\details{
+Required columns are \code{pert}, \code{cell}, \code{trend}, \code{WTCS} and \code{WTCS_Pval}.
+The BY correction is applied to p-values of the retained strongest profiles;
+only adjusted p-values <= 0.05 receive nonzero scores. \code{scaled_score} is
+min-max-scaled \code{abs(WTCS)}. A constant absolute-score range yields undefined
+(\code{NaN}) scaled values, although reciprocal ranks are still computed.
+}
+\section{Scoring and ties}{
+
+For each compound (\code{pert}), the strongest absolute native score is retained;
+equally strong profiles can remain tied. Available cell labels are collapsed.
+Retained profiles are ranked by decreasing absolute score before the
+method-specific significance gate is applied. A qualifying profile receives
+\code{rank_score = 1 / rank}; other profiles receive zero. Nonzero scores are not
+renumbered, so gaps are expected. With \code{ties_method = "max"}, tied profiles
+receive the largest occupied rank. Larger \code{rank_score} means higher priority.
+Direction remains in \code{trend}; absolute-score priority is not evidence that a
+compound reverses disease biology.
+}
+
+\section{Output columns}{
+
+The processed table contains \code{perturbation}, \code{rank_score}, the native score,
+\code{trend} and \code{scaled_score}, plus available metadata. Optional annotations are
+not manufactured when absent. Equally strong retained profiles may produce
+multiple rows for one compound. Harmonize compound identities before scoring;
+these helpers do not load a synonym resource or run a reference search.
+}
+
+\examples{
+raw <- data.frame(
+  pert = c("drug_a", "drug_b", "drug_c", "drug_d"),
+  cell = "A375", trend = "down",
+  WTCS = c(-0.9, -0.8, -0.8, -0.01),
+  WTCS_Pval = c(0.9, 1e-6, 1e-6, 0.9)
+)
+scores <- lincs_rank_score(raw, ties_method = "max")
+scores[, c("perturbation", "WTCS", "rank_score")]
+# drug_a fails the gate; tied drug_b and drug_c each retain rank_score 1/3.
+
+}
+\seealso{
+\code{\link[=cmap_rank_score]{cmap_rank_score()}}, \code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}
 }

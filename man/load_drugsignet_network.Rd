@@ -11,35 +11,35 @@ load_drugsignet_network(
 )
 }
 \arguments{
-\item{network}{Network resource to load. One of `"drug_target"`,
-`"gene_gene"`, or `"all"`.}
+\item{network}{Network resource to load. One of \code{"drug_target"},
+\code{"gene_gene"}, or \code{"all"}.}
 
-\item{force}{Logical; if `TRUE`, redownload the selected network even when a
-cached version is available or current. Default is `FALSE`.}
+\item{force}{Logical; if \code{TRUE}, redownload the selected network even when a
+cached version is available or current. Default is \code{FALSE}.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
 A data frame when a single network is requested, or a named list of data
-frames when `network = "all"`.
+frames when \code{network = "all"}.
 }
 \description{
 Downloads DrugSigNet network resources from Synapse and caches them in the
 user cache directory.
 }
 \details{
-`load_drugsignet_network()` retrieves DrugSigNet network resources used by
+\code{load_drugsignet_network()} retrieves DrugSigNet network resources used by
 network-based drug repurposing methods, including the drug-target interaction
 network and the integrated gene-gene interaction network.
 
-Cached files are stored under `tools::R_user_dir("DrugSigNet", "cache")`.
+Cached files are stored under \code{tools::R_user_dir("DrugSigNet", "cache")}.
 When a Synapse authentication token is available, the function checks the
 remote Synapse file version and updates the local cache when needed. If no
 token is available but a cached file already exists, the cached file is used
 without a remote version check.
 
-Use `force = TRUE` to redownload the selected network from Synapse. This
+Use \code{force = TRUE} to redownload the selected network from Synapse. This
 requires a valid Synapse authentication token.
 }
 \examples{

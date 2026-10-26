@@ -7,7 +7,8 @@
 \S4method{Network_proximity}{NetworkBased}(object)
 }
 \arguments{
-\item{object}{A \code{NetworkBased} object containing the networks, disease genes, and network-proximity parameters.}
+\item{object}{A \code{NetworkBased} object containing the networks, disease genes,
+and network-proximity parameters.}
 }
 \value{
 The same \code{NetworkBased} object with the results of the Network Proximity analysis.

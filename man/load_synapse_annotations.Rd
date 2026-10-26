@@ -7,11 +7,11 @@
 load_synapse_annotations(force = FALSE, auth_token = NULL)
 }
 \arguments{
-\item{force}{Logical; if `TRUE`, redownload the Synapse annotation file even
-when a current local cache is available. Default is `FALSE`.}
+\item{force}{Logical; if \code{TRUE}, redownload the Synapse annotation file even
+when a current local cache is available. Default is \code{FALSE}.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
 The DrugSigNet drug annotation object loaded from the local cache or
@@ -22,19 +22,19 @@ Downloads DrugSigNet drug annotation data from Synapse and caches it in the
 user cache directory.
 }
 \details{
-`load_synapse_annotations()` retrieves the DrugSigNet drug annotation
+\code{load_synapse_annotations()} retrieves the DrugSigNet drug annotation
 reference object used by annotation helper functions. The object contains
 annotation tables for indications, mechanisms of action, ATC codes, clinical
 trials, adverse events, synonyms, SMILES strings, approval status, and
 blood-brain barrier classifications.
 
-Cached files are stored under `tools::R_user_dir("DrugSigNet", "cache")`.
+Cached files are stored under \code{tools::R_user_dir("DrugSigNet", "cache")}.
 On each call, the function compares the cached metadata with the current
 Synapse file version. If the cached version is current, the local file is
-reused. If the remote version has changed, or if `force = TRUE`, the file is
+reused. If the remote version has changed, or if \code{force = TRUE}, the file is
 downloaded again and the cache metadata is updated.
 
-This function requires the optional `synapser` package and access to the
+This function requires the optional \code{synapser} package and access to the
 DrugSigNet Synapse annotation file.
 }
 \examples{

@@ -21,42 +21,42 @@ plot_drug_similarity(
 \S4method{plot_drug_similarity}{PlotObject}(object, plot_type, heatmap_type, label_size)
 }
 \arguments{
-\item{object}{Optional `PlotObject`. For pipe-friendly use, a data frame can
-also be supplied as `object` when `drug_ranks_df` is omitted.}
+\item{object}{Optional \code{PlotObject}. For pipe-friendly use, a data frame can
+also be supplied as \code{object} when \code{drug_ranks_df} is omitted.}
 
 \item{similarity_matrix}{Square numeric similarity matrix.}
 
-\item{plot_type}{Plot type. One of `"heatmap"` or `"dendrogram"`.}
+\item{plot_type}{Plot type. One of \code{"heatmap"} or \code{"dendrogram"}.}
 
-\item{heatmap_type}{Heatmap layout. One of `"triangle"` or `"full"`.
-Default is `"triangle"`.}
+\item{heatmap_type}{Heatmap layout. One of \code{"triangle"} or \code{"full"}.
+Default is \code{"triangle"}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{label_size}{Text size for heatmap-cell labels. Default is `3`.}
+\item{label_size}{Text size for heatmap-cell labels. Default is \code{3}.}
 
-\item{units}{Units for saved plot dimensions. One of `"in"`, `"cm"`, `"mm"`,
-or `"px"`. Default is `"in"`.}
+\item{units}{Units for saved plot dimensions. One of \code{"in"}, \code{"cm"}, \code{"mm"},
+or \code{"px"}. Default is \code{"in"}.}
 }
 \value{
-A `ggplot` object for heatmaps, or an invisible `hclust` object for
-  dendrograms.
+A \code{ggplot} object for heatmaps, or an invisible \code{hclust} object for
+dendrograms.
 }
 \description{
 Visualizes a drug-drug structural similarity matrix as a heatmap or
 dendrogram.
 }
 \details{
-`plot_drug_similarity()` accepts a `DrugAnnotation` object, numeric matrix,
-or data frame. Heatmap mode returns a `ggplot` object. Dendrogram mode plots
-hierarchical clustering based on `1 - similarity` and invisibly returns the
-`hclust` object.
+\code{plot_drug_similarity()} accepts a \code{DrugAnnotation} object, numeric matrix,
+or data frame. Heatmap mode returns a \code{ggplot} object. Dendrogram mode plots
+hierarchical clustering based on \code{1 - similarity} and invisibly returns the
+\code{hclust} object.
 }
 \examples{
 \dontrun{

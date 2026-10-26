@@ -12,47 +12,55 @@ get_drug_status(
   force = FALSE,
   auth_token = NULL
 )
+
 \S4method{get_drug_status}{DrugAnnotation}(object)
 }
 \arguments{
-\item{object}{Optional input for pipe-friendly workflows. Used only when
-`drugs` is not supplied. Accepts a character vector, a one-column data
-frame, or a data frame containing a `Drug` column.}
+\item{object}{Optional \code{DrugAnnotation} object. For pipe-friendly use when
+\code{drugs} is omitted, a character vector or exactly one-column data frame
+can be supplied instead. When passing a \code{DrugAnnotation} instance, also
+supply \code{drugs}.}
 
-\item{drugs}{Drugs to annotate. Accepts a character vector, a one-column
-data frame, or a data frame containing a `Drug` column.}
+\item{drugs}{Character vector of drug names or a data frame with exactly one
+column. For a multi-column candidate table, extract its drug-name column
+first, for example \code{candidates$Drug}.}
 
-\item{source}{Annotation source. One of `"All"`, `"OpenTargets"`,
-`"CHEMBL"`, or `"TTD"`. Default is `"All"`.}
+\item{source}{Annotation source. One of \code{"All"}, \code{"OpenTargets"},
+\code{"CHEMBL"}, or \code{"TTD"}. Default is \code{"All"}.}
 
 \item{force}{Logical; force refresh of cached annotation resources when
 downloading data from Synapse.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`,
-the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL},
+the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `DrugAnnotation` object containing a data frame of drug status annotations
-in `object@result`.
+A \code{DrugAnnotation} object containing a data frame of drug status annotations
+in \code{object@result}.
 }
 \description{
 Retrieves regulatory approval or development status information for one or
 more drugs from supported DrugSigNet annotation sources.
 }
 \details{
-`get_drug_status()` extracts drug status annotations for the supplied drugs.
+\code{get_drug_status()} extracts drug status annotations for the supplied drugs.
 The function accepts a character vector or a one-column data frame and returns
-a `DrugAnnotation` object with status information stored in `object@result`.
+a \code{DrugAnnotation} object with status information stored in \code{object@result}.
 
-Drug matching is performed by drug name and is case-insensitive through the
-shared annotation-matching helpers. Annotation resources are loaded from the
-local cache or Synapse using `force` and `auth_token`.
-
-Supported sources are `"All"`, `"OpenTargets"`, `"CHEMBL"`, and `"TTD"`.
-Depending on the selected source, `Highest_status` may represent the highest
+Supported sources are \code{"All"}, \code{"OpenTargets"}, \code{"CHEMBL"}, and \code{"TTD"}.
+Depending on the selected source, \code{Highest_status} may represent the highest
 development phase, approval status, or regulatory status available for each
 drug.
 }
+\section{Matching and resources}{
+
+Matching is case-insensitive by default; trials expose \code{ignore_case}.
+Missing annotations mean missing source coverage,
+not evidence that a biological property is absent. Resource tables are resolved
+from the cache or Synapse; \code{force} and \code{auth_token} control resource retrieval.
+Keep the returned object and resource provenance with the analysis.
+}
+
 \examples{
 \dontrun{
 res <- get_drug_status(

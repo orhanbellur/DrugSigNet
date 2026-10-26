@@ -12,49 +12,56 @@ get_drug_smiles(
   force = FALSE,
   auth_token = NULL
 )
+
 \S4method{get_drug_smiles}{DrugAnnotation}(object)
 }
 \arguments{
-\item{object}{Optional input for pipe-friendly workflows. Used only when
-`drugs` is not supplied. Accepts a character vector, a one-column data
-frame, or a data frame containing a `Drug` column.}
+\item{object}{Optional \code{DrugAnnotation} object. For pipe-friendly use when
+\code{drugs} is omitted, a character vector or exactly one-column data frame
+can be supplied instead. When passing a \code{DrugAnnotation} instance, also
+supply \code{drugs}.}
 
-\item{drugs}{Drugs to annotate. Accepts a character vector, a one-column
-data frame, or a data frame containing a `Drug` column.}
+\item{drugs}{Character vector, factor, or exactly one-column data frame of
+drug names. Extract \code{candidates$Drug} from a multi-column candidate table.}
 
-\item{source}{Annotation source. One of `"All"`, `"OpenTargets"`,
-`"CHEMBL"`, `"TTD"`, or `"B3DB_classification"`. Default is `"All"`.}
+\item{source}{Annotation source. One of \code{"All"}, \code{"OpenTargets"},
+\code{"CHEMBL"}, \code{"TTD"}, or \code{"B3DB_classification"}. Default is \code{"All"}.}
 
 \item{force}{Logical; force refresh of cached annotation resources when
 downloading data from Synapse.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`,
-the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL},
+the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `DrugAnnotation` object containing a data frame of drug SMILES annotations
-in `object@result`.
+A \code{DrugAnnotation} object containing a data frame of drug SMILES annotations
+in \code{object@result}.
 }
 \description{
 Retrieves canonical SMILES annotations for one or more drugs from supported
 DrugSigNet annotation sources.
 }
 \details{
-`get_drug_smiles()` extracts SMILES annotations for the supplied drugs. The
+\code{get_drug_smiles()} extracts SMILES annotations for the supplied drugs. The
 function accepts a character vector or a one-column data frame and returns a
-`DrugAnnotation` object with SMILES information stored in `object@result`.
+\code{DrugAnnotation} object with SMILES information stored in \code{object@result}.
 
-Drug matching is performed by drug name and is case-insensitive through the
-shared annotation-matching helpers. Annotation resources are loaded from the
-local cache or Synapse using `force` and `auth_token`.
-
-Supported sources are `"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"`, and
-`"B3DB_classification"`. When `source = "All"`, SMILES annotations are
+Supported sources are \code{"All"}, \code{"OpenTargets"}, \code{"CHEMBL"}, \code{"TTD"}, and
+\code{"B3DB_classification"}. When \code{source = "All"}, SMILES annotations are
 combined across available sources.
 
 Multiple SMILES values may be associated with a single drug across sources;
-these are collapsed with `|` by the shared annotation helpers.
+these are collapsed with \code{|} by the shared annotation helpers.
 }
+\section{Matching and resources}{
+
+Matching is case-insensitive by default; trials expose \code{ignore_case}.
+Missing annotations mean missing source coverage,
+not evidence that a biological property is absent. Resource tables are resolved
+from the cache or Synapse; \code{force} and \code{auth_token} control resource retrieval.
+Keep the returned object and resource provenance with the analysis.
+}
+
 \examples{
 \dontrun{
 res <- get_drug_smiles(

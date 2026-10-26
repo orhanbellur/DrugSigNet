@@ -26,6 +26,14 @@
 #' @param damping_factor Numeric damping factor used during TrustRank
 #'   propagation. Must be between `0` and `1`. Default is `0.95`.
 #'
+#' @section Result schema:
+#' `@result` contains `Drug` and `Score`; higher `Score` indicates greater
+#' method-specific priority. The network pipeline converts scores to
+#' smaller-is-better ranks before aggregation. The method's score is not a
+#' probability of therapeutic benefit.
+#'
+#' @seealso [drugNetworkPipeline()], [load_drugsignet_network()]
+#'
 #' @return
 #' A `NetworkBased` object containing TrustRank results in `object@result` and
 #' method parameters in `object@parameters`.

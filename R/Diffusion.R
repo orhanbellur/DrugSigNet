@@ -5,10 +5,10 @@
 #' protein-protein interaction and drug-target network.
 #'
 #' @details
-#' Diffusion methods propagate signal from disease seed genes across a network so
-#' that nearby nodes receive higher scores. In network-based drug repurposing,
-#' this prioritizes drugs whose targets are close to disease-associated genes in
-#' the integrated interactome.
+#' Cached PPI diffusion matrices summarize target-to-disease relationships
+#' through diffusion-state distance (DSD), Kullback-Leibler divergence (KL)
+#' and Jensen-Shannon divergence (JS). The returned measures are distances
+#' or divergences: smaller values, not larger scores, indicate greater proximity.
 #'
 #' The integrated network is built from a protein-protein interaction network
 #' (`ppi_network`) and a drug-target interaction network
@@ -29,6 +29,15 @@
 #'   Default is `"max"`.
 #' @param output_dir Directory used to store diffusion similarity matrices and
 #'   related intermediate files. Defaults to `tempdir()`.
+#'
+#' @section Result schema:
+#' The result retains `Drug`, `APP-Drugs`, `Degree` and `Targets`, together with
+#' `DSD-min`, `KL-med`, `KL-min`, `JS-med` and `JS-min` and their corresponding
+#' `-Rank` columns. Lower distances/divergences and lower ranks indicate stronger
+#' priority. The network pipeline aggregates the five rank columns before
+#' combining diffusion with centrality and proximity evidence.
+#'
+#' @seealso [drugNetworkPipeline()], [Network_proximity()]
 #'
 #' @return
 #' A `NetworkBased` object containing diffusion results in `object@result` and

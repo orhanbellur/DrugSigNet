@@ -24,6 +24,14 @@
 #' @param hub_penalty Numeric hub penalty used to reduce the influence of highly
 #'   connected nodes. Default is `0.01`.
 #'
+#' @section Result schema:
+#' `@result` contains `Drug` and `Score`; higher `Score` indicates greater
+#' method-specific priority. The network pipeline converts scores to
+#' smaller-is-better ranks before aggregation. The method's score is not a
+#' probability of therapeutic benefit.
+#'
+#' @seealso [drugNetworkPipeline()], [load_drugsignet_network()]
+#'
 #' @return
 #' A `NetworkBased` object containing harmonic centrality results in
 #' `object@result` and method parameters in `object@parameters`.

@@ -7,10 +7,10 @@
 Drug_target_reformat(df)
 }
 \arguments{
-\item{df}{A data frame containing at least `ID`, `Drug`, `Target`, and `Group`.}
+\item{df}{A data frame containing at least \code{ID}, \code{Drug}, \code{Target}, and \code{Group}.}
 }
 \value{
-A tibble with columns `ID`, `Drug`, `Target`, `Group`, `Target_Group_ID`.
+A tibble with columns \code{ID}, \code{Drug}, \code{Target}, \code{Group}, \code{Target_Group_ID}.
 }
 \description{
 Groups drugs that share identical target sets and returns a normalized

@@ -38,7 +38,7 @@ worker output. Use \code{""} to stream worker messages to the current console.}
 task batch to release worker-native state and memory.}
 
 \item{allow_psock}{Logical; whether PSOCK workers may be used when fork
-workers are unavailable. If `FALSE`, PSOCK-only environments run tasks
+workers are unavailable. If \code{FALSE}, PSOCK-only environments run tasks
 sequentially to avoid separate-session namespace/version drift.}
 
 \item{fallback}{Logical; whether to retry sequentially when PSOCK cluster

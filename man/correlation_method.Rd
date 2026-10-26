@@ -19,36 +19,36 @@ correlation_method(
 \S4method{correlation_method}{SignatureBased}(object)
 }
 \arguments{
-\item{object}{Optional `SignatureBased` object. If `NULL`, a new object is
-created from `signature_matrix`, `ref_db`, and `method`.}
+\item{object}{Optional \code{SignatureBased} object. If \code{NULL}, a new object is
+created from \code{signature_matrix}, \code{ref_db}, and \code{method}.}
 
 \item{signature_matrix}{Numeric matrix containing log2 fold changes. The
 matrix must have one column, with gene identifiers stored as row names.}
 
-\item{ref_db}{Reference database. Use `"cmap"` or `"lincs2"`, or provide a
-local HDF5 path returned by `load_signature_refdb()` to use a frozen Synapse
+\item{ref_db}{Reference database. Use \code{"cmap"} or \code{"lincs2"}, or provide a
+local HDF5 path returned by \code{load_signature_refdb()} to use a frozen Synapse
 reference database.}
 
-\item{method}{Correlation method. One of `"spearman"`, `"pearson"`, or
-`"kendall"`. Default is `"spearman"`.}
+\item{method}{Correlation method. One of \code{"spearman"}, \code{"pearson"}, or
+\code{"kendall"}. Default is \code{"spearman"}.}
 
 \item{chunk_size}{Integer; number of reference signatures processed per
-chunk. Default is `5000`.}
+chunk. Default is \code{5000}.}
 
 \item{signature_refdb_mode}{Signature reference database mode. Use
-`"default"` for the default ExperimentHub reference, `"frozen"` for the
-cached Synapse HDF5 reference database, or `"frozen_force"` to redownload
+\code{"default"} for the default ExperimentHub reference, \code{"frozen"} for the
+cached Synapse HDF5 reference database, or \code{"frozen_force"} to redownload
 the frozen database.}
 
 \item{auth_token}{Optional Synapse authentication token used when
-`signature_refdb_mode` requests a frozen database. If `NULL`,
-`SYNAPSE_AUTH_TOKEN` is used.}
+\code{signature_refdb_mode} requests a frozen database. If \code{NULL},
+\code{SYNAPSE_AUTH_TOKEN} is used.}
 
 \item{validate_signature_refdb}{Logical; whether to validate frozen HDF5
-reference databases before use. Default is `TRUE`.}
+reference databases before use. Default is \code{TRUE}.}
 }
 \value{
-A `SignatureBased` object containing the correlation search results and query
+A \code{SignatureBased} object containing the correlation search results and query
 metadata.
 }
 \description{
@@ -58,14 +58,14 @@ correlation-based search.
 \details{
 The method compares the input gene expression signature with signatures in a
 reference database using the selected correlation method. The input
-`signature_matrix` must be a numeric matrix containing log2 fold changes,
+\code{signature_matrix} must be a numeric matrix containing log2 fold changes,
 with one column and gene identifiers stored as row names.
 
-`ref_db` can be `"cmap"` or `"lincs2"`. A local HDF5 path returned by
-`load_signature_refdb()` can also be supplied to use a frozen Synapse
+\code{ref_db} can be \code{"cmap"} or \code{"lincs2"}. A local HDF5 path returned by
+\code{load_signature_refdb()} can also be supplied to use a frozen Synapse
 reference database. Frozen databases can also be fetched directly by setting
-`signature_refdb_mode = "frozen"` or `"frozen_force"` and providing
-`auth_token`.
+\code{signature_refdb_mode = "frozen"} or \code{"frozen_force"} and providing
+\code{auth_token}.
 }
 \section{Functions}{
 \itemize{

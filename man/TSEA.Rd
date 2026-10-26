@@ -13,60 +13,74 @@ TSEA(
   Adjusted.P.value = 0.05,
   target_id_from = NULL
 )
+
 \S4method{TSEA}{DrugAnnotation}(object)
 }
 \arguments{
-\item{object}{Optional `DrugAnnotation` object. For pipe-friendly use, a
-character vector, factor, or data frame can also be supplied as `object`
-when `targetList` is omitted.}
+\item{object}{Optional \code{DrugAnnotation} object. For pipe-friendly use, a
+character vector, factor, or data frame can also be supplied as \code{object}
+when \code{targetList} is omitted.}
 
 \item{targetList}{Character vector of gene symbols or other gene identifiers.
-Required unless supplied through `object`.}
+Required unless supplied through \code{object}.}
 
-\item{source}{Enrichment database source. One of `"GO"` or `"KEGG"`.
-Default is `"GO"`.}
+\item{source}{Compatibility source label stored in the result parameters.
+Use \code{"GO"}. The current backend does not select libraries from this value;
+\code{"KEGG"} does not request a KEGG analysis.}
 
-\item{ont}{Gene Ontology namespace used when `source = "GO"`. One of
-`"BP"`, `"MF"`, `"CC"`, or `"ALL"`. Default is `"ALL"`.}
+\item{ont}{Gene Ontology namespace selected by the backend. One of
+\code{"BP"}, \code{"MF"}, \code{"CC"}, or \code{"ALL"}. Default is \code{"BP"}.}
 
 \item{Adjusted.P.value}{Adjusted p-value cutoff used to filter enrichment
-results. Default is `0.05`.}
+results. Default is \code{0.05}.}
 
 \item{target_id_from}{Optional AnnotationDbi keytype or supported alias
-describing the identifiers in `targetList`. If `NULL`, targets are treated
+describing the identifiers in \code{targetList}. If \code{NULL}, targets are treated
 as HGNC symbols unless Ensembl gene IDs are detected automatically.}
 }
 \value{
-A `DrugAnnotation` object containing filtered enrichment results in
-`object@result`. Gene Ontology results include an `ont` column identifying
+A \code{DrugAnnotation} object containing filtered enrichment results in
+\code{object@result}. Gene Ontology results include an \code{ont} column identifying
 the BP, MF, or CC namespace.
 }
 \description{
-Performs target set enrichment analysis against Gene Ontology or KEGG
-databases using Enrichr.
+Performs target set enrichment analysis against Gene Ontology libraries
+using Enrichr.
 }
 \details{
-`TSEA()` tests whether a set of drug targets is enriched for biological
+\code{TSEA()} tests whether a set of drug targets is enriched for biological
 pathways or functional terms. It is mainly used to summarize the biological
 functions represented by targets of top-ranked drugs.
 
-For Gene Ontology enrichment, `source = "GO"` and `ont` selects Biological
-Process (`"BP"`), Molecular Function (`"MF"`), Cellular Component (`"CC"`),
-or all three ontologies (`"ALL"`). For KEGG enrichment, use
-`source = "KEGG"`.
+For Gene Ontology enrichment, \code{source = "GO"} and \code{ont} selects Biological
+Process (\code{"BP"}), Molecular Function (\code{"MF"}), Cellular Component (\code{"CC"}),
+or all three ontologies (\code{"ALL"}). The current backend selects GO libraries
+using \code{ont}; it does not implement KEGG dispatch through \code{source}.
 
-`targetList` should contain gene symbols by default. If another identifier
-type is supplied, use `target_id_from` to specify the source identifier type.
-Supported aliases include `"ENSEMBL"` or `"ensembl_gene_id"` for Ensembl gene
-IDs, `"ENTREZID"` or `"entrezgene_id"` for Entrez IDs, and `"SYMBOL"` or
-`"hgnc_symbol"` for HGNC symbols. Non-symbol identifiers are converted to
-HGNC symbols before enrichment. If `target_id_from = NULL`, Ensembl gene IDs
+\code{targetList} should contain gene symbols by default. If another identifier
+type is supplied, use \code{target_id_from} to specify the source identifier type.
+Supported aliases include \code{"ENSEMBL"} or \code{"ensembl_gene_id"} for Ensembl gene
+IDs, \code{"ENTREZID"} or \code{"entrezgene_id"} for Entrez IDs, and \code{"SYMBOL"} or
+\code{"hgnc_symbol"} for HGNC symbols. Non-symbol identifiers are converted to
+HGNC symbols before enrichment. If \code{target_id_from = NULL}, Ensembl gene IDs
 are detected automatically when possible; otherwise targets are treated as
 HGNC symbols.
 
 A character vector or one-column data frame can be supplied directly or passed
-through `object` for pipe-friendly use.
+through \code{object} for pipe-friendly use.
 }
+\section{Background and interpretation}{
+
+The current libraries are \code{GO_Biological_Process_2023},
+\code{GO_Molecular_Function_2023} and \code{GO_Cellular_Component_2023}. Targets are
+mapped to symbols and deduplicated before submission. There is no custom
+background/universe argument; adjusted p-values refer to the Enrichr library
+background, not a restricted set of experimentally detectable genes. Record
+library names, retrieval dates, mapping losses and the candidate-selection
+rule. Shared targets and annotation coverage can affect enrichment; an enriched
+term does not establish a drug's mechanism or therapeutic effect.
+}
+
 \examples{
 \dontrun{
 target_genes <- c("TP53", "BRCA1", "EGFR")
@@ -91,4 +105,7 @@ res_ensembl <- TSEA(
 res_pipe <- TSEA(ensembl_targets, ont = "ALL")
 }
 
+}
+\seealso{
+\code{\link[=annotate_drugs]{annotate_drugs()}}, \code{\link[=plot_enriched_terms]{plot_enriched_terms()}}
 }

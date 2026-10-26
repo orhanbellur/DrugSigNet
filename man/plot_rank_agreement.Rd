@@ -22,51 +22,50 @@ plot_rank_agreement(
 \S4method{plot_rank_agreement}{PlotObject}(object, cor_method, top_k, cluster, label_size)
 }
 \arguments{
-\item{object}{Optional `PlotObject`. For pipe-friendly use, a data frame can
-also be supplied as `object` when `drug_ranks_df` is omitted.}
+\item{object}{Optional \code{PlotObject}. For pipe-friendly use, a data frame can
+also be supplied as \code{object} when \code{drug_ranks_df} is omitted.}
 
-\item{drug_ranks_df}{Data frame containing `Drug`, optional `Status`, optional
+\item{drug_ranks_df}{Data frame containing \code{Drug}, optional \code{Status}, optional
 facet columns, and numeric rank columns. Smaller ranks are better.}
 
-\item{cor_method}{Correlation method. One of `"spearman"`, `"pearson"`, or
-`"kendall"`. Default is `"kendall"`.}
+\item{cor_method}{Correlation method. One of \code{"spearman"}, \code{"pearson"}, or
+\code{"kendall"}. Default is \code{"kendall"}.}
 
-\item{top_k}{Positive rank threshold. Default is `100`.}
+\item{top_k}{Positive rank threshold. Default is \code{100}.}
 
 \item{cluster}{Logical; whether to cluster methods by correlation similarity.
-Default is `TRUE`.}
+Default is \code{TRUE}.}
 
-\item{label_size}{Text size for heatmap-cell labels. Default is `3`.}
+\item{label_size}{Text size for heatmap-cell labels. Default is \code{3}.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
-\item{units}{Units for saved plot dimensions. One of `"in"`, `"cm"`, `"mm"`,
-or `"px"`. Default is `"in"`.}
+\item{units}{Units for saved plot dimensions. One of \code{"in"}, \code{"cm"}, \code{"mm"},
+or \code{"px"}. Default is \code{"in"}.}
 }
 \value{
-A list containing `cor_matrix`, `p_matrix`, `plot`, `method`, and
-  `top_k`.
+A list containing \code{cor_matrix}, \code{p_matrix}, \code{plot}, \code{method}, and
+\code{top_k}.
 }
 \description{
 Computes and visualizes pairwise rank correlations among ranking methods.
 }
 \details{
-`plot_rank_agreement()` calculates pairwise correlations among numeric
+\code{plot_rank_agreement()} calculates pairwise correlations among numeric
 ranking columns and displays them as a heatmap. P-value significance is shown
-with stars. Rows can optionally be filtered to drugs ranked within `top_k` by
+with stars. Rows can optionally be filtered to drugs ranked within \code{top_k} by
 at least one method.
 
-If `cluster = TRUE`, methods are reordered by hierarchical clustering based
-on `1 - correlation`.
+If \code{cluster = TRUE}, methods are reordered by hierarchical clustering based
+on \code{1 - correlation}.
 }
 \examples{
-\dontrun{
 rank_df <- data.frame(
   Drug = c("drug_a", "drug_b", "drug_c", "drug_d"),
   Method1 = c(1, 2, 3, 4),
@@ -82,7 +81,6 @@ res <- plot_rank_agreement(
 
 res$plot
 res$cor_matrix
-}
 
 }
 \keyword{internal}

@@ -201,6 +201,19 @@ setMethod(
 #' Converts raw results from [gcmap_method()] into the standardized ranking
 #' format used by the signature pipeline.
 #'
+#' @inheritSection cmap_rank_score Scoring and ties
+#' @inheritSection cmap_rank_score Output columns
+#' @seealso [cmap_rank_score()], [drugSignaturePipeline()]
+#'
+#' @details The gCMAP table requires `pert`, `cell`, `trend` and `effect`.
+#' The corresponding CMAP table must contain `raw_score`, `scaled_score`,
+#' `N_upset` and `N_downset`, and `trend` if `trend_name` is used. The effect
+#' cutoff is the minimum absolute CMAP scaled score among profiles passing the
+#' 95% KS cutoff. Only `abs(effect)` >= this cutoff receives a nonzero score.
+#' If no CMAP profile passes, the empty minimum gives an infinite cutoff
+#' (with a warning) and no effect qualifies.
+#' The gCMAP `scaled_score` is the native `effect`.
+#'
 #' @param gcmap_signature A data frame of raw gCMAP signature results.
 #' @param cmap_signature Corresponding raw CMAP results used to derive the cutoff.
 #' @param trend_name Optional trend used to derive the CMAP cutoff.

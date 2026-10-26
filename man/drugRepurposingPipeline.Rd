@@ -40,114 +40,116 @@ drugRepurposingPipeline(
 )
 }
 \arguments{
-\item{signature_input}{Data frame with columns `Entrez` and `FC`.}
+\item{signature_input}{Data frame with columns \code{Entrez} and \code{FC}.}
 
 \item{ppi_network}{Optional protein-protein interaction network. Expected to
-contain columns `gene1` and `gene2`. If `NULL`, the default DrugSigNet
+contain columns \code{gene1} and \code{gene2}. If \code{NULL}, the default DrugSigNet
 gene-gene network is loaded.}
 
 \item{drug_target_network}{Optional drug-target interaction network. Expected
-to contain columns such as `ID`, `Drug`, `Target`, and `Group`. If `NULL`,
+to contain columns such as \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL},
 the default DrugSigNet drug-target network is loaded.}
 
 \item{disease_genes}{Disease-associated genes used as seed genes. Can be a
-character vector or a data frame containing a `gene` column.}
+character vector or a data frame containing a \code{gene} column.}
 
-\item{mode}{Workflow mode. One of `"signature"`, `"network"`, or `"both"`.}
+\item{mode}{Workflow mode. One of \code{"signature"}, \code{"network"}, or \code{"both"}.}
 
 \item{padj}{Optional adjusted p-value threshold passed to supported
-signature-search methods. Default is `0.05`.}
+signature-search methods. Default is \code{0.05}.}
 
-\item{trend}{Optional character filter for perturbation direction. Use `"up"`,
-`"down"`, or `NULL`. Default is `NULL`.}
+\item{trend}{Optional character filter for perturbation direction. Use \code{"up"},
+\code{"down"}, or \code{NULL}. Default is \code{NULL}.}
 
 \item{drug_name_synonym}{Optional drug synonym table used to harmonize drug
-names across signature databases. Must contain `ID`, `Drug`,
-`name_synonym_list`, and `Group` columns. Legacy lowercase `name` and
-`group` column names are also accepted.}
+names across signature databases. Must contain \code{ID}, \code{Drug},
+\code{name_synonym_list}, and \code{Group} columns. Legacy lowercase \code{name} and
+\code{group} column names are also accepted.}
 
 \item{ties_method}{Method used to resolve ranking ties. Common options are
-`"max"`, `"min"`, and `"dense"`. Default is `"max"`.}
+\code{"max"}, \code{"min"}, and \code{"dense"}. Default is \code{"max"}.}
 
-\item{prior}{Numeric prior used by CRank aggregation. Default is `0.093`.}
+\item{prior}{Numeric prior used by CRank aggregation. Default is \code{0.093}.}
 
-\item{num_bin}{Number of bins used by CRank aggregation. Default is `200`.}
+\item{num_bin}{Number of bins used by CRank aggregation. Default is \code{200}.}
 
 \item{n_workers}{Number of parallel workers used by supported pipeline
 components.}
 
 \item{chunk_size}{Integer; number of reference signatures processed per
-chunk by signature-search methods. Default is `5000`.}
+chunk by signature-search methods. Default is \code{5000}.}
 
 \item{signature_refdb_mode}{Signature reference database mode. Use
-`"default"` for the default ExperimentHub reference, `"frozen"` for the
-cached Synapse HDF5 reference database, or `"frozen_force"` to redownload
+\code{"default"} for the default ExperimentHub reference, \code{"frozen"} for the
+cached Synapse HDF5 reference database, or \code{"frozen_force"} to redownload
 the frozen database.}
 
 \item{signature_refdb_auth_token}{Optional Synapse authentication token used
-for frozen signature reference databases. If `NULL`, `auth_token` or the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+for frozen signature reference databases. If \code{NULL}, \code{auth_token} or the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 
 \item{validate_signature_refdb}{Logical; whether to validate frozen HDF5
-reference databases before use. Default is `TRUE`.}
+reference databases before use. Default is \code{TRUE}.}
 
-\item{top_k}{Number of top-ranked drugs used for downstream annotation and
-target enrichment. Default is `100`.}
+\item{top_k}{Positive rank threshold for downstream annotation/enrichment.
+The union of drugs with rank <= \code{top_k} in any selected consensus column
+is used; ties and differing methods can select more than \code{top_k} drugs.
+This does not truncate the core ranking tables. Default is \code{100}.}
 
 \item{trial_condition}{Optional condition used to retrieve matching clinical
-trial annotations. Default is `NULL`.}
+trial annotations. Default is \code{NULL}.}
 
 \item{include_indirect_drugs}{Logical; whether to include drugs indirectly
-connected to disease genes. Default is `TRUE`.}
+connected to disease genes. Default is \code{TRUE}.}
 
 \item{include_non_approved_drugs}{Logical; whether to include non-approved or
-investigational drugs. Default is `TRUE`.}
+investigational drugs. Default is \code{TRUE}.}
 
-\item{run_all_network_methods}{Logical; if `TRUE`, run TrustRank, harmonic
+\item{run_all_network_methods}{Logical; if \code{TRUE}, run TrustRank, harmonic
 centrality, degree centrality, network proximity, and diffusion. If
-`FALSE`, run only TrustRank, harmonic centrality, and degree centrality.
-Default is `TRUE`.}
+\code{FALSE}, run only TrustRank, harmonic centrality, and degree centrality.
+Default is \code{TRUE}.}
 
 \item{hub_penalty}{Numeric hub penalty used by centrality-based methods. If a
 single value is provided, it is used for both TrustRank and harmonic
 centrality. If two values are provided, the first is used for TrustRank and
-the second for harmonic centrality. Default is `0.01`.}
+the second for harmonic centrality. Default is \code{0.01}.}
 
 \item{damping_factor}{Numeric damping factor used by TrustRank. Must be
-between `0` and `1`. Default is `0.95`.}
+between \code{0} and \code{1}. Default is \code{0.95}.}
 
 \item{result_size}{Optional number of ranked results returned per method. If
-`NULL`, it is inferred from the number of unique drugs in the resolved
+\code{NULL}, it is inferred from the number of unique drugs in the resolved
 drug-target network.}
 
 \item{n_simulations}{Number of random simulations used by
-`Network_proximity()`. Default is `1000`.}
+\code{Network_proximity()}. Default is \code{1000}.}
 
 \item{output_dir}{Optional directory used by diffusion methods to store
 intermediate files.}
 
 \item{drug_annotation_source}{Drug annotation source used by network and
-integrated workflows. One of `"All"`, `"OpenTargets"`, `"CHEMBL"`, or
-`"TTD"`.}
+integrated workflows. One of \code{"All"}, \code{"OpenTargets"}, \code{"CHEMBL"}, or
+\code{"TTD"}.}
 
 \item{target_id_from}{Optional AnnotationDbi keytype or supported alias
-describing target identifiers used for enrichment. If `NULL`, targets are
+describing target identifiers used for enrichment. If \code{NULL}, targets are
 treated as HGNC symbols unless Ensembl gene IDs are detected.}
 
 \item{force}{Logical; force refresh of Synapse-backed annotation or reference
-resources where supported. Default is `FALSE`.}
+resources where supported. Default is \code{FALSE}.}
 
 \item{auth_token}{Optional Synapse authentication token used by annotation and
 reference database helpers.}
 
-\item{run_drug_annotation}{Logical; if `TRUE`, annotate ranked drugs and run
-target set enrichment. Default is `TRUE`.}
+\item{run_drug_annotation}{Logical; if \code{TRUE}, annotate ranked drugs and run
+target set enrichment. Default is \code{TRUE}.}
 
-\item{run_visualization}{Logical; if `TRUE`, build visualization metadata and
-plots. Default is `TRUE`.}
+\item{run_visualization}{Logical; if \code{TRUE}, build visualization metadata and
+plots. Default is \code{TRUE}.}
 }
 \value{
-A `DrugSearchingPipeline` S4 object containing workflow-specific raw results,
+A \code{DrugSearchingPipeline} S4 object containing workflow-specific raw results,
 processed rankings, rank aggregation results, and optionally annotation and
 visualization sections.
 }
@@ -156,25 +158,35 @@ Runs signature-based, network-based, or integrated drug repurposing workflows
 in a single call.
 }
 \details{
-`drugRepurposingPipeline()` provides a unified interface to the main
-DrugSigNet workflows. Depending on `mode`, it runs
-`drugSignaturePipeline()`, `drugNetworkPipeline()`, or both followed by
-`integrateSignatureNetwork()`.
+\code{drugRepurposingPipeline()} provides a unified interface to the main
+DrugSigNet workflows. Depending on \code{mode}, it runs
+\code{drugSignaturePipeline()}, \code{drugNetworkPipeline()}, or both followed by
+\code{integrateSignatureNetwork()}.
 
-In `mode = "signature"`, only signature-based drug searching is performed.
-In `mode = "network"`, only network-based drug searching is performed. In
-`mode = "both"`, the signature and network workflows are run separately and
+In \code{mode = "signature"}, only signature-based drug searching is performed.
+In \code{mode = "network"}, only network-based drug searching is performed. In
+\code{mode = "both"}, the signature and network workflows are run separately and
 then integrated into a combined result.
 
-Signature mode uses `padj = 0.05` by default and forwards it directly to
-`drugSignaturePipeline()`. To reproduce the same results with a standalone
-call, explicitly pass `padj = 0.05` there as well. Use the exact argument name
-`n_workers` in both interfaces.
+Signature mode uses \code{padj = 0.05} by default and forwards it directly to
+\code{drugSignaturePipeline()}. To reproduce the same results with a standalone
+call, explicitly pass \code{padj = 0.05} there as well. Use the exact argument name
+\code{n_workers} in both interfaces.
 
-If `run_drug_annotation = TRUE`, downstream annotation and target set
-enrichment are performed where supported. If `run_visualization = TRUE`,
+If \code{run_drug_annotation = TRUE}, downstream annotation and target set
+enrichment are performed where supported. If \code{run_visualization = TRUE},
 visualization-ready outputs are included in the returned object.
 }
+\section{Integration and completeness}{
+
+Only compounds shared by the signature and network inputs are eligible for
+integrated ranking; branch-only compounds remain in their branch results.
+See \code{\link[=integrateSignatureNetwork]{integrateSignatureNetwork()}} for the matching and rank-input rules.
+Check warnings, method coverage and aggregation tables in each branch before
+interpreting the combined object. Native Windows network analysis requires
+Docker or WSL; see \code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}}.
+}
+
 \examples{
 \dontrun{
 signature_input <- data.frame(
@@ -207,4 +219,8 @@ res_both <- drugRepurposingPipeline(
 )
 }
 
+}
+\seealso{
+\code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}, \code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}},
+\code{\link[=integrateSignatureNetwork]{integrateSignatureNetwork()}}, \code{\link[=write_report]{write_report()}}
 }

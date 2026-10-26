@@ -10,10 +10,6 @@
 #' returns a `DrugAnnotation` object with MoA information stored in
 #' `object@result`.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' Supported sources are `"All"`, `"OpenTargets"`, and `"CHEMBL"`. When
 #' `source = "All"`, mechanism of action annotations are combined across
 #' available sources.
@@ -22,6 +18,20 @@
 #' sources; these are collapsed with `|` by the shared annotation helpers.
 #'
 #' @inheritParams annotate_drugs
+#' @param object Optional `DrugAnnotation` object. For pipe-friendly use when
+#'   `drugs` is omitted, a character vector or exactly one-column data frame
+#'   can be supplied instead. When passing a `DrugAnnotation` instance, also
+#'   supply `drugs`.
+#' @param drugs Character vector of drug names or a data frame with exactly one
+#'   column. For a multi-column candidate table, extract its drug-name column
+#'   first, for example `candidates$Drug`.
+#'
+#' @section Matching and resources:
+#' Matching is case-insensitive by default; trials expose `ignore_case`.
+#' Missing annotations mean missing source coverage,
+#' not evidence that a biological property is absent. Resource tables are resolved
+#' from the cache or Synapse; `force` and `auth_token` control resource retrieval.
+#' Keep the returned object and resource provenance with the analysis.
 #' @param source Annotation source. One of `"All"`, `"OpenTargets"`, or
 #'   `"CHEMBL"`. Default is `"All"`.
 #'

@@ -14,59 +14,60 @@ get_drug_drug_similarity(
   force = FALSE,
   auth_token = NULL
 )
+
 \S4method{get_drug_drug_similarity}{DrugAnnotation}(object)
 }
 \arguments{
 \item{object}{Optional input for pipe-friendly workflows. Used only when
-`drugs` is not supplied. Accepts a character vector, a one-column data
-frame, or a data frame containing a `Drug` column.}
+\code{drugs} is not supplied. Accepts a character vector, a one-column data
+frame, or a data frame containing a \code{Drug} column.}
 
 \item{drugs}{Drugs to annotate. Accepts a character vector, a one-column
-data frame, or a data frame containing a `Drug` column.}
+data frame, or a data frame containing a \code{Drug} column.}
 
-\item{source}{Annotation source passed to `get_drug_smiles()`. One of
-`"All"`, `"OpenTargets"`, `"CHEMBL"`, `"TTD"`, or
-`"B3DB_classification"`. Default is `"All"`.}
+\item{source}{Annotation source passed to \code{get_drug_smiles()}. One of
+\code{"All"}, \code{"OpenTargets"}, \code{"CHEMBL"}, \code{"TTD"}, or
+\code{"B3DB_classification"}. Default is \code{"All"}.}
 
-\item{fingerprint}{Molecular fingerprint type passed to `rcdk`.
-Common options include `"standard"`, `"extended"`, and `"pubchem"`.
-Default is `"standard"`.}
+\item{fingerprint}{Molecular fingerprint type passed to \code{rcdk}.
+Common options include \code{"standard"}, \code{"extended"}, and \code{"pubchem"}.
+Default is \code{"standard"}.}
 
-\item{method}{Similarity metric. Currently only `"tanimoto"` is supported.}
+\item{method}{Similarity metric. Currently only \code{"tanimoto"} is supported.}
 
 \item{force}{Logical; force refresh of cached annotation resources when
 downloading data from Synapse.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`,
-the `SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL},
+the \code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `DrugAnnotation` object. The `result` slot contains the pairwise structural
+A \code{DrugAnnotation} object. The \code{result} slot contains the pairwise structural
 similarity matrix as a data frame. The input drug-to-SMILES lookup table is
-stored in `object@parameters$drug_smiles_table`, and the numeric matrix is
-also stored as `attr(object@result, "similarity_matrix")`.
+stored in \code{object@parameters$drug_smiles_table}, and the numeric matrix is
+also stored as \code{attr(object@result, "similarity_matrix")}.
 }
 \description{
 Computes pairwise structural similarity between drugs using canonical SMILES
 strings and molecular fingerprints.
 }
 \details{
-`get_drug_drug_similarity()` first resolves drug names to canonical SMILES
-strings using `get_drug_smiles()`. It then parses the SMILES strings with
-`rcdk`, generates molecular fingerprints, and calculates pairwise structural
+\code{get_drug_drug_similarity()} first resolves drug names to canonical SMILES
+strings using \code{get_drug_smiles()}. It then parses the SMILES strings with
+\code{rcdk}, generates molecular fingerprints, and calculates pairwise structural
 similarity.
 
 The currently supported similarity metric is Tanimoto similarity. Values
-range from `0` to `1`, where `0` indicates no shared fingerprint features and
-`1` indicates identical fingerprints.
+range from \code{0} to \code{1}, where \code{0} indicates no shared fingerprint features and
+\code{1} indicates identical fingerprints.
 
 If a drug has multiple pipe-delimited SMILES annotations, the first non-empty
 SMILES string is used so that the output keeps one row and one column per
 input drug. Drugs without valid or parsable SMILES are excluded from the
 similarity calculation.
 
-Annotation resources are loaded from the local cache or Synapse using `force`
-and `auth_token`.
+Annotation resources are loaded from the local cache or Synapse using \code{force}
+and \code{auth_token}.
 }
 \examples{
 \dontrun{

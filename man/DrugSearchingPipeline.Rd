@@ -13,7 +13,7 @@ DrugSearchingPipeline(
 )
 }
 \arguments{
-\item{DrugSearching}{List containing `Raw` and `Processed` entries.}
+\item{DrugSearching}{List containing \code{Raw} and \code{Processed} entries.}
 
 \item{RankAggregation}{List of rank-aggregation results.}
 
@@ -21,12 +21,12 @@ DrugSearchingPipeline(
 
 \item{Visualization}{Optional list of visualization outputs, or NULL to omit the visualization slot.}
 
-\item{type}{Pipeline type label (for example `"signature"` or `"network"`).}
+\item{type}{Pipeline type label (for example \code{"signature"} or \code{"network"}).}
 }
 \value{
 A valid pipeline S4 object whose slots follow the order
-  `DrugSearching`, `RankAggregation`, optional `DrugAnnotation`, optional
-  `Visualization`, and `type`.
+\code{DrugSearching}, \code{RankAggregation}, optional \code{DrugAnnotation}, optional
+\code{Visualization}, and \code{type}.
 }
 \description{
 Construct a DrugSearchingPipeline object

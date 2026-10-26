@@ -42,7 +42,6 @@
 #' `object@result`.
 #'
 #' @examples
-#' \dontrun{
 #' rank_df <- data.frame(
 #'   Drug = c("drug_a", "drug_b", "drug_c"),
 #'   Method1 = c(1, 2, 3),
@@ -57,7 +56,6 @@
 #'
 #' # Pipe-friendly use
 #' res_pipe <- Dowdall(rank_df, reverse = FALSE)
-#' }
 #'
 #' @references
 #' Reilly B. Social choice in the south seas: Electoral innovation and the

@@ -194,6 +194,16 @@ setMethod(
 #' Converts raw results from [correlation_method()] into the standardized
 #' ranking format used by the signature pipeline.
 #'
+#' @inheritSection cmap_rank_score Scoring and ties
+#' @inheritSection cmap_rank_score Output columns
+#' @seealso [cmap_rank_score()], [drugSignaturePipeline()]
+#'
+#' @details Required columns are `pert`, `cell`, `trend` and `cor_score`.
+#' Use the matched query-gene count for `n` (greater than two). Significance is
+#' computed with a two-sided t approximation with `n - 2` degrees of freedom;
+#' unadjusted p-values <= 0.05 receive nonzero scores. `scaled_score` is min-max
+#' scaled `abs(cor_score)`; constant absolute scores yield `NaN` scaled values.
+#'
 #' @param correlation_signature A data frame of raw correlation results.
 #' @param n Number of observations used to calculate correlation significance.
 #' @param ties_method Character string passed to [base::rank()], or `"dense"`.

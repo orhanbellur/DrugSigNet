@@ -18,37 +18,37 @@ plot_drug_status(
 \S4method{plot_drug_status}{PlotObject}(object, exclude_condition_status = NULL)
 }
 \arguments{
-\item{object}{A `PlotObject` containing parameters for the plot.}
+\item{object}{A \code{PlotObject} containing parameters for the plot.}
 
 \item{data_df}{Data frame containing enrichment results.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{file_name}{Optional output file name without extension. If `NULL`, the
+\item{file_name}{Optional output file name without extension. If \code{NULL}, the
 plot is returned without saving.}
 
-\item{width, height}{Plot dimensions. Defaults are `20` and `15`.}
+\item{width, height}{Plot dimensions. Defaults are \code{20} and \code{15}.}
 
 \item{exclude_condition_status}{Optional character vector of
-`condition_status` categories to exclude before plotting.}
+\code{condition_status} categories to exclude before plotting.}
 }
 \value{
-A `ggplot` object.
+A \code{ggplot} object.
 
-A `ggplot` object representing the nested donut chart.
+A \code{ggplot} object representing the nested donut chart.
 }
 \description{
 Creates a nested donut chart showing drug status and condition-specific
 status distributions.
 }
 \details{
-`plot_drug_status()` visualizes hierarchical status information using an
-inner ring for `condition_status` and an outer ring for `highest_status`.
+\code{plot_drug_status()} visualizes hierarchical status information using an
+inner ring for \code{condition_status} and an outer ring for \code{highest_status}.
 The outer ring is computed within inner-ring groups so that category
 boundaries remain aligned.
 
-Input data must contain `drug`, `highest_status`, and `condition_status`.
+Input data must contain \code{drug}, \code{highest_status}, and \code{condition_status}.
 }
 \examples{
 \dontrun{

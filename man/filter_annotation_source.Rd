@@ -16,8 +16,8 @@ Filtered annotation data frame.
 }
 \description{
 Internal helper that implements source matching for the integrated
-`drug_annotation$annotations` tables. `All` returns the table unchanged;
-otherwise a case-insensitive grep is applied to the `source` column when it
+\code{drug_annotation$annotations} tables. \code{All} returns the table unchanged;
+otherwise a case-insensitive grep is applied to the \code{source} column when it
 is available.
 }
 \keyword{internal}

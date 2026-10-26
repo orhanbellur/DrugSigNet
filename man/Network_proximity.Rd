@@ -20,47 +20,47 @@ Network_proximity(
 )
 }
 \arguments{
-\item{object}{Optional `NetworkBased` object. If `NULL`, a new object is
+\item{object}{Optional \code{NetworkBased} object. If \code{NULL}, a new object is
 created from the supplied network inputs and method parameters.}
 
 \item{ppi_network}{Protein-protein interaction network. Expected to contain
-columns `gene1` and `gene2`. If `NULL`, the default `"gene_gene"` network
+columns \code{gene1} and \code{gene2}. If \code{NULL}, the default \code{"gene_gene"} network
 is loaded.}
 
 \item{drug_target_network}{Drug-target interaction network. Expected to
-contain columns `ID`, `Drug`, `Target`, and `Group`. If `NULL`, the default
-`"drug_target"` network is loaded.}
+contain columns \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL}, the default
+\code{"drug_target"} network is loaded.}
 
 \item{disease_genes}{Data frame containing disease seed genes in a column
-named `gene`.}
+named \code{gene}.}
 
 \item{include_indirect_drugs}{Logical; whether to include drugs indirectly
-connected to disease genes. Default is `TRUE`.}
+connected to disease genes. Default is \code{TRUE}.}
 
 \item{include_non_approved_drugs}{Logical; whether to include non-approved or
-investigational drugs. Default is `TRUE`.}
+investigational drugs. Default is \code{TRUE}.}
 
 \item{n_simulations}{Number of random simulations used to estimate the
-proximity background distribution. Default is `1000`.}
+proximity background distribution. Default is \code{1000}.}
 
 \item{n_workers}{Number of CPU workers used for the simulation procedure.
-Default is `1`.}
+Default is \code{1}.}
 
-\item{result_size}{Number of top-ranked results to return. If `NULL`, it is
-inferred from the number of unique drugs in `drug_target_network`.}
+\item{result_size}{Number of top-ranked results to return. If \code{NULL}, it is
+inferred from the number of unique drugs in \code{drug_target_network}.}
 
 \item{random_seed}{Integer random seed used for reproducible simulations.
-Default is `42`.}
+Default is \code{42}.}
 
 \item{force}{Logical; force redownload of default networks from Synapse
 instead of using the local cache.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
-A `NetworkBased` object containing network proximity results in
-`object@result` and method parameters in `object@parameters`.
+A \code{NetworkBased} object containing network proximity results in
+\code{object@result} and method parameters in \code{object@parameters}.
 }
 \description{
 Prioritizes candidate drugs using network proximity between drug targets and
@@ -72,10 +72,10 @@ genes in the interactome. Drugs whose targets are closer to the disease module
 are prioritized as candidates for repurposing or follow-up analysis.
 
 The integrated network is built from a protein-protein interaction network
-(`ppi_network`) and a drug-target interaction network
-(`drug_target_network`). Disease genes define the disease module. If either
-network is `NULL`, the corresponding high-confidence default DrugSigNet
-network is loaded with `load_drugsignet_network()` from the local cache or
+(\code{ppi_network}) and a drug-target interaction network
+(\code{drug_target_network}). Disease genes define the disease module. If either
+network is \code{NULL}, the corresponding high-confidence default DrugSigNet
+network is loaded with \code{load_drugsignet_network()} from the local cache or
 Synapse.
 
 The method estimates a background distribution using random simulations and
@@ -84,6 +84,16 @@ ranks drugs by their proximity to the supplied disease genes.
 This implementation follows the network medicine framework used to identify
 drug-repurposing opportunities for COVID-19.
 }
+\section{Result schema}{
+
+\verb{@result} contains \code{Drug}, \code{Disease}, \code{D}, \code{Z}, \code{Mean} and \code{SD}. \code{D} is the
+observed mean closest target-to-disease distance; \code{Mean} and \code{SD} describe the
+degree-matched randomized background. \code{Z = (D - Mean) / SD}, so more negative
+Z-scores indicate closer-than-expected proximity. The pipeline ranks smaller
+Z-scores first. Retain simulation count, seed, mapping coverage and networks
+when comparing analyses.
+}
+
 \examples{
 \dontrun{
 disease_genes <- data.frame(
@@ -129,4 +139,7 @@ medicine framework for identifying drug-repurposing opportunities for
 COVID-19. \emph{Proceedings of the National Academy of Sciences of the
 United States of America}. 2021;118(19):e2025581118.
 \doi{10.1073/pnas.2025581118}
+}
+\seealso{
+\code{\link[=drugNetworkPipeline]{drugNetworkPipeline()}}, \code{\link[=Diffusion]{Diffusion()}}
 }

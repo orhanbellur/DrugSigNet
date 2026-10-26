@@ -27,61 +27,61 @@ extract_drug_subgraph(
 )
 }
 \arguments{
-\item{ppi}{Optional PPI network data frame with `gene1` and `gene2` columns.
-If `NULL`, the default DrugSigNet gene-gene network is loaded.}
+\item{ppi}{Optional PPI network data frame with \code{gene1} and \code{gene2} columns.
+If \code{NULL}, the default DrugSigNet gene-gene network is loaded.}
 
-\item{dti}{Optional drug-target interaction data frame with `Drug` and
-`Target` columns. If `NULL`, the default DrugSigNet drug-target network is
+\item{dti}{Optional drug-target interaction data frame with \code{Drug} and
+\code{Target} columns. If \code{NULL}, the default DrugSigNet drug-target network is
 loaded.}
 
-\item{disease_genes_df}{Data frame with `Ensembl` and `source` columns.}
+\item{disease_genes_df}{Data frame with \code{Ensembl} and \code{source} columns.}
 
-\item{drug_signature_df}{Optional data frame with an `Ensembl` column.}
+\item{drug_signature_df}{Optional data frame with an \code{Ensembl} column.}
 
 \item{drug}{Character string specifying the drug name or identifier.}
 
-\item{k_hops}{Positive integer number of hops to extract. Default is `2`.}
+\item{k_hops}{Positive integer number of hops to extract. Default is \code{2}.}
 
 \item{drug_network}{Drug label used in the drug-target/network table.
-Defaults to `drug`.}
+Defaults to \code{drug}.}
 
 \item{drug_signature_id}{Drug label used when computing a drug signature.
-Defaults to `drug`.}
+Defaults to \code{drug}.}
 
 \item{k2_filter_by}{Node set used for second and later PPI hops. One of
-`"none"`, `"disease"`, or `"drug_signature"`. Default is `"none"`.}
+\code{"none"}, \code{"disease"}, or \code{"drug_signature"}. Default is \code{"none"}.}
 
-\item{compute_drug_signature}{Logical; if `TRUE`, compute
-`drug_signature_df` with `get_drug_signature()`. Default is `FALSE`.}
+\item{compute_drug_signature}{Logical; if \code{TRUE}, compute
+\code{drug_signature_df} with \code{get_drug_signature()}. Default is \code{FALSE}.}
 
-\item{Gene_map}{Optional gene mapping table passed to `get_drug_signature()`
-when `compute_drug_signature = TRUE`.}
+\item{Gene_map}{Optional gene mapping table passed to \code{get_drug_signature()}
+when \code{compute_drug_signature = TRUE}.}
 
-\item{refdb}{Reference database. One of `"cmap"` or `"lincs2"`.}
+\item{refdb}{Reference database. One of \code{"cmap"} or \code{"lincs2"}.}
 
 \item{signature_refdb_mode}{Signature reference database mode. Use
-`"default"` for the default ExperimentHub reference, `"frozen"` for the
-cached Synapse HDF5 reference database, or `"frozen_force"` to redownload
+\code{"default"} for the default ExperimentHub reference, \code{"frozen"} for the
+cached Synapse HDF5 reference database, or \code{"frozen_force"} to redownload
 the frozen database.}
 
 \item{signature_cells}{Optional character vector of cell lines passed to
-`get_drug_signature()` when computing the drug signature. For CMAP, this
+\code{get_drug_signature()} when computing the drug signature. For CMAP, this
 can reproduce a cell-restricted legacy analysis.}
 
 \item{signature_profile_ids}{Optional character vector of exact reference
-profile column names passed to `get_drug_signature()`. This is especially
-useful for reproducing exact LINCS2 `pert_id__cell__type` selections.}
+profile column names passed to \code{get_drug_signature()}. This is especially
+useful for reproducing exact LINCS2 \code{pert_id__cell__type} selections.}
 
 \item{n_up}{Optional positive integer specifying the number of top
-up-regulated genes to return. If `NULL`, no separate up-regulated gene table
+up-regulated genes to return. If \code{NULL}, no separate up-regulated gene table
 is returned.}
 
 \item{n_down}{Optional positive integer specifying the number of top
-down-regulated genes to return. If `NULL`, no separate down-regulated gene
+down-regulated genes to return. If \code{NULL}, no separate down-regulated gene
 table is returned.}
 
-\item{force}{Logical; if `TRUE`, force refresh of default network cache when
-`ppi` or `dti` is `NULL`. Default is `FALSE`.}
+\item{force}{Logical; if \code{TRUE}, force refresh of default network cache when
+\code{ppi} or \code{dti} is \code{NULL}. Default is \code{FALSE}.}
 
 \item{auth_token}{Optional Synapse authentication token used when loading
 default networks or frozen signature reference databases.}
@@ -89,13 +89,13 @@ default networks or frozen signature reference databases.}
 \value{
 A list with two elements:
 \describe{
-  \item{subgraph}{Edge data frame for the extracted subgraph.}
-  \item{metadata}{List containing drug labels, optional drug signature data,
-  hop settings, reference database settings, and whether default networks were
-  loaded.}
+\item{subgraph}{Edge data frame for the extracted subgraph.}
+\item{metadata}{List containing drug labels, optional drug signature data,
+hop settings, reference database settings, and whether default networks were
+loaded.}
 }
 
-Returns `NULL` if no valid graph can be built or if the selected drug is not
+Returns \code{NULL} if no valid graph can be built or if the selected drug is not
 present in the resolved network.
 }
 \description{
@@ -104,25 +104,25 @@ drug-target interactions, PPI edges, disease genes, and optionally
 drug-induced signature genes.
 }
 \details{
-`extract_drug_subgraph()` builds a local network around a selected drug. The
+\code{extract_drug_subgraph()} builds a local network around a selected drug. The
 first hop connects the drug to its direct targets in the drug-target
 interaction table. Additional hops expand through the supplied PPI network.
 
-If `ppi` or `dti` is `NULL`, the corresponding default DrugSigNet network is
-loaded from the local cache or Synapse using `load_drugsignet_network()`.
+If \code{ppi} or \code{dti} is \code{NULL}, the corresponding default DrugSigNet network is
+loaded from the local cache or Synapse using \code{load_drugsignet_network()}.
 Default networks are filtered to high-confidence PPI edges and high-confidence
 drug-target interactions with high- or medium-confidence targets when these
 confidence columns are available.
 
-Expansion after the first hop can be restricted with `k2_filter_by`.
-Use `"none"` to traverse all PPI nodes, `"disease"` to restrict traversal to
-disease genes, or `"drug_signature"` to restrict traversal to genes in the
+Expansion after the first hop can be restricted with \code{k2_filter_by}.
+Use \code{"none"} to traverse all PPI nodes, \code{"disease"} to restrict traversal to
+disease genes, or \code{"drug_signature"} to restrict traversal to genes in the
 supplied or computed drug signature.
 
-When `compute_drug_signature = TRUE`, drug-induced signature genes are
-computed with `get_drug_signature()` using the selected `refdb`,
-`signature_refdb_mode`, `n_up`, and `n_down` settings. Optional
-`signature_cells` or `signature_profile_ids` can restrict the reference
+When \code{compute_drug_signature = TRUE}, drug-induced signature genes are
+computed with \code{get_drug_signature()} using the selected \code{refdb},
+\code{signature_refdb_mode}, \code{n_up}, and \code{n_down} settings. Optional
+\code{signature_cells} or \code{signature_profile_ids} can restrict the reference
 profiles so that a predefined or legacy analysis can be reproduced.
 }
 \examples{

@@ -16,7 +16,7 @@ resolve_annotation_col(tbl, candidates, field, required = TRUE)
 \item{required}{Logical; whether missing column should error.}
 }
 \value{
-Matching column name or `NA_character_`.
+Matching column name or \code{NA_character_}.
 }
 \description{
 Internal helper for annotation getters.

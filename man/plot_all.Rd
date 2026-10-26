@@ -18,45 +18,45 @@ plot_all(
 keys. Each value can be a data frame, matrix, or a named list of arguments
 for the underlying plotting function.}
 
-\item{file_type}{Output file format. One of `"pdf"`, `"png"`, `"svg"`, or
-`"jpeg"`. Default is `"pdf"`.}
+\item{file_type}{Output file format. One of \code{"pdf"}, \code{"png"}, \code{"svg"}, or
+\code{"jpeg"}. Default is \code{"pdf"}.}
 
-\item{output_dir}{Optional output directory for saved plots. If `NULL`, each
+\item{output_dir}{Optional output directory for saved plots. If \code{NULL}, each
 plotting function uses its default saving behavior.}
 
 \item{file_prefix}{Optional prefix added to generated file names when
-`output_dir` is provided.}
+\code{output_dir} is provided.}
 
-\item{continue_on_error}{Logical; if `TRUE`, failed plots are collected and
-processing continues. If `FALSE`, the first failure stops execution.}
+\item{continue_on_error}{Logical; if \code{TRUE}, failed plots are collected and
+processing continues. If \code{FALSE}, the first failure stops execution.}
 
-\item{verbose}{Logical; if `TRUE`, progress messages are printed.}
+\item{verbose}{Logical; if \code{TRUE}, progress messages are printed.}
 }
 \value{
 A named list with two elements:
 \describe{
-  \item{plots}{Successfully generated plot objects or plot results.}
-  \item{errors}{Named list of error messages for failed plots.}
+\item{plots}{Successfully generated plot objects or plot results.}
+\item{errors}{Named list of error messages for failed plots.}
 }
 }
 \description{
 Runs multiple DrugSigNet plotting helpers in one call.
 }
 \details{
-`plot_all()` is a convenience wrapper for generating several DrugSigNet plots
+\code{plot_all()} is a convenience wrapper for generating several DrugSigNet plots
 from a named list of inputs. Each list element name must match one supported
 plot key. Each element can either be the main input object for that plot
 or a named list of arguments passed directly to the corresponding plotting
 function.
 
-Supported plot keys are `drug_status`, `drug_indications`,
-`drug_similarity`, `drug_hierarchy`, `top_k_hits`, `top_k_overlap`,
-`enriched_terms`, `rank_agreement`, and `rank_distribution_scatter`.
+Supported plot keys are \code{drug_status}, \code{drug_indications},
+\code{drug_similarity}, \code{drug_hierarchy}, \code{top_k_hits}, \code{top_k_overlap},
+\code{enriched_terms}, \code{rank_agreement}, and \code{rank_distribution_scatter}.
 
-If `output_dir` is provided, file names are generated automatically using
-`file_prefix` and the plot key unless a plot-specific `file_name` is supplied.
-Failed plots are collected in the returned `errors` list when
-`continue_on_error = TRUE`.
+If \code{output_dir} is provided, file names are generated automatically using
+\code{file_prefix} and the plot key unless a plot-specific \code{file_name} is supplied.
+Failed plots are collected in the returned \code{errors} list when
+\code{continue_on_error = TRUE}.
 }
 \examples{
 \dontrun{

@@ -18,7 +18,6 @@
 #' @return A `ggplot` object.
 #'
 #' @examples
-#' \dontrun{
 #' rank_df <- data.frame(
 #'   Drug = c("drug_a", "drug_b", "drug_c"),
 #'   Method1 = c(1, 2, 3),
@@ -33,7 +32,6 @@
 #'   methods = c("Method1", "Method2"),
 #'   top_k = 100
 #' )
-#' }
 #'
 #' @importFrom ggplot2 ggplot aes geom_point geom_abline facet_grid theme_bw theme element_text ggsave labs coord_cartesian
 #' @export

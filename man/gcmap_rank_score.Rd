@@ -18,12 +18,47 @@ gcmap_rank_score(
 
 \item{trend_name}{Optional trend used to derive the CMAP cutoff.}
 
-\item{ties_method}{Character string passed to [base::rank()], or `"dense"`.}
+\item{ties_method}{Character string passed to \code{\link[base:rank]{base::rank()}}, or \code{"dense"}.}
 }
 \value{
 A data frame of standardized gCMAP rank scores.
 }
 \description{
-Converts raw results from [gcmap_method()] into the standardized ranking
+Converts raw results from \code{\link[=gcmap_method]{gcmap_method()}} into the standardized ranking
 format used by the signature pipeline.
+}
+\details{
+The gCMAP table requires \code{pert}, \code{cell}, \code{trend} and \code{effect}.
+The corresponding CMAP table must contain \code{raw_score}, \code{scaled_score},
+\code{N_upset} and \code{N_downset}, and \code{trend} if \code{trend_name} is used. The effect
+cutoff is the minimum absolute CMAP scaled score among profiles passing the
+95\% KS cutoff. Only \code{abs(effect)} >= this cutoff receives a nonzero score.
+If no CMAP profile passes, the empty minimum gives an infinite cutoff
+(with a warning) and no effect qualifies.
+The gCMAP \code{scaled_score} is the native \code{effect}.
+}
+\section{Scoring and ties}{
+
+For each compound (\code{pert}), the strongest absolute native score is retained;
+equally strong profiles can remain tied. Available cell labels are collapsed.
+Retained profiles are ranked by decreasing absolute score before the
+method-specific significance gate is applied. A qualifying profile receives
+\code{rank_score = 1 / rank}; other profiles receive zero. Nonzero scores are not
+renumbered, so gaps are expected. With \code{ties_method = "max"}, tied profiles
+receive the largest occupied rank. Larger \code{rank_score} means higher priority.
+Direction remains in \code{trend}; absolute-score priority is not evidence that a
+compound reverses disease biology.
+}
+
+\section{Output columns}{
+
+The processed table contains \code{perturbation}, \code{rank_score}, the native score,
+\code{trend} and \code{scaled_score}, plus available metadata. Optional annotations are
+not manufactured when absent. Equally strong retained profiles may produce
+multiple rows for one compound. Harmonize compound identities before scoring;
+these helpers do not load a synonym resource or run a reference search.
+}
+
+\seealso{
+\code{\link[=cmap_rank_score]{cmap_rank_score()}}, \code{\link[=drugSignaturePipeline]{drugSignaturePipeline()}}
 }

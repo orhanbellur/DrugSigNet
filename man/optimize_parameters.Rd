@@ -27,44 +27,44 @@ optimize_parameters(
 )
 }
 \arguments{
-\item{method}{Ranking method to optimize. One of `"TrustRank"`,
-`"Harmonic_centrality"`, or `"CRank"`.}
+\item{method}{Ranking method to optimize. One of \code{"TrustRank"},
+\code{"Harmonic_centrality"}, or \code{"CRank"}.}
 
 \item{input_data}{Data frame used for CRank rank aggregation. Required when
-`method = "CRank"`.}
+\code{method = "CRank"}.}
 
 \item{ppi_network}{Protein-protein interaction network. Expected to contain
-columns `gene1` and `gene2`. If `NULL`, the default `"gene_gene"` network
+columns \code{gene1} and \code{gene2}. If \code{NULL}, the default \code{"gene_gene"} network
 is loaded.}
 
 \item{drug_target_network}{Drug-target interaction network. Expected to
-contain columns `ID`, `Drug`, `Target`, and `Group`. If `NULL`, the default
-`"drug_target"` network is loaded.}
+contain columns \code{ID}, \code{Drug}, \code{Target}, and \code{Group}. If \code{NULL}, the default
+\code{"drug_target"} network is loaded.}
 
 \item{disease_genes}{Data frame containing disease seed genes in a column
-named `gene`.}
+named \code{gene}.}
 
 \item{hub_penalty}{Numeric vector of hub penalty values to test for network
-methods. Default is `seq(0, 1, 0.1)`.}
+methods. Default is \code{seq(0, 1, 0.1)}.}
 
 \item{damping_factor}{Numeric vector of damping factors to test for
-`TrustRank`. Default is `seq(0, 1, 0.1)`.}
+\code{TrustRank}. Default is \code{seq(0, 1, 0.1)}.}
 
 \item{prior}{Numeric vector of CRank prior values to test. Default is
-`seq(0.001, 0.1, 0.001)`.}
+\code{seq(0.001, 0.1, 0.001)}.}
 
 \item{num_bin}{Integer vector of CRank bin counts to test. Default is
-`seq(100, 1000, 100)`.}
+\code{seq(100, 1000, 100)}.}
 
-\item{num_iter}{Number of CRank iterations. Default is `1000`.}
+\item{num_iter}{Number of CRank iterations. Default is \code{1000}.}
 
 \item{ties_method}{Method used to resolve ties during rank conversion. One of
-`"max"`, `"min"`, `"average"`, `"first"`, `"last"`, `"random"`, or
-`"dense"`. Default is `"max"`.}
+\code{"max"}, \code{"min"}, \code{"average"}, \code{"first"}, \code{"last"}, \code{"random"}, or
+\code{"dense"}. Default is \code{"max"}.}
 
-\item{reverse}{Logical; if `TRUE`, smaller input values are treated as better,
+\item{reverse}{Logical; if \code{TRUE}, smaller input values are treated as better,
 which is appropriate when numeric columns already represent ranks. If
-`FALSE`, larger input values are treated as better. Default is `FALSE`.}
+\code{FALSE}, larger input values are treated as better. Default is \code{FALSE}.}
 
 \item{cancer_drugs}{Optional vector of disease-relevant drugs reserved for
 benchmarking workflows.}
@@ -75,18 +75,18 @@ benchmarking workflows.}
 \item{negative_drugs}{Optional vector of negative-control drugs reserved for
 benchmarking workflows.}
 
-\item{result_size}{Number of top-ranked results to return. If `NULL`, it is
-inferred from the number of unique drugs in `drug_target_network`.}
+\item{result_size}{Number of top-ranked results to return. If \code{NULL}, it is
+inferred from the number of unique drugs in \code{drug_target_network}.}
 
 \item{n_workers}{Number of parallel workers. Network methods are run
 sequentially for Python/reticulate backend stability; CRank optimization can
-use multiple workers. Default is `8`.}
+use multiple workers. Default is \code{8}.}
 
 \item{force}{Logical; force redownload of default networks from Synapse
 instead of using the local cache.}
 
-\item{auth_token}{Optional Synapse authentication token. If `NULL`, the
-`SYNAPSE_AUTH_TOKEN` environment variable is used.}
+\item{auth_token}{Optional Synapse authentication token. If \code{NULL}, the
+\code{SYNAPSE_AUTH_TOKEN} environment variable is used.}
 }
 \value{
 A named list of optimization results. Each element contains the parameter
@@ -97,20 +97,26 @@ Performs grid-based parameter optimization for selected DrugSigNet ranking
 and rank aggregation methods.
 }
 \details{
-`optimize_parameters()` evaluates parameter combinations for one selected
+\code{optimize_parameters()} evaluates parameter combinations for one selected
 method and returns the corresponding ranked results. It supports network
-methods (`TrustRank` and `Harmonic_centrality`) and the CRank rank
+methods (\code{TrustRank} and \code{Harmonic_centrality}) and the CRank rank
 aggregation method.
 
-For `TrustRank`, the grid is defined by `hub_penalty` and `damping_factor`.
-For `Harmonic_centrality`, the grid is defined by `hub_penalty`. For
-`CRank`, the grid is defined by `prior` and `num_bin`.
+For \code{TrustRank}, the grid is defined by \code{hub_penalty} and \code{damping_factor}.
+For \code{Harmonic_centrality}, the grid is defined by \code{hub_penalty}. For
+\code{CRank}, the grid is defined by \code{prior} and \code{num_bin}.
 
 Network methods use the resolved PPI and drug-target networks and require
-`disease_genes`. If either network is `NULL`, default DrugSigNet networks can
+\code{disease_genes}. If either network is \code{NULL}, default DrugSigNet networks can
 be loaded from the local cache or Synapse. Because network methods rely on
 Python/reticulate graph backends, they are run sequentially for stability.
 CRank optimization can use multiple workers.
+
+This function returns a parameter grid of results; it does not choose
+an optimum or evaluate clinical efficacy. Select a comparison criterion and
+controls independently. For CRank, avoid priors producing an empty
+high-confidence group, especially on small inputs. The benchmarking drug
+arguments are reserved and do not currently compute performance metrics.
 }
 \examples{
 \dontrun{
@@ -123,8 +129,8 @@ rank_df <- data.frame(
 crank_grid <- optimize_parameters(
   method = "CRank",
   input_data = rank_df,
-  prior = c(0.01, 0.05, 0.093),
-  num_bin = c(100, 200),
+  prior = c(0.4, 0.8), # nonempty groups for this three-item toy input
+  num_bin = c(3, 4),
   reverse = TRUE,
   n_workers = 2
 )
@@ -142,4 +148,7 @@ trust_grid <- optimize_parameters(
 )
 }
 
+}
+\seealso{
+\code{\link[=CRank]{CRank()}}, \code{\link[=TrustRank]{TrustRank()}}, \code{\link[=Harmonic_centrality]{Harmonic_centrality()}}
 }

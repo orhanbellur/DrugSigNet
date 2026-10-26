@@ -65,8 +65,10 @@
 #'   `"min"`, `"average"`, or `"dense"`. Default is `"max"`.
 #' @param output_dir Optional directory used by diffusion methods to store
 #'   intermediate files.
-#' @param top_k Number of top-ranked drugs used for downstream annotation and
-#'   target enrichment. Default is `100`.
+#' @param top_k Positive rank threshold for downstream annotation/enrichment.
+#'   The union of drugs with rank <= `top_k` in any selected consensus column
+#'   is used; ties and differing methods can select more than `top_k` drugs.
+#'   This does not truncate the core ranking tables. Default is `100`.
 #' @param trial_condition Optional condition used to retrieve matching clinical
 #'   trial annotations.
 #' @param drug_annotation_source Drug annotation source. One of `"All"`,
@@ -82,6 +84,18 @@
 #'   target set enrichment. Default is `TRUE`.
 #' @param run_visualization Logical; if `TRUE`, build visualization metadata and
 #'   plots. Default is `TRUE`.
+#'
+#' @section Aggregation stages:
+#' With `run_all_network_methods = FALSE`, only the three centrality rank lists
+#' enter final CRank, Dowdall and RRA aggregation. With `TRUE`, five diffusion rank
+#' measures first form `Diffusion_CRank`, `Diffusion_Dowdall` and `Diffusion_RRA`.
+#' Each final network aggregator uses its matching diffusion consensus together
+#' with the proximity rank and all three centrality ranks. They are not all pooled
+#' into every final aggregator. Final `Network_CRank`, `Network_Dowdall` and
+#' `Network_RRA` values are smaller-is-better ranks.
+#'
+#' @seealso [drugRepurposingPipeline()], [integrateSignatureNetwork()],
+#'   [write_report()]
 #'
 #' @return
 #' A `DrugSearchingPipeline` S4 object containing raw network-search results,

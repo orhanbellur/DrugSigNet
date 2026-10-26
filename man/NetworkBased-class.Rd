@@ -3,19 +3,21 @@
 \docType{class}
 \name{NetworkBased-class}
 \alias{NetworkBased-class}
-\title{Create a SignatureBasedDrugSearching Object}
-\arguments{
-\item{signature_result}{A `data.frame` containing the results of the search.}
-
-\item{query}{A `list` containing the up-regulated (`upset`) and down-regulated (`downset`) gene sets.}
-
-\item{signature_method}{A `character` string representing the method used (e.g., "CMAP").}
-
-\item{refdb}{A `character` string specifying the reference database used (e.g., "cmap").}
-}
-\value{
-A `SignatureBasedDrugSearching` object.
-}
+\title{Network-Based Search Result Class}
 \description{
-A helper function to create an instance of the `SignatureBasedDrugSearching` class.
+An S4 class extending \code{DrugSearching} for a network-method result.
+Use \code{\link[=TrustRank]{TrustRank()}}, \code{\link[=Harmonic_centrality]{Harmonic_centrality()}}, \code{\link[=Degree_centrality]{Degree_centrality()}},
+\code{\link[=Network_proximity]{Network_proximity()}} or \code{\link[=Diffusion]{Diffusion()}} to obtain populated instances.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{result}}{Data frame of method-specific scores or ranks. Its schema is
+documented by the generating method.}
+
+\item{\code{parameters}}{List of retained inputs and method settings.}
+}}
+
+\seealso{
+\link[=DrugSearchingPipeline-class]{DrugSearchingPipeline}
 }

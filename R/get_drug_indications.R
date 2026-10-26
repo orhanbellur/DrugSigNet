@@ -10,10 +10,6 @@
 #' or a one-column data frame and returns a `DrugAnnotation` object with
 #' indication information stored in `object@result`.
 #'
-#' Drug matching is performed by drug name and is case-insensitive through the
-#' shared annotation-matching helpers. Annotation resources are loaded from the
-#' local cache or Synapse using `force` and `auth_token`.
-#'
 #' Supported sources are `"All"`, `"OpenTargets"`, `"CHEMBL"`, and `"TTD"`.
 #' When `source = "All"`, indication annotations are combined across available
 #' sources.
@@ -21,7 +17,8 @@
 #' Multiple indications may be associated with a single drug across sources;
 #' these are collapsed with `|` by the shared annotation helpers.
 #'
-#' @inheritParams annotate_drugs
+#' @inheritParams get_drug_moa
+#' @inheritSection get_drug_moa Matching and resources
 #' @param source Annotation source. One of `"All"`, `"OpenTargets"`,
 #'   `"CHEMBL"`, or `"TTD"`. Default is `"All"`.
 #'
