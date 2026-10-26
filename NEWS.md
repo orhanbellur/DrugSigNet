@@ -60,3 +60,11 @@
   remains available. Native Plotly figures are retained and `interactive` is
   honored for ggplot conversion. Scientific summaries share PDF extraction and
   tie handling without modifying rankings.
+## Signature ranking identity correction
+
+* Signature pipelines now normalize LINCS2 identifiers using the effective
+  reference mode. Parallel default-mode runs resolve frozen references and must
+  apply frozen identifier normalization before filtering and rank scoring.
+* Unmapped frozen perturbation IDs remain distinct instead of becoming a shared
+  missing identifier. Method score formulas, significance thresholds, tie rules,
+  and aggregation directions are unchanged from main.
