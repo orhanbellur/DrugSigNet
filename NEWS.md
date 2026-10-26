@@ -27,7 +27,7 @@
 - Treat `enrichR` as a runtime-checked optional dependency so it does not keep
   an incompatible `rjson` namespace loaded when Synapser setup replaces it.
 
-## Scientific PDF reports
+### Scientific PDF reports
 
 * `write_report(device = "pdf")` now presents a concise scientific report with
   verified candidate counts, explicit deterministic Top-N selection and CRank
@@ -60,7 +60,7 @@
   remains available. Native Plotly figures are retained and `interactive` is
   honored for ggplot conversion. Scientific summaries share PDF extraction and
   tie handling without modifying rankings.
-## Signature ranking identity correction
+### Signature ranking identity correction
 
 * Signature pipelines now normalize LINCS2 identifiers using the effective
   reference mode. Parallel default-mode runs resolve frozen references and must
@@ -69,7 +69,7 @@
   missing identifier. Method score formulas, significance thresholds, tie rules,
   and aggregation directions are unchanged from main.
 
-## Python 3.12 installation default
+### Python 3.12 installation default
 
 * New Conda, Pixi/manifest and Docker environments now select Python 3.12;
   Windows CI uses the same version. Remove legacy NumPy/pandas pins that cannot
@@ -81,7 +81,7 @@
   Python versions despite a fixed seed because collection iteration order can
   change; retain runtime versions when reproducing those statistics.
 
-## Isolated network Python runtime
+### Isolated network Python runtime
 
 * Run graph construction, centrality, proximity and diffusion through the
   configured Python in separate processes. This fixes graph-tool GLIBCXX

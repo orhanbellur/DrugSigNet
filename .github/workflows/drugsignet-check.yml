@@ -176,6 +176,9 @@ jobs:
         message("Loaded DLLs before R CMD check:")
         print(getLoadedDLLs())
         print(sessionInfo())
+    - name: Diagnose Ubuntu check time services
+      if: ${{ runner.os == 'Linux' }}
+      run: Rscript .github/scripts/diagnose-check-clock.R
     - id: rworkflows-check
       name: Run R CMD check
       # rworkflows v1.0.12 references the retired Catchpoint telemetry action.

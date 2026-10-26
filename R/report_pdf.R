@@ -404,8 +404,8 @@
   tied <- all$CRank[is.finite(all$CRank) & all$CRank > 0]
   tied_groups <- sum(base::table(tied) > 1L)
   lines <- c(lines, text(sprintf("CRank tie audit: %d repeated rank values across %d candidates with valid CRank. CRank uses binned evidence and its configured ties_method; identical evidence can yield tied ranks. With ties_method = 'max', tied candidates receive the largest occupied position, so repeated values such as 42 need not indicate a sorting error. The report preserves stored ties; secondary columns determine display order only. The exact cause of an individual tie cannot be established from ranks alone.", tied_groups, length(tied))))
-  if (nrow(top) && is.finite(tail(top$CRank, 1)) && tail(top$CRank, 1) > 0) {
-    cutoff <- tail(top$CRank, 1)
+  if (nrow(top) && is.finite(utils::tail(top$CRank, 1)) && utils::tail(top$CRank, 1) > 0) {
+    cutoff <- utils::tail(top$CRank, 1)
     group_total <- sum(all$CRank == cutoff, na.rm = TRUE)
     group_shown <- sum(top$CRank == cutoff, na.rm = TRUE)
     lines <- c(lines, text(sprintf("At the displayed CRank cutoff (%s), %d of %d tied candidates are shown. The fixed Top-N display does not expand ties; omitted tied candidates remain in the complete results.", format(cutoff, trim = TRUE), group_shown, group_total)))
@@ -413,7 +413,7 @@
   plots <- .report_visualization_items(object$Visualization)
   stored_figures <- .report_stored_figure_blocks(plots, index)
   agreement <- .report_agreement(all)
-  lines <- c(lines, heading("Method Comparison and Visualizations"), text("Pairwise Spearman correlation is computed across candidates with finite positive ranks in both methods, using average ranks for correlation ties. This diagnostic does not alter prioritization. A coefficient is unavailable for fewer than three shared candidates or a constant ranking."), table(transform(agreement, Spearman = round(Spearman, 3L)), c(0.55, 0.15, 0.3)))
+  lines <- c(lines, heading("Method Comparison and Visualizations"), text("Pairwise Spearman correlation is computed across candidates with finite positive ranks in both methods, using average ranks for correlation ties. This diagnostic does not alter prioritization. A coefficient is unavailable for fewer than three shared candidates or a constant ranking."), table(transform(agreement, Spearman = round(agreement$Spearman, 3L)), c(0.55, 0.15, 0.3)))
   # The full-rank scatter adds distribution and tie structure, rather than
   # repeating the coefficients or the Top-N candidate table in a heatmap.
   if (!any(names(plots) %in% c("rank_distribution_scatter", "rank_distribution")) && sum(is.finite(all$CRank) & all$CRank > 0 & is.finite(all$Dowdall) & all$Dowdall > 0) >= 3L) {
