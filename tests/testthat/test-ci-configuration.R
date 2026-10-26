@@ -52,7 +52,7 @@ test_that("CI uses a compatible fixed R and Bioconductor release", {
   expect_gt(package_check, runtime_install)
   expect_false(grepl("- id: macos-runtime-install", workflow, fixed = TRUE))
   expect_match(workflow, "actions/setup-python@v6", fixed = TRUE)
-  expect_match(workflow, "python-version: '3.10'", fixed = TRUE)
+  expect_match(workflow, "python-version: '3.12'", fixed = TRUE)
   expect_match(workflow, "synapseclient==4.4.2", fixed = TRUE)
   expect_match(workflow, '"RETICULATE_PYTHON=$python"', fixed = TRUE)
   expect_false(grepl("conda create --yes --name r-reticulate", workflow, fixed = TRUE))

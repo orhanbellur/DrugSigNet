@@ -72,7 +72,7 @@ stages, and optional interpretation steps.
 | Component | When needed |
 |---|---|
 | R >= 4.5.0 | Current package version |
-| Python >= 3.10 | CRank and Python-backed network methods |
+| Python >= 3.12 | CRank and Python-backed network methods |
 | `graph-tool` | Network centrality methods; supported Linux/macOS runtime |
 | Synapse access and a local cache | Default networks, frozen signature references, and some annotations |
 | Pandoc and a LaTeX engine | PDF reports; HTML does not require LaTeX |
@@ -166,6 +166,15 @@ health <- DrugSigNet::check_drugsignet_installation(
 health$ok
 health$python
 ```
+
+New Conda and manifest-based installations select Python 3.12. Existing complete
+runtimes are reused and are not upgraded automatically. To migrate an existing
+project, create a separate Python 3.12 environment, set `RETICULATE_PYTHON` to its
+interpreter, and restart R before analysis. Retain the previous environment for
+comparison and reproduction. A fixed seed does not guarantee identical
+randomized proximity Z-scores across Python/dependency versions: unordered
+collection iteration can change the sampled background. Record the complete
+runtime versions alongside the seed when comparing analyses.
 
 For a signature-only runtime on native Windows, use
 `include_graph_tool = FALSE`; network analysis still requires Docker or WSL.
@@ -415,6 +424,22 @@ Bionetworks GitHub repository when the legacy Synapse R package index cannot be
 reached and disables dependency-vignette rebuilding, so a LaTeX installation is
 not needed. Set `options(DrugSigNet.auto_install_synapser = FALSE)` to disable
 installation on first use.
+
+## RStudio reports a missing `GLIBCXX` symbol
+
+A successful Pixi installation does not replace an already running RStudio R
+process. That process may have loaded a system `libstdc++` older than the one
+required by Pixi's `graph-tool`. Network calculations now run in separate
+processes using the configured Python and its runtime libraries, avoiding this
+in-process mismatch. Restart R after updating DrugSigNet so the new methods are
+loaded; rerun the analysis with the same configured Pixi project.
+
+Do not remove DrugSigNet before reinstalling it. If RStudio restores old S4
+objects after the package was removed, startup can report that the DrugSigNet
+namespace is missing. Reinstall the package and restart without restoring the
+old workspace. A "built under R version" warning concerns the running R version,
+not the Python version; use `pixi run --manifest-path <project>/pixi.toml R` for
+the fully matched Pixi R runtime.
 
 ## Network methods are slow
 

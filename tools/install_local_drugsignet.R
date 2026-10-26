@@ -73,10 +73,10 @@ if (!file.exists(python)) {
   run_conda(c(
     "create", "--yes", "--name", envname,
     "-c", "conda-forge",
-    "python=3.10",
+    "python=3.12",
     "pip",
-    "numpy=1.24.4",
-    "pandas=2.0.3",
+    "numpy",
+    "pandas",
     "scipy",
     "openpyxl",
     "tqdm",

@@ -108,7 +108,7 @@ test_that("Pixi Python is associated with its project manifest", {
     DrugSigNet:::.drugsignet_pixi_project_from_python(python),
     normalizePath(project, mustWork = FALSE)
   ))
-  resolved_python <- file.path(dirname(python), "python3.10")
+  resolved_python <- file.path(dirname(python), "python3.12")
   file.create(resolved_python)
   expect_true(DrugSigNet:::.drugsignet_paths_equal(
     DrugSigNet:::.drugsignet_pixi_project_from_python(resolved_python),
@@ -388,4 +388,60 @@ test_that("graph construction avoids graph_tool.all drawing imports", {
 
   expect_true(any(grepl("^import graph_tool as gt$", source)))
   expect_false(any(grepl("^import graph_tool\\.all", source)))
+})
+
+test_that("a new managed Conda environment requests Python 3.12", {
+  python <- tempfile("drugsignet-python312-")
+  file.create(python)
+  on.exit(unlink(python), add = TRUE)
+  withr::local_envvar(c(RETICULATE_PYTHON = NA))
+  created <- FALSE
+  requested <- NULL
+  selected <- NULL
+  local_mocked_bindings(
+    conda_binary = function(...) "conda",
+    conda_python = function(...) if (created) python else "",
+    conda_create = function(envname, packages, channel) {
+      requested <<- packages
+      created <<- TRUE
+    },
+    use_python = function(python, required) selected <<- python,
+    conda_install = function(...) stop("complete runtime must not be reinstalled"),
+    .package = "reticulate"
+  )
+  local_mocked_bindings(
+    .drugsignet_conda_prefix_is_valid = function(...) FALSE,
+    .drugsignet_python_has_modules = function(...) TRUE,
+    .package = "DrugSigNet"
+  )
+  result <- DrugSigNet:::.drugsignet_prepare_conda_environment(
+    envname = "test-python312", include_graph_tool = TRUE, quiet = TRUE
+  )
+  expect_true(created)
+  expect_identical(requested, c("python=3.12", "pip"))
+  expect_identical(selected, python)
+  expect_identical(result, python)
+})
+
+test_that("a valid existing managed runtime is reused without recreation", {
+  python <- tempfile("existing-drugsignet-python-")
+  file.create(python)
+  on.exit(unlink(python), add = TRUE)
+  withr::local_envvar(c(RETICULATE_PYTHON = NA))
+  local_mocked_bindings(
+    conda_binary = function(...) "conda",
+    conda_python = function(...) python,
+    conda_create = function(...) stop("existing runtime must not be replaced"),
+    conda_install = function(...) stop("complete runtime must not be reinstalled"),
+    use_python = function(...) invisible(NULL),
+    .package = "reticulate"
+  )
+  local_mocked_bindings(
+    .drugsignet_conda_prefix_is_valid = function(...) TRUE,
+    .drugsignet_python_has_modules = function(...) TRUE,
+    .package = "DrugSigNet"
+  )
+  expect_identical(DrugSigNet:::.drugsignet_prepare_conda_environment(
+    envname = "existing-runtime", include_graph_tool = TRUE, quiet = TRUE
+  ), python)
 })

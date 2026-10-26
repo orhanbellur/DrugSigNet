@@ -179,13 +179,13 @@ setMethod("Network_proximity", signature = "NetworkBased", function(object) {
 
   # Prepare parameters for Python
   params <- list(
-    include_indirect_drugs = reticulate::r_to_py(params$include_indirect_drugs),
-    include_non_approved_drugs = reticulate::r_to_py(params$include_non_approved_drugs),
-    n_simulations = reticulate::r_to_py(as.integer(params$n_simulations)),
-    ncpus = reticulate::r_to_py(as.integer(params$ncpus)),
-    start = reticulate::r_to_py(as.integer(params$start)),
-    end = reticulate::r_to_py(as.integer(params$end)),
-    random_seed = reticulate::r_to_py(as.integer(params$random_seed))
+    include_indirect_drugs = params$include_indirect_drugs,
+    include_non_approved_drugs = params$include_non_approved_drugs,
+    n_simulations = as.integer(params$n_simulations),
+    ncpus = as.integer(params$ncpus),
+    start = as.integer(params$start),
+    end = as.integer(params$end),
+    random_seed = as.integer(params$random_seed)
   )
 
   # Locate the Python script dynamically
@@ -195,8 +195,7 @@ setMethod("Network_proximity", signature = "NetworkBased", function(object) {
   }
 
   # Load and run the Network Proximity Python function
-  py <- reticulate::py_run_file(NetworkProximity_script)
-  Network_Proximity_result <- .clean_python_result(py$Network_Proximity(
+  Network_Proximity_result <- .clean_python_result(.drugsignet_network_python_call("Network_proximity", "Network_Proximity", list(
     disease_genes = seed_genes,
     drug_edges_df = files_path$drug_graph$drug_edges,
     gene_edges_df = files_path$ppi_graph$gene_edges,
@@ -205,7 +204,7 @@ setMethod("Network_proximity", signature = "NetworkBased", function(object) {
     start = params$start,
     end = params$end,
     random_seed = params$random_seed
-  )) %>% dplyr::rename("ID" = "Drug")
+  ))) %>% dplyr::rename("ID" = "Drug")
 
   Network_Proximity_result <- dplyr::left_join(
     Network_Proximity_result,

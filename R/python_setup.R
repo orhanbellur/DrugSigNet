@@ -3,13 +3,17 @@
 #' @description
 #' Installs required Python modules for DrugSigNet using `reticulate`.
 #'
-#' By default, this creates a dedicated conda environment containing the core
-#' Python modules, `kaleido`, and, on supported operating systems, `graph_tool`.
+#' By default, this creates a dedicated Conda environment containing
+#' Python 3.12, the core modules, `kaleido`, and, on supported systems, `graph_tool`.
 #' Native Windows installations skip `graph_tool` because it is unavailable.
 #' A dedicated environment is
 #' necessary because `graph_tool` is distributed by conda-forge rather than
 #' PyPI. It also prevents reticulate's `uv` environment from being initialized
-#' before the graph stack has been selected.
+#' before the graph stack has been selected. Newly created Conda environments
+#' use Python 3.12. A complete existing or explicitly selected runtime is reused
+#' without an in-place Python upgrade, including legacy environments. To migrate
+#' an existing project, create a separate Python 3.12 runtime and select its
+#' interpreter with `RETICULATE_PYTHON` before starting a fresh R session.
 #'
 #' If `RETICULATE_PYTHON` already names an interpreter containing every
 #' requested module (for example the generated Pixi environment), that runtime
@@ -293,7 +297,7 @@ setup_python_dependencies <- function(
     if (!quiet) message("Creating DrugSigNet conda environment: ", envname)
     reticulate::conda_create(
       envname = envname,
-      packages = c("python=3.10", "pip"),
+      packages = c("python=3.12", "pip"),
       channel = "conda-forge"
     )
     python <- reticulate::conda_python(envname)
@@ -370,7 +374,7 @@ setup_python_dependencies <- function(
 }
 
 .drugsignet_python_system2 <- function(python, args, stdout = FALSE,
-                                        stderr = FALSE) {
+                                        stderr = FALSE, extra_env = character()) {
   python_prefix <- .drugsignet_python_prefix(python)
   active_prefix <- Sys.getenv("CONDA_PREFIX")
   if (nzchar(active_prefix) &&
@@ -380,7 +384,7 @@ setup_python_dependencies <- function(
       args,
       stdout = stdout,
       stderr = stderr,
-      env = .drugsignet_python_process_env(python)
+      env = c(.drugsignet_python_process_env(python), extra_env)
     ))
   }
 
@@ -404,7 +408,7 @@ setup_python_dependencies <- function(
       ),
       stdout = stdout,
       stderr = stderr,
-      env = .drugsignet_python_process_env(python)
+      env = c(.drugsignet_python_process_env(python), extra_env)
     ))
   }
 
@@ -413,7 +417,7 @@ setup_python_dependencies <- function(
     args,
     stdout = stdout,
     stderr = stderr,
-    env = .drugsignet_python_process_env(python)
+    env = c(.drugsignet_python_process_env(python), extra_env)
   )
 }
 
@@ -664,7 +668,7 @@ setup_python_dependencies <- function(
   python <- .drugsignet_discover_pixi_python()
   if (nzchar(python) && file.exists(python)) {
     # Preserve the lexical `bin/python` entry point. normalizePath() resolves
-    # Pixi's symlink to `bin/python3.10`; reticulate then classifies that target
+    # Pixi's symlink to `bin/python3.12`; reticulate then classifies that target
     # as a Conda-managed interpreter and calls conda_binary(), although Pixi
     # intentionally provides no Conda executable. The explicit `bin/python`
     # path is a standalone interpreter request and avoids that false discovery.
@@ -676,9 +680,11 @@ setup_python_dependencies <- function(
   # No configured interpreter was found. An interpreter that was deliberately
   # initialized by the caller may still provide graph_tool; only then is it
   # safe to accept it without provisioning DrugSigNet's environment.
-  if (reticulate::py_available(initialize = FALSE) &&
-      reticulate::py_module_available("graph_tool")) {
-    return(invisible(TRUE))
+  if (reticulate::py_available(initialize = FALSE)) {
+    current_python <- reticulate::py_config()$python
+    if (.drugsignet_python_has_modules(current_python, "graph_tool")) {
+      return(invisible(TRUE))
+    }
   }
 
   tryCatch(
@@ -693,39 +699,20 @@ setup_python_dependencies <- function(
       )
     }
   )
-  if (!reticulate::py_module_available("graph_tool")) {
-    stop(
-      "DrugSigNet provisioned Python, but graph_tool is still unavailable. ",
-      "Run setup_python_dependencies(force = TRUE) and retry.",
-      call. = FALSE
-    )
-  }
+  python <- .drugsignet_discover_pixi_python()
+  if (!nzchar(python)) python <- reticulate::py_config()$python
+  .drugsignet_use_configured_graph_tool(python)
   invisible(TRUE)
 }
 
 .drugsignet_use_configured_graph_tool <- function(python) {
-  selection_error <- tryCatch({
-    .drugsignet_select_python(python)
-    NULL
-  }, error = identity)
-  if (!is.null(selection_error)) {
-    stop(
-      "DrugSigNet could not select its configured Python interpreter: ",
-      python, "\n", conditionMessage(selection_error),
-      "\nRestart R, load DrugSigNet first, and retry the network pipeline.",
-      call. = FALSE
-    )
-  }
-  import_error <- tryCatch({
-    reticulate::import("graph_tool", delay_load = FALSE)
-    NULL
-  }, error = identity)
-  if (!is.null(import_error)) {
-    stop(
-      "DrugSigNet selected the configured Python interpreter, but could not ",
-      "import graph_tool: ", python, "\n", conditionMessage(import_error),
-      call. = FALSE
-    )
+  # Validate in the same process boundary used by network calculations. Loading
+  # graph-tool into RStudio can bind it to the host's older libstdc++, even when
+  # the configured Python successfully imports it in its own environment.
+  probe <- .drugsignet_python_module_probe(python, "graph_tool")
+  if (!isTRUE(probe$available)) {
+    stop("DrugSigNet's configured Python cannot import graph_tool in its own runtime: ",
+      python, "\n", paste(probe$output, collapse = "\n"), call. = FALSE)
   }
   invisible(TRUE)
 }

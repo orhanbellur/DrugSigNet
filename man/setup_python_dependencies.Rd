@@ -43,13 +43,17 @@ to install, graph-tool install status, and installation method.
 \description{
 Installs required Python modules for DrugSigNet using \code{reticulate}.
 
-By default, this creates a dedicated conda environment containing the core
-Python modules, \code{kaleido}, and, on supported operating systems, \code{graph_tool}.
+By default, this creates a dedicated Conda environment containing
+Python 3.12, the core modules, \code{kaleido}, and, on supported systems, \code{graph_tool}.
 Native Windows installations skip \code{graph_tool} because it is unavailable.
 A dedicated environment is
 necessary because \code{graph_tool} is distributed by conda-forge rather than
 PyPI. It also prevents reticulate's \code{uv} environment from being initialized
-before the graph stack has been selected.
+before the graph stack has been selected. Newly created Conda environments
+use Python 3.12. A complete existing or explicitly selected runtime is reused
+without an in-place Python upgrade, including legacy environments. To migrate
+an existing project, create a separate Python 3.12 runtime and select its
+interpreter with \code{RETICULATE_PYTHON} before starting a fresh R session.
 
 If \code{RETICULATE_PYTHON} already names an interpreter containing every
 requested module (for example the generated Pixi environment), that runtime

@@ -70,7 +70,7 @@ Encoding: UTF-8
 LazyData: true
 Depends: 
     R (>= 4.5.0)
-SystemRequirements: Python (>= 3.10); graph-tool (required for network-based
+SystemRequirements: Python (>= 3.12); graph-tool (required for network-based
     methods on supported platforms)
 Config/roxygen2/version: 8.1.1
 Roxygen: list(markdown = TRUE)

@@ -170,15 +170,14 @@ setMethod("Degree_centrality", signature = "NetworkBased", function(object) {
     unique() %>%
     intersect(as.character(files_path$ppi_graph$gene_nodes$gene)) %>%
     as.list()
-  seed_genes <- reticulate::r_to_py(seed_genes)
 
   # Prepare parameters for Python
   degree_params <- list(
-    include_indirect_drugs = reticulate::r_to_py(params$include_indirect_drugs),
-    include_non_approved_drugs = reticulate::r_to_py(params$include_non_approved_drugs),
-    filter_paths = reticulate::r_to_py(params$filter_paths),
-    max_deg = reticulate::r_to_py(ifelse(is.null(params$max_deg), .Machine$integer.max, params$max_deg)),
-    result_size = reticulate::r_to_py(params$result_size),
+    include_indirect_drugs = params$include_indirect_drugs,
+    include_non_approved_drugs = params$include_non_approved_drugs,
+    filter_paths = params$filter_paths,
+    max_deg = ifelse(is.null(params$max_deg), .Machine$integer.max, params$max_deg),
+    result_size = params$result_size,
     target = params$target,
     ignored_edge_types = list()
   )
@@ -191,8 +190,7 @@ setMethod("Degree_centrality", signature = "NetworkBased", function(object) {
 
 
   # Execute the Degree Centrality algorithm via Python
-  py <- reticulate::py_run_file(DegreeCentrality_script)
-  degree_centrality_result <- py$degree_centrality(
+  degree_centrality_result <- .drugsignet_network_python_call("Degree_centrality", "degree_centrality", list(
     file_path = paste0(files_path$graph_file_path, ".gt"),
     file_name = NULL,
     seeds = seed_genes,
@@ -203,12 +201,11 @@ setMethod("Degree_centrality", signature = "NetworkBased", function(object) {
     result_size = degree_params$result_size,
     target = degree_params$target,
     ignored_edge_types = degree_params$ignored_edge_types
-  )
+  ), result_index = 1L)
 
   # Update the result and parameters in the object
-  #object@result <- degree_centrality_result[[2]]
   object@result <- .clean_python_result(
-    degree_centrality_result[[2]]
+    degree_centrality_result
   )
   object@parameters <- filterNetworkParameters(object)
 

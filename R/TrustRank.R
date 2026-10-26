@@ -252,8 +252,10 @@ createGraphNetwork <- function(drug_node_edge, gene_node_edge, drug_node, gene_n
   if (!file.exists(python_graph_script)) {
     stop("Unable to find Python script: make_graphs.py in the package directory.")
   }
-  py_module <- reticulate::py_run_file(python_graph_script)
-  py_module$create_gt(drug_node_edge, gene_node_edge, drug_node, gene_node, file_name)
+  .drugsignet_network_python_call("make_graphs", "create_gt", list(
+    drug_node_edge = drug_node_edge, gene_node_edge = gene_node_edge,
+    drug_node = drug_node, gene_node = gene_node, file_name = file_name
+  ), discard = TRUE)
 }
 
 # --------------------------------------------------
@@ -298,16 +300,15 @@ setMethod(
       unique() %>%
       intersect(as.character(files_path$ppi_graph$gene_nodes$gene)) %>%
       as.list()
-    seed_genes <- reticulate::r_to_py(seed_genes)
 
     trust_params <- list(
-      include_indirect_drugs = reticulate::r_to_py(params$include_indirect_drugs),
-      include_non_approved_drugs = reticulate::r_to_py(params$include_non_approved_drugs),
-      filter_paths = reticulate::r_to_py(params$filter_paths),
-      hub_penalty = reticulate::r_to_py(params$hub_penalty),
-      damping_factor = reticulate::r_to_py(params$damping_factor),
-      max_deg = reticulate::r_to_py(ifelse(is.null(params$max_deg), .Machine$integer.max, params$max_deg)),
-      result_size = reticulate::r_to_py(params$result_size),
+      include_indirect_drugs = params$include_indirect_drugs,
+      include_non_approved_drugs = params$include_non_approved_drugs,
+      filter_paths = params$filter_paths,
+      hub_penalty = params$hub_penalty,
+      damping_factor = params$damping_factor,
+      max_deg = ifelse(is.null(params$max_deg), .Machine$integer.max, params$max_deg),
+      result_size = params$result_size,
       target = params$target,
       ignored_edge_types = list()
     )
@@ -317,8 +318,7 @@ setMethod(
       stop("Unable to find Python script: TrustRank.py in the package directory.")
     }
 
-    py <- reticulate::py_run_file(TrustRank_script)
-    trust_rank_result <- py$trust_rank(
+    trust_rank_result <- .drugsignet_network_python_call("TrustRank", "trust_rank", list(
       file_path = paste0(files_path$graph_file_path, ".gt"),
       file_name = NULL,
       seeds = seed_genes,
@@ -331,11 +331,10 @@ setMethod(
       damping_factor = trust_params$damping_factor,
       target = trust_params$target,
       ignored_edge_types = trust_params$ignored_edge_types
-    )
+    ), result_index = 1L)
 
-    #object@result <- trust_rank_result[[2]]
     object@result <- .clean_python_result(
-      trust_rank_result[[2]]
+      trust_rank_result
     )
     object@parameters <- filterNetworkParameters(object)
 
