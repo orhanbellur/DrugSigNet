@@ -138,10 +138,11 @@ jobs:
       if: ${{ runner.os == 'macOS' && matrix.config.bioc == '3.20' }}
       shell: bash
       run: |
-        brew install libpng
+        brew install libpng libdeflate
         png_prefix="$(brew --prefix libpng)"
+        deflate_prefix="$(brew --prefix libdeflate)"
         makevars="$RUNNER_TEMP/drugsignet-r44-Makevars"
-        printf 'CPPFLAGS += -I%s/include\nLDFLAGS += -L%s/lib\n' "$png_prefix" "$png_prefix" > "$makevars"
+        printf 'CPPFLAGS += -I%s/include\nLDFLAGS += -L%s/lib -L%s/lib\n' "$png_prefix" "$png_prefix" "$deflate_prefix" > "$makevars"
         echo "R_MAKEVARS_USER=$makevars" >> "$GITHUB_ENV"
     - name: Install R dependencies
       uses: r-lib/actions/setup-r-dependencies@v2
