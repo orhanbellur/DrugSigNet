@@ -2,6 +2,12 @@
 
 ## DrugSigNet 1.0.0
 
+### Apple Silicon Pixi installation
+
+- Install signatureSearch and signatureSearchData through Bioconductor 3.22
+  inside Pixi R on Apple Silicon, avoiding unavailable Bioconda ARM64 packages.
+- Add a dedicated macOS ARM64 Pixi installation check with vignette builds.
+
 ### Initial release
 
 - Added signature-based, network-based, and integrated drug-repurposing

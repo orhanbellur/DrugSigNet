@@ -65,7 +65,10 @@ pixi_toml="${project_dir}/pixi.toml"
     "platforms = [\"${pixi_platform}\"]" \
     '' \
     '[dependencies]'
-  awk -F '\t' '$1 == "conda" || $1 == "pixi" {
+  awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" {
+    # Bioconda does not provide these packages for Apple Silicon. Install
+    # them with BiocManager inside Pixi R after the native runtime exists.
+    if (platform == "osx-arm64" && $2 ~ /^bioconductor-/) next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
@@ -181,6 +184,28 @@ pixi_clean_run() {
 
 echo "[DrugSigNet] Downloading ${package_ref} with Git (pak metadata resolution is skipped)."
 pixi_clean_run git "${clone_args[@]}"
+
+# Use the Bioconductor release matching the maintained Pixi R 4.5 runtime.
+# Run before building vignettes: they load signatureSearch as well.
+if [[ "${pixi_platform}" == "osx-arm64" ]]; then
+  echo "[DrugSigNet] Installing Apple Silicon Bioconductor dependencies with Pixi R (Bioconductor 3.22)."
+  pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+if (getRversion() < "4.5" || getRversion() >= "4.6") {
+  stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
+}
+required <- c("signatureSearch", "signatureSearchData")
+BiocManager::install(version = "3.22", ask = FALSE, update = FALSE)
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) {
+  BiocManager::install(missing, version = "3.22", ask = FALSE, update = FALSE)
+}
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) {
+  stop("Apple Silicon Bioconductor installation failed: ", paste(missing, collapse = ", "))
+}
+RSCRIPT
+fi
 
 install_source="${source_dir}"
 if [[ "${DRUGSIGNET_BUILD_VIGNETTES:-false}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]; then
