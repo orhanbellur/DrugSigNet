@@ -18,6 +18,7 @@ jobs:
     container: ${{ matrix.config.cont }}
     env:
       R_BIOC_VERSION: ${{ matrix.config.bioc }}
+      RSPM: ${{ matrix.config.rspm }}
       DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
       # The complete r-drugsignet runtime is provisioned before R CMD check.
       # Prevent reticulate from independently creating an r-reticulate
@@ -50,17 +51,17 @@ jobs:
           bioc: '3.20'
           r: '4.4.3'
           cont: ~
-          rspm: ~
+          rspm: https://packagemanager.posit.co/cran/2025-04-30
         - os: macOS-latest
           bioc: '3.20'
           r: '4.4.3'
           cont: ~
-          rspm: ~
+          rspm: https://packagemanager.posit.co/cran/2025-04-30
         - os: windows-latest
           bioc: '3.20'
           r: '4.4.3'
           cont: ~
-          rspm: ~
+          rspm: https://packagemanager.posit.co/cran/2025-04-30
         - os: macOS-latest
           bioc: '3.22'
           r: '4.5.3'
@@ -79,7 +80,8 @@ jobs:
       uses: r-lib/actions/setup-r@v2
       with:
         r-version: ${{ matrix.config.r }}
-        use-public-rspm: true
+        use-public-rspm: ${{ matrix.config.bioc != '3.20' }}
+        cran: ${{ matrix.config.rspm }}
     - name: Set up Pandoc
       uses: r-lib/actions/setup-pandoc@v2
     - name: Set up supported Windows Python
@@ -120,16 +122,28 @@ jobs:
       run: |
         Rscript .github/scripts/test-check-system-clock.R
         Rscript -e 'source(".github/scripts/check-system-clock.R"); check_system_clock()'
+    - name: Provide macOS R 4.4 source-build headers
+      if: ${{ runner.os == 'macOS' && matrix.config.bioc == '3.20' }}
+      shell: bash
+      run: |
+        brew install libpng
+        png_prefix="$(brew --prefix libpng)"
+        makevars="$RUNNER_TEMP/drugsignet-r44-Makevars"
+        printf 'CPPFLAGS += -I%s/include\nLDFLAGS += -L%s/lib\n' "$png_prefix" "$png_prefix" > "$makevars"
+        echo "R_MAKEVARS_USER=$makevars" >> "$GITHUB_ENV"
     - name: Install R dependencies
       uses: r-lib/actions/setup-r-dependencies@v2
       with:
         needs: check
-        # Bioconductor 3.20 ships ggtree 3.14.0, which uses ggplot2's
-        # check_linewidth helper removed in ggplot2 4.0. Use the compatible
-        # pre-4.0 release and compatible ggiraph (new ggiraph requires 4.0).
-        # Explicit archive URLs pin versions; pak pkg@version is a minimum.
-        extra-packages: ${{ matrix.config.bioc == '3.20' && 'any::rcmdcheck, url::https://cloud.r-project.org/src/contrib/Archive/ggplot2/ggplot2_3.5.2.tar.gz, url::https://cloud.r-project.org/src/contrib/Archive/ggiraph/ggiraph_0.8.13.tar.gz' || 'any::rcmdcheck' }}
-        cache-version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || 'cache-v2' }}
+        # Keep the entire R 4.4 CRAN stack from the same Bioconductor-era
+        # snapshot. Mixing current ggplot extensions with ggplot2 3.x can
+        # embed incompatible from_theme() defaults in binary packages.
+        extra-packages: any::rcmdcheck
+        cache-version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || (matrix.config.bioc == '3.20' && 'r44-cran-2025-04-30-v1' || 'cache-v2') }}
+    - name: Validate R 4.4 plotting stack
+      if: ${{ matrix.config.bioc == '3.20' }}
+      shell: Rscript {0}
+      run: source(".github/scripts/check-r44-plotting.R")
     - id: runtime-install
       name: Install package and prepare pre-check runtime
       env:
