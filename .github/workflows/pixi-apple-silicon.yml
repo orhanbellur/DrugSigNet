@@ -30,6 +30,10 @@ jobs:
         with:
           r-version: '4.4.3'
       - name: Install complete Pixi runtime and build vignettes
+        # Exercise isolation from a host RStudio/Java setup as well.
+        env:
+          JAVA_HOME: ${{ runner.temp }}/host-java-must-not-leak
+          R_JAVA_LD_LIBRARY_PATH: ${{ runner.temp }}/host-java-must-not-leak/lib/server
         shell: Rscript {0}
         run: |
           source("install-pixi.R")

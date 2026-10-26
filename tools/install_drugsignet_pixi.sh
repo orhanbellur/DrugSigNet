@@ -99,8 +99,11 @@ pixi_toml="${project_dir}/pixi.toml"
     }
     printf "\"%s\" = \"%s\"\n", name, version
   }' "${manifest}"
+  # rJava configure prefers JAVA_HOME from the process environment over
+  # R's javareconf settings. Always bind it to the project OpenJDK.
+  printf '\n[activation.env]\nJAVA_HOME = "%s/.pixi/envs/default/lib/jvm"\n' "${project_dir}"
   if [[ -n "${macos_sdk}" ]]; then
-    printf '\n[activation.env]\nSDKROOT = "%s"\nCONDA_BUILD_SYSROOT = "%s"\n' "${macos_sdk}" "${macos_sdk}"
+    printf 'SDKROOT = "%s"\nCONDA_BUILD_SYSROOT = "%s"\n' "${macos_sdk}" "${macos_sdk}"
   fi
 } > "${pixi_toml}"
 
@@ -198,6 +201,7 @@ clone_args+=("https://github.com/${repository}.git" "${source_dir}")
 
 pixi_clean_run() {
   env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
+    -u JAVA_HOME -u R_JAVA_LD_LIBRARY_PATH \
     "${pixi}" run --clean-env --manifest-path "${pixi_toml}" "$@"
 }
 
@@ -212,9 +216,17 @@ if [[ "${pixi_platform}" == "osx-arm64" ]]; then
     echo "ERROR: Pixi OpenJDK is missing from ${runtime_prefix}/lib/jvm." >&2
     exit 1
   }
-  pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm"
+  # Embed the JVM search path; macOS system shells can strip DYLD_* vars.
+  pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm" \
+    JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm"
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
 options(repos = c(CRAN = "https://cloud.r-project.org"))
+expected_java <- normalizePath(file.path(R.home(), "..", "jvm"), mustWork = TRUE)
+actual_java <- normalizePath(Sys.getenv("JAVA_HOME"), mustWork = TRUE)
+if (!identical(actual_java, expected_java)) {
+  stop("Pixi Java isolation failed: JAVA_HOME must point to ", expected_java)
+}
+message("Using project OpenJDK: ", actual_java)
 if (getRversion() < "4.5" || getRversion() >= "4.6") {
   stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
 }

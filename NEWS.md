@@ -4,6 +4,9 @@
 
 ### Apple Silicon Pixi installation
 
+- Bind JAVA_HOME to the project OpenJDK during Pixi activation and remove host
+  Java settings from clean subprocesses so rJava uses the configured JVM.
+
 - Install signatureSearch and signatureSearchData through Bioconductor 3.22
   inside Pixi R on Apple Silicon, avoiding unavailable Bioconda ARM64 packages.
 - Install rcdk/fingerprint from CRAN on Apple Silicon and validate the Pixi

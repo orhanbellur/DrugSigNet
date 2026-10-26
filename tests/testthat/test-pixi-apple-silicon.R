@@ -30,6 +30,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       'fi',
       '# Stop at the build boundary: no network, packages, or host changes.',
       'if [[ "$*" == *"R CMD build"* ]]; then exit 73; fi',
+      'if [[ "$*" == *"Rscript --vanilla -" && -n "${JAVA_HOME:-}${R_JAVA_LD_LIBRARY_PATH:-}" ]]; then exit 74; fi',
       'exit 0'
     ), fake)
     Sys.chmod(fake, "0755")
@@ -41,11 +42,14 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       paste0("DRUGSIGNET_PIXI_PROJECT=", shQuote(project)),
       paste0("DRUGSIGNET_PIXI_PLATFORM=", platform),
       paste0("DRUGSIGNET_MACOS_SDKROOT=", shQuote(sdk)),
+      "JAVA_HOME=/host-java-must-not-leak",
+      "R_JAVA_LD_LIBRARY_PATH=/host-java-must-not-leak/lib/server",
       "DRUGSIGNET_BUILD_VIGNETTES=true"
     )))
     expect_equal(attr(output, "status"), 73L, info = paste(output, collapse = "\n"))
     manifest <- readLines(file.path(project, "pixi.toml"))
-    expect_identical(any(grepl("[activation.env]", manifest, fixed = TRUE)), startsWith(platform, "osx-"))
+    expect_true(any(grepl("[activation.env]", manifest, fixed = TRUE)))
+    expect_true(any(grepl(paste0('JAVA_HOME = "', project, '/.pixi/envs/default/lib/jvm"'), manifest, fixed = TRUE)))
     if (startsWith(platform, "osx-")) {
       expect_true(any(grepl(paste0('SDKROOT = "', sdk, '"'), manifest, fixed = TRUE)))
       expect_true(any(grepl(paste0('CONDA_BUILD_SYSROOT = "', sdk, '"'), manifest, fixed = TRUE)))
@@ -63,6 +67,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       expect_match(code, 'stop("Apple Silicon Bioconductor installation failed:', fixed = TRUE)
       expect_match(code, 'install.packages(cran_missing)', fixed = TRUE)
       expect_match(code, 'rcdk::get.fingerprint', fixed = TRUE)
+      expect_match(code, 'Pixi Java isolation failed:', fixed = TRUE)
       expect_match(code, 'stop("Apple Silicon CRAN installation failed:', fixed = TRUE)
       calls <- readLines(file.path(project, "calls"))
       expect_lt(grep("R CMD javareconf", calls), grep("Rscript --vanilla -$", calls))
