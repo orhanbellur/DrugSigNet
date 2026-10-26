@@ -1,7 +1,7 @@
 ---
-title: "Network workflow with DrugSigNet"
+title: "09. Network workflow with DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -34,8 +39,8 @@ workflow.
 The emphasis is on how method-specific network outputs are converted to ranks,
 how diffusion evidence is aggregated, and how topology, proximity, and
 diffusion evidence are combined into the final network consensus. For
-algorithm-specific details, see `network-methods.Rmd`; for CRank, Dowdall,
-and RRA, see `rank-aggregation.Rmd`.
+algorithm-specific details, see [Network methods](network-methods.html); for CRank, Dowdall,
+and RRA, see [Rank aggregation](rank-aggregation.html).
 
 # Workflow overview
 
@@ -67,6 +72,14 @@ With `run_all_network_methods = TRUE`, it additionally runs:
 Network_proximity
 Diffusion
 ```
+
+# Runtime prerequisites
+
+Configure Python and `graph-tool` before the first network run; see the setup
+steps in [Getting started](getting-started.html). Native Windows returns `NULL` for network
+analysis; use Docker or WSL. Default networks need a populated cache or Synapse
+access. Small disease-gene sets do not make reference downloads or diffusion
+matrices small.
 
 # Prepare disease genes
 
@@ -140,7 +153,10 @@ net_res_full <- drugNetworkPipeline(
 
 Centrality methods are run sequentially for Python/reticulate backend stability.
 `n_workers` is currently used by network proximity when parallel execution is
-supported.
+supported. The pipeline supplies `random_seed = 42` to proximity internally;
+for an explicit alternative seed, run `Network_proximity()` separately as shown
+in [Network methods](network-methods.html). Retain network versions and resolved inputs as well as
+the seed when reproducing results.
 
 The same workflow can also be called through:
 
@@ -290,7 +306,7 @@ The important native score directions are:
 | Diffusion | DSD, KL, JS metrics and their ranks | Lower metric / lower rank |
 
 Detailed method definitions and raw result columns are documented in
-`network-methods.Rmd`.
+[Network methods](network-methods.html).
 
 # Processed network rankings
 
@@ -553,14 +569,15 @@ the top `top_k` by `Network_CRank`, `Network_Dowdall`, or `Network_RRA`.
 When annotation is enabled and drug targets are available, targets of those
 top-ranked drugs are also used for GO target-set enrichment with `TSEA()`.
 
-See `drug-annotation.Rmd` and `visualization.Rmd` for the standalone
+See [Drug annotation](drug-annotation.html) and [Visualization](visualization.html) for the standalone
 annotation and plotting interfaces.
 
 # Exporting and reporting results
 
 Completed network pipeline results can be exported with
 `write_pipeline_results()` or summarized in an HTML/PDF report with
-`write_report()`. See `complete-case-study.Rmd` for complete examples.
+`write_report()`. See the reporting section in [Integrated workflow walkthrough](complete-case-study.html) for
+HTML/PDF options, complete-object exports, and `top_k` versus `top_n`.
 
 # Interpretation checklist
 
@@ -599,25 +616,23 @@ Start with `run_all_network_methods = FALSE` to validate the disease genes,
 network mapping, and centrality results. Add proximity and diffusion only when
 those inputs and computational requirements are appropriate.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Understand individual network methods | `network-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize network rankings | `visualization.Rmd` |
-| Compare with the signature workflow | `signature-workflow.Rmd` |
-| Integrate signature and network evidence | `complete-case-study.Rmd` |
+| Understand individual network methods | [Network methods](network-methods.html) |
+| Understand CRank, Dowdall, and RRA | [Rank aggregation](rank-aggregation.html) |
+| Annotate prioritized drugs | [Drug annotation](drug-annotation.html) |
+| Visualize network rankings | [Visualization](visualization.html) |
+| Compare with the signature workflow | [Signature workflow](signature-workflow.html) |
+| Integrate signature and network evidence | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

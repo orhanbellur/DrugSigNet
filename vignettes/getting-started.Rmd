@@ -1,7 +1,7 @@
 ---
-title: "Getting started with DrugSigNet"
+title: "01. Getting started with DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -62,6 +67,21 @@ stages, and optional interpretation steps.
 
 # Installation
 
+## Requirements
+
+| Component | When needed |
+|---|---|
+| R >= 4.5.0 | Current package version |
+| Python >= 3.10 | CRank and Python-backed network methods |
+| `graph-tool` | Network centrality methods; supported Linux/macOS runtime |
+| Synapse access and a local cache | Default networks, frozen signature references, and some annotations |
+| Pandoc and a LaTeX engine | PDF reports; HTML does not require LaTeX |
+
+Native Windows network analysis is unavailable because `graph-tool` is not
+supported there. Use Docker or WSL for network and integrated workflows.
+Signature searching still needs its R reference resources, and its consensus
+stage uses Python-backed CRank.
+
 ## Install package managers
 
 DrugSigNet can be installed directly from GitHub. Install the required package
@@ -88,15 +108,16 @@ devtools::install_github(
   "compneurobio/DrugSigNet",
   dependencies = TRUE,
   upgrade = "never",
-  build_vignettes = TRUE
+  build_vignettes = FALSE
 )
 ```
 
-Alternatively, install the same dependencies and build the vignettes with
-`pak`:
+For routine installation, avoid rebuilding the vignettes. To build this guide
+locally, install Pandoc and set `build_vignettes = TRUE` explicitly. Alternatively,
+install with `pak`:
 
 ```{r install-drugsignet-pak}
-options(pkg.build_vignettes = TRUE)
+options(pkg.build_vignettes = FALSE)
 
 pak::pak(
   "compneurobio/DrugSigNet",
@@ -123,6 +144,34 @@ Load DrugSigNet and check the installed version:
 library(DrugSigNet)
 packageVersion("DrugSigNet")
 ```
+
+## Configure and verify Python
+
+In a fresh R session, select a suitable Python runtime before using reticulate.
+The setup helper can reuse a complete interpreter selected by
+`RETICULATE_PYTHON`, including an existing DrugSigNet Pixi runtime, or configure
+a dedicated Conda environment:
+
+```{r configure-python}
+DrugSigNet::setup_python_dependencies(
+  method = "conda",
+  include_graph_tool = TRUE
+)
+
+health <- DrugSigNet::check_drugsignet_installation(
+  check_python = TRUE,
+  check_synapser = FALSE,
+  check_optional = FALSE
+)
+health$ok
+health$python
+```
+
+For a signature-only runtime on native Windows, use
+`include_graph_tool = FALSE`; network analysis still requires Docker or WSL.
+Review the individual health checks rather than assuming that package loading
+alone validates every runtime dependency. See `?setup_python_dependencies` for
+explicit environment selection and installation controls.
 
 ## Alternative: use a pre-built Docker image
 
@@ -254,9 +303,29 @@ disease_genes <- disease_seeds
 ```
 
 The disease-gene input is not required for the minimal signature-based example
-below. See `network-workflow.Rmd` for a complete network-based workflow.
+below. See [Network workflow](network-workflow.html) for a complete network-based workflow.
 
-# Your first DrugSigNet analysis
+# A small offline example
+
+This synthetic example runs during the documentation build. It uses only R
+rank aggregation: no Python, Synapse token, networks, or signature references
+are needed. Drug labels are placeholders, not therapeutic recommendations.
+
+```{r offline-first-analysis, eval=TRUE}
+offline_ranks <- data.frame(
+  Drug = c("drug_a", "drug_b", "drug_c", "drug_d"),
+  method_1 = c(1, 2, 3, 4),
+  method_2 = c(1, 3, 2, 4)
+)
+offline_result <- DrugSigNet::Dowdall(
+  input_data = offline_ranks, reverse = FALSE, ties_method = "max"
+)
+offline_result@result |>
+  dplyr::arrange(Dowdall_rank) |>
+  dplyr::select(Drug, Dowdall_score, Dowdall_rank)
+```
+
+# Your first full pipeline analysis
 
 A signature-based analysis provides a compact first test because it requires
 only a signed disease expression signature. To verify the core workflow, start
@@ -309,7 +378,7 @@ Completed DrugSigNet pipeline results can be exported to a multi-sheet Excel
 workbook with `write_pipeline_results()` or summarized in an HTML/PDF report
 with `write_report()`.
 
-See `complete-case-study.Rmd` for complete export and reporting examples.
+See [Integrated workflow walkthrough](complete-case-study.html) for complete export and reporting examples.
 
 # Where to go next
 
@@ -318,14 +387,14 @@ question:
 
 | Starting point | Recommended next vignette |
 |---|---|
-| Unsure which analysis to run | `choosing-analysis-strategy.Rmd` |
-| You have differential expression results | `signature-methods.Rmd`, then `signature-workflow.Rmd` |
-| You have disease genes | `network-methods.Rmd`, then `network-workflow.Rmd` |
-| You have both expression and disease-gene evidence | `complete-case-study.Rmd` |
-| You have several ranking outputs | `rank-aggregation.Rmd` |
-| You want to annotate prioritized drugs | `drug-annotation.Rmd` |
-| You need figures | `visualization.Rmd` |
-| You want to export results or generate a report | `complete-case-study.Rmd` |
+| Unsure which analysis to run | [Choosing an analysis strategy](choosing-analysis-strategy.html) |
+| You have differential expression results | [Signature methods](signature-methods.html), then [Signature workflow](signature-workflow.html) |
+| You have disease genes | [Network methods](network-methods.html), then [Network workflow](network-workflow.html) |
+| You have both expression and disease-gene evidence | [Integrated workflow walkthrough](complete-case-study.html) |
+| You have several ranking outputs | [Rank aggregation](rank-aggregation.html) |
+| You want to annotate prioritized drugs | [Drug annotation](drug-annotation.html) |
+| You need figures | [Visualization](visualization.html) |
+| You want to export results or generate a report | [Integrated workflow walkthrough](complete-case-study.html) |
 
 # Troubleshooting
 
@@ -356,17 +425,15 @@ network workflow vignette for guidance on running the full network analysis.
 ## Annotation is missing
 
 Check whether the annotation source requires authentication and whether drug
-names require synonym harmonization. See `drug-annotation.Rmd` for the
+names require synonym harmonization. See [Drug annotation](drug-annotation.html) for the
 annotation workflow and its resource requirements.
 
-# Summary
+# Build information
 
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
-# Session information
-
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

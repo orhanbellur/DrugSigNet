@@ -1,7 +1,7 @@
 ---
-title: "Signature-based methods in DrugSigNet"
+title: "03. Signature-based methods in DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -37,7 +42,7 @@ the native scores returned by each search.
 DrugSigNet builds on gene-expression signature search functionality implemented
 in the Bioconductor
 [`signatureSearch`](https://bioconductor.org/packages/signatureSearch/) package.
-For a practical end-to-end DrugSigNet analysis, see `signature-workflow.Rmd`.
+For a practical end-to-end DrugSigNet analysis, see [Signature workflow](signature-workflow.html).
 
 # Biological rationale
 
@@ -402,7 +407,7 @@ the query or reference signature.
 
 The examples below demonstrate the four DrugSigNet method wrappers. The complete
 multi-method orchestration, filtering, rank aggregation, annotation, and
-visualization workflow is covered in `signature-workflow.Rmd`.
+visualization workflow is covered in [Signature workflow](signature-workflow.html).
 
 ## Prepare query representations
 
@@ -515,7 +520,7 @@ For reproducible runs against a fixed HDF5 database, replace the named
 # )
 ```
 
-See `signature-workflow.Rmd` for the full pipeline-level reference-database
+See [Signature workflow](signature-workflow.html) for the full pipeline-level reference-database
 workflow.
 
 # Common pitfalls
@@ -555,24 +560,22 @@ contexts. A highly ranked compound does not imply that the same transcriptional
 response will occur in the disease-relevant cell type, dose, exposure time, or
 organism.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
-| Run the complete signature workflow | `signature-workflow.Rmd` |
-| Understand consensus ranking | `rank-aggregation.Rmd` |
-| Annotate prioritized compounds | `drug-annotation.Rmd` |
-| Visualize signature and consensus results | `visualization.Rmd` |
+| Choose between signature, network, and integrated analysis | [Choosing an analysis strategy](choosing-analysis-strategy.html) |
+| Run the complete signature workflow | [Signature workflow](signature-workflow.html) |
+| Understand consensus ranking | [Rank aggregation](rank-aggregation.html) |
+| Annotate prioritized compounds | [Drug annotation](drug-annotation.html) |
+| Visualize signature and consensus results | [Visualization](visualization.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

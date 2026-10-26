@@ -1,7 +1,7 @@
 ---
-title: "Visualization with DrugSigNet"
+title: "07. Visualization with DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,6 +21,7 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
@@ -261,6 +262,9 @@ tables, which can be inspected to understand why each gene was included.
 `TSEA()`. The input must contain `Term`, `ont`, `Adjusted.P.value`, and
 `Overlap`, where `Overlap` is formatted as `"x/y"`.
 
+The following synthetic values illustrate plotting only; they are not
+computed enrichment evidence. GO namespace labels match the listed terms.
+
 ```{r plot-enriched-terms}
 enrich_df <- data.frame(
   Term = c(
@@ -277,7 +281,7 @@ enrich_df <- data.frame(
     "mitochondrial matrix (GO:0005759)",
     "synaptic membrane (GO:0097060)"
   ),
-  ont = rep(c("BP", "MF", "CC"), each = 4),
+  ont = c(rep("BP", 6), rep("MF", 4), rep("CC", 2)),
   Adjusted.P.value = c(
     0.0002, 0.0008, 0.002, 0.006,
     0.0005, 0.001, 0.004, 0.012,
@@ -515,7 +519,7 @@ all_plots <- plot_all(
     drug_indications = plot_all_indication_df
   ),
   file_type = "pdf",
-  output_dir = "plots",
+  output_dir = tempfile("drugsignet-plots-"),
   file_prefix = "DrugSigNet_"
 )
 
@@ -530,9 +534,10 @@ helper and is not a `plot_all()` key.
 # Saving figures
 
 Most plotting functions can save directly by supplying `file_name` and
-`file_type`.
+`file_type`. The export examples below are not run during the build; choose
+paths in your own results directory.
 
-```{r save-plot-directly}
+```{r save-plot-directly, eval=FALSE}
 plot_enriched_terms(
   data_df = enrich_df,
   plottype = "dotplot",
@@ -545,7 +550,7 @@ plot_enriched_terms(
 
 For ggplot objects, `ggplot2::ggsave()` can also be used.
 
-```{r save-with-ggsave}
+```{r save-with-ggsave, eval=FALSE}
 p <- plot_rank_distribution(
   drug_ranks_df = rank_distribution_df,
   methods = c("CMAP", "LINCS", "gCMAP")
@@ -581,24 +586,22 @@ ggplot2::ggsave(
 - **Crowded figures:** reduce the number of methods, drugs, or categories before
   plotting.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Understand consensus rankings | `rank-aggregation.Rmd` |
-| Prepare annotations and TSEA results | `drug-annotation.Rmd` |
-| Run the complete signature workflow | `signature-workflow.Rmd` |
-| Run the complete network workflow | `network-workflow.Rmd` |
-| Run an integrated analysis | `complete-case-study.Rmd` |
+| Understand consensus rankings | [Rank aggregation](rank-aggregation.html) |
+| Prepare annotations and TSEA results | [Drug annotation](drug-annotation.html) |
+| Run the complete signature workflow | [Signature workflow](signature-workflow.html) |
+| Run the complete network workflow | [Network workflow](network-workflow.html) |
+| Run an integrated analysis | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

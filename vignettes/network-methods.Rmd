@@ -1,7 +1,7 @@
 ---
-title: "Network-based methods in DrugSigNet"
+title: "04. Network-based methods in DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -34,7 +39,7 @@ proximity, and diffusion-based scoring.
 
 The focus is on what each method measures, the network inputs it uses, the
 result columns it returns, and how the resulting scores should be interpreted.
-For an end-to-end executable workflow, see `network-workflow.Rmd`.
+For an end-to-end executable workflow, see [Network workflow](network-workflow.html).
 
 # Biological rationale
 
@@ -411,7 +416,7 @@ consensus analysis rather than directly averaging raw scores.
 
 The examples below demonstrate the individual network methods. Full pipeline
 orchestration, rank aggregation, annotation, and visualization are covered in
-`network-workflow.Rmd`.
+[Network workflow](network-workflow.html).
 
 ## Prepare network inputs
 
@@ -534,25 +539,23 @@ informative than relying heavily on proximity or diffusion alone.
 - Treat highly ranked drugs as computational prioritization hypotheses requiring
   biological interpretation and validation.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Choose between signature, network, and integrated analysis | `choosing-analysis-strategy.Rmd` |
-| Run the complete network workflow | `network-workflow.Rmd` |
-| Understand rank aggregation | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize network and consensus results | `visualization.Rmd` |
-| Run an integrated example | `complete-case-study.Rmd` |
+| Choose between signature, network, and integrated analysis | [Choosing an analysis strategy](choosing-analysis-strategy.html) |
+| Run the complete network workflow | [Network workflow](network-workflow.html) |
+| Understand rank aggregation | [Rank aggregation](rank-aggregation.html) |
+| Annotate prioritized drugs | [Drug annotation](drug-annotation.html) |
+| Visualize network and consensus results | [Visualization](visualization.html) |
+| Run an integrated example | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

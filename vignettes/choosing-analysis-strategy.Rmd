@@ -1,7 +1,7 @@
 ---
-title: "Choosing a DrugSigNet analysis strategy"
+title: "02. Choosing a DrugSigNet analysis strategy"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -79,8 +84,8 @@ Avoid relying exclusively on signature-based prioritization when the input
 signature is weak, contains very few informative genes, or is strongly affected
 by technical or compositional effects.
 
-For methodological details, see `signature-methods.Rmd`. For an executable
-analysis, see `signature-workflow.Rmd`.
+For methodological details, see [Signature methods](signature-methods.html). For an executable
+analysis, see [Signature workflow](signature-workflow.html).
 
 # Network-based analysis
 
@@ -106,8 +111,8 @@ Network-based results depend on the coverage and topology of the selected
 protein-protein interaction and drug-target networks. Poor mapping of disease
 genes or drug targets can limit the interpretability of downstream rankings.
 
-For methodological details, see `network-methods.Rmd`. For an executable
-analysis, see `network-workflow.Rmd`.
+For methodological details, see [Network methods](network-methods.html). For an executable
+analysis, see [Network workflow](network-workflow.html).
 
 # Integrated analysis
 
@@ -127,7 +132,7 @@ In a typical integrated DrugSigNet analysis, method-specific signature and
 network rankings are first summarized within their respective evidence layers
 and are then combined into an integrated candidate prioritization.
 
-For an end-to-end integrated example, see `complete-case-study.Rmd`.
+For an end-to-end integrated example, see [Integrated workflow walkthrough](complete-case-study.html).
 
 # Additional considerations
 
@@ -152,7 +157,7 @@ ranking algorithm.
 
 For exploratory analyses, comparing more than one aggregation method can help
 assess ranking robustness. Detailed guidance on choosing, running, and
-interpreting the aggregation methods is provided in `rank-aggregation.Rmd`.
+interpreting the aggregation methods is provided in [Rank aggregation](rank-aggregation.html).
 
 # Interpreting prioritized candidates
 
@@ -168,27 +173,25 @@ DrugSigNet is therefore best used to organize and integrate computational
 evidence for follow-up interpretation and validation rather than as a substitute
 for experimental or clinical evidence.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 Continue with the vignette that matches the selected strategy:
 
 | Selected task | Recommended vignette |
 |---|---|
-| Understand signature-based methods | `signature-methods.Rmd` |
-| Run a signature-based workflow | `signature-workflow.Rmd` |
-| Understand network-based methods | `network-methods.Rmd` |
-| Run a network-based workflow | `network-workflow.Rmd` |
-| Compare consensus methods | `rank-aggregation.Rmd` |
-| Run an integrated example | `complete-case-study.Rmd` |
+| Understand signature-based methods | [Signature methods](signature-methods.html) |
+| Run a signature-based workflow | [Signature workflow](signature-workflow.html) |
+| Understand network-based methods | [Network methods](network-methods.html) |
+| Run a network-based workflow | [Network workflow](network-workflow.html) |
+| Compare consensus methods | [Rank aggregation](rank-aggregation.html) |
+| Run an integrated example | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```
