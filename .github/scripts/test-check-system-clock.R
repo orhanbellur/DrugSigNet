@@ -13,7 +13,7 @@ response <- function(url, text = headers, status = 200L) {
 fetch <- function(url) response(url)
 now <- function() reference
 stopifnot(identical(unname(check_system_clock(fetch, now)), c(-1, 1)))
-stopifnot(identical(clock_response_interval(headers, 200L, "https://example.org"), c(lower = as.numeric(reference), upper = as.numeric(reference))))
+stopifnot(identical(clock_response_interval(headers, 204L, "https://example.org"), c(lower = as.numeric(reference), upper = as.numeric(reference))))
 stopifnot(identical(clock_response_interval(
   sub("\r\n\r\n$", "\r\nAge: 20\r\n\r\n", headers), 200L, "https://example.org"
 ), c(lower = as.numeric(reference), upper = as.numeric(reference) + 20)))
@@ -33,7 +33,7 @@ for (drift in c(-301, 301)) {
 }
 # Cached Date plus a valid Age must give the current reference time.
 fetch_cached <- function(url) {
-  text <- if (grepl("bioconductor", url)) headers else sub("12:00:00", "11:30:00", headers)
+  text <- if (grepl("google", url)) headers else sub("12:00:00", "11:30:00", headers)
   response(url, sub("\\r\\n\\r\\n$", "\r\nAge: 1800\r\n\r\n", text))
 }
 stopifnot(identical(unname(check_system_clock(fetch_cached, now)), c(-1, 1)))
@@ -42,7 +42,7 @@ expect_error(check_system_clock(fetch_uncertain, now), "too uncertain")
 fetch_stale <- function(url) response(url, sub("12:00:00", "11:30:00", headers))
 expect_error(check_system_clock(fetch_stale, now), "five minutes")
 fetch_disagree <- function(url) {
-  response(url, if (grepl("bioconductor", url)) sub("12:00:00", "12:02:00", headers) else headers)
+  response(url, if (grepl("google", url)) sub("12:00:00", "12:02:00", headers) else headers)
 }
 expect_error(check_system_clock(fetch_disagree, now), "sources disagree")
 expect_error(check_system_clock(function(url) stop("TLS failure"), now), "TLS failure")
@@ -69,4 +69,26 @@ tryCatch({
   prepare_check_clock(fetch, now)
   stopifnot(identical(unname(Sys.getenv(variables)), c("FALSE", "TRUE")))
 }, finally = restore())
+# Exercise the transport boundary: verify TLS-preserving curl arguments and
+# parse the origin HTTP/2 status after a proxy CONNECT response.
+transport <- new.env(parent = globalenv())
+sys.source(".github/scripts/check-system-clock.R", envir = transport)
+transport$Sys.which <- function(command) "/mock/curl"
+transport$system2 <- function(command, args, stdout, stderr) {
+  stopifnot(identical(command, "/mock/curl"), "--head" %in% args,
+            "--proto" %in% args, any(grepl("=https", args, fixed = TRUE)),
+            !any(args %in% c("--insecure", "-k", "--location", "-L")))
+  c("HTTP/1.1 200 Connection established\r", "\r", "HTTP/2 204\r",
+    "Date: Mon, 26 Oct 2026 12:00:00 GMT\r", "\r")
+}
+result <- transport$fetch_clock_headers("https://example.org")
+stopifnot(identical(result$status, 204L))
+stopifnot(identical(clock_response_interval(result$headers, result$status, result$url),
+                    c(lower = as.numeric(reference), upper = as.numeric(reference))))
+transport$system2 <- function(command, args, stdout, stderr) {
+  writeLines("SSL certificate verification failed", stderr)
+  structure(character(), status = 60L)
+}
+expect_error(transport$fetch_clock_headers("https://example.org"), "SSL certificate verification failed")
+
 message("CI clock-validation regression checks passed.")

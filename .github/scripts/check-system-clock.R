@@ -40,19 +40,29 @@ clock_response_interval <- function(headers, status, url) {
 }
 
 fetch_clock_headers <- function(url) {
-  handle <- curl::new_handle(
-    nobody = TRUE, followlocation = FALSE, timeout = 20, connecttimeout = 10,
-    ssl_verifypeer = TRUE, ssl_verifyhost = 2L
-  )
-  curl::handle_setheaders(handle,
-    "Cache-Control" = "no-cache, no-store, max-age=0", "Pragma" = "no-cache"
-  )
-  response <- curl::curl_fetch_memory(url, handle = handle)
-  list(headers = rawToChar(response$headers), status = response$status_code, url = response$url)
+  executable <- Sys.which("curl")
+  if (!nzchar(executable)) stop("curl is required for CI clock verification")
+  error_file <- tempfile("clock-request-")
+  on.exit(unlink(error_file), add = TRUE)
+  output <- system2(executable, c(
+    "--silent", "--show-error", "--head", "--proto", shQuote("=https"),
+    "--connect-timeout", "10", "--max-time", "20",
+    "--header", shQuote("Cache-Control: no-cache, no-store, max-age=0"),
+    "--header", shQuote("Pragma: no-cache"), "--url", shQuote(url)
+  ), stdout = TRUE, stderr = error_file)
+  status <- attr(output, "status")
+  if (!is.null(status) && status != 0L) {
+    stop("HTTPS clock request failed: ", paste(readLines(error_file, warn = FALSE), collapse = " "))
+  }
+  output <- sub("\r$", "", output)
+  status_lines <- grep("^HTTP/[0-9.]+ [0-9]{3}", output, value = TRUE)
+  if (!length(status_lines)) stop("Missing HTTP clock-source status: ", url)
+  status <- as.integer(strsplit(trimws(utils::tail(status_lines, 1L)), "[[:space:]]+")[[1L]][[2L]])
+  list(headers = paste(output, collapse = "\r\n"), status = status, url = url)
 }
 
 check_system_clock <- function(fetch = fetch_clock_headers, now = Sys.time) {
-  sources <- c("https://cloud.r-project.org/", "https://bioconductor.org/")
+  sources <- c("https://api.github.com/rate_limit", "https://www.google.com/generate_204")
   nonce <- basename(tempfile("drugsignet-clock-"))
   windows <- vapply(sources, function(source) {
     url <- paste0(source, "?drugsignet_clock_probe=", nonce)

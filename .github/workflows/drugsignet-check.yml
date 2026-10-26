@@ -84,10 +84,10 @@ jobs:
       run: |
         if [ "$(id -u)" -eq 0 ]; then
           apt-get update
-          apt-get install --yes --no-install-recommends qpdf
+          apt-get install --yes --no-install-recommends qpdf curl
         else
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends qpdf
+          sudo apt-get install --yes --no-install-recommends qpdf curl
         fi
         # The Bioconductor container can retain a distro-specific Posit
         # Package Manager URL after that endpoint has been retired. Override
@@ -95,6 +95,11 @@ jobs:
         # platform-aware binary repository; replacing that value globally
         # forces avoidable source installs and broke Windows dependency setup.
         echo "RSPM=https://cloud.r-project.org" >> "$GITHUB_ENV"
+    - name: Validate CI clock before dependency setup
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        Rscript .github/scripts/test-check-system-clock.R
+        Rscript -e 'source(".github/scripts/check-system-clock.R"); check_system_clock()'
     - name: Install R dependencies
       uses: r-lib/actions/setup-r-dependencies@v2
       with:
@@ -176,9 +181,6 @@ jobs:
         message("Loaded DLLs before R CMD check:")
         print(getLoadedDLLs())
         print(sessionInfo())
-    - name: Test CI clock validation
-      if: ${{ runner.os == 'Linux' }}
-      run: Rscript .github/scripts/test-check-system-clock.R
     - id: rworkflows-check
       name: Run R CMD check
       # rworkflows v1.0.12 references the retired Catchpoint telemetry action.
