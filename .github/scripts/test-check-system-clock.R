@@ -20,8 +20,12 @@ stopifnot(identical(clock_response_interval(
 # Proxy and informational headers must not supply the origin's time.
 proxied <- paste0("HTTP/1.1 200 Connection established\r\nDate: Mon, 01 Jan 2001 00:00:00 GMT\r\n\r\n", headers)
 stopifnot(identical(clock_response_interval(proxied, 200L, "https://example.org"), c(lower = as.numeric(reference), upper = as.numeric(reference))))
-expect_error(clock_response_interval(headers, 503L, "https://example.org"), "successful HTTPS")
-expect_error(clock_response_interval(headers, 200L, "http://example.org"), "successful HTTPS")
+# A missing unique path still returns an authenticated, newly generated Date.
+stopifnot(identical(clock_response_interval(headers, 404L, "https://example.org/unique"),
+                    c(lower = as.numeric(reference), upper = as.numeric(reference))))
+expect_error(clock_response_interval(headers, 403L, "https://example.org"), "HTTP 403")
+expect_error(clock_response_interval(headers, 503L, "https://example.org"), "HTTPS status")
+expect_error(clock_response_interval(headers, 200L, "http://example.org"), "HTTPS status")
 expect_error(clock_response_interval("HTTP/2 200\r\n\r\n", 200L, "https://example.org"), "Date header")
 expect_error(clock_response_interval(sub("Date:", "Date: invalid", headers), 200L, "https://example.org"), "Invalid HTTP Date")
 expect_error(clock_response_interval(sub("\r\n\r\n$", "\r\nDate: duplicate\r\n\r\n", headers), 200L, "https://example.org"), "duplicate Date")
@@ -33,7 +37,7 @@ for (drift in c(-301, 301)) {
 }
 # Cached Date plus a valid Age must give the current reference time.
 fetch_cached <- function(url) {
-  text <- if (grepl("google", url)) headers else sub("12:00:00", "11:30:00", headers)
+  text <- if (grepl("bioconductor", url)) headers else sub("12:00:00", "11:30:00", headers)
   response(url, sub("\\r\\n\\r\\n$", "\r\nAge: 1800\r\n\r\n", text))
 }
 stopifnot(identical(unname(check_system_clock(fetch_cached, now)), c(-1, 1)))
@@ -42,7 +46,7 @@ expect_error(check_system_clock(fetch_uncertain, now), "too uncertain")
 fetch_stale <- function(url) response(url, sub("12:00:00", "11:30:00", headers))
 expect_error(check_system_clock(fetch_stale, now), "five minutes")
 fetch_disagree <- function(url) {
-  response(url, if (grepl("google", url)) sub("12:00:00", "12:02:00", headers) else headers)
+  response(url, if (grepl("bioconductor", url)) sub("12:00:00", "12:02:00", headers) else headers)
 }
 expect_error(check_system_clock(fetch_disagree, now), "sources disagree")
 expect_error(check_system_clock(function(url) stop("TLS failure"), now), "TLS failure")

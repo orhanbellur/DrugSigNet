@@ -3,8 +3,8 @@
 # that external query. R CMD check still validates package file timestamps.
 
 clock_response_interval <- function(headers, status, url) {
-  if (!startsWith(url, "https://") || status < 200L || status >= 300L) {
-    stop("Clock source must return a successful HTTPS response: ", url)
+  if (!startsWith(url, "https://") || !(status %in% c(200:299, 404L))) {
+    stop("Clock source must return HTTPS status 2xx or expected 404: ", url, " (HTTP ", status, ")")
   }
   blocks <- strsplit(headers, "\r?\n\r?\n", perl = TRUE)[[1L]]
   blocks <- blocks[grepl("^HTTP/", blocks)]
@@ -62,10 +62,10 @@ fetch_clock_headers <- function(url) {
 }
 
 check_system_clock <- function(fetch = fetch_clock_headers, now = Sys.time) {
-  sources <- c("https://api.github.com/rate_limit", "https://www.google.com/generate_204")
-  nonce <- basename(tempfile("drugsignet-clock-"))
+  sources <- c("https://cloud.r-project.org/", "https://bioconductor.org/")
+  nonce <- basename(tempfile("drugsignet-ci-clock-"))
   windows <- vapply(sources, function(source) {
-    url <- paste0(source, "?drugsignet_clock_probe=", nonce)
+    url <- paste0(source, nonce)
     before <- now()
     response <- fetch(url)
     after <- now()
