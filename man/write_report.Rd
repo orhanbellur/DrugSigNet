@@ -60,7 +60,9 @@ be exported as Excel files. Default is `FALSE`.}
 
 \item{figure_dpi}{Positive PDF figure resolution in dots per inch.}
 
-\item{table_rows}{Maximum rows shown per PDF table; complete results remain in the pipeline object and optional Excel export.}
+\item{table_rows}{Maximum rows in PDF input, method, and provenance summaries.
+Candidate and annotation tables follow `top_n`. Complete results remain
+in the pipeline object and optional exports.}
 \item{top_n}{Positive integer number of candidates in the PDF (default 10).
 Selection uses increasing stored CRank, Dowdall, RRA, then identifier;
 ties are preserved and the display does not expand ties at the cutoff.}
@@ -105,8 +107,8 @@ input and parameter summaries, and a report-time software inventory. Stored
 ranks are never recalculated. Invalid/nonpositive ranks sort after valid
 ranks; candidates without any valid rank are excluded. Full results remain
 in the input object or optional supplementary RDS / Excel exports.
-Explicit legacy section, orientation, DPI, or table-row controls continue
-to select the previous configurable PDF renderer.
+Section, orientation, DPI, and table-row controls all use the same concise
+PDF renderer; explicitly passing a control never selects a legacy layout.
 
 In HTML, the visualization section is generated from every entry in
 `object@Visualization$plots`; it is not limited to a fixed set of plot names.

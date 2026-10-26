@@ -189,24 +189,24 @@
   }))
 }
 
-.report_plotly_export <- function(plot, file) {
+.report_plotly_export <- function(plot, file, dpi = 300) {
   if (!requireNamespace("plotly", quietly = TRUE)) stop("Plotly is unavailable.")
-  suppressWarnings(plotly::save_image(plot, file = file, width = 1200, height = 760))
+  suppressWarnings(plotly::save_image(plot, file = file, width = 7 * dpi, height = 4.6 * dpi))
 }
 
-.report_static_plot <- function(item, file) {
+.report_static_plot <- function(item, file, dpi = 300) {
   p <- item
   if (isS4(p) && "result" %in% methods::slotNames(p)) p <- methods::slot(p, "result")
   if (is.list(p) && !is.null(p$plot)) p <- p$plot
   if (is.list(p) && !is.null(p$result) && !is.data.frame(p$result)) p <- p$result
   tryCatch({
     if (inherits(p, "plotly")) {
-      .report_plotly_export(p, file)
+      .report_plotly_export(p, file, dpi)
     } else if (inherits(p, "ggplot")) {
       p <- p + ggplot2::theme(plot.margin = ggplot2::margin(12, 18, 12, 12), text = ggplot2::element_text(size = 11))
-      ggplot2::ggsave(file, p, width = 7, height = 4.6, units = "in", limitsize = TRUE)
+      ggplot2::ggsave(file, p, width = 7, height = 4.6, units = "in", limitsize = TRUE, dpi = dpi)
     } else if (inherits(p, "recordedplot")) {
-      grDevices::pdf(file, width = 7, height = 4.6)
+      grDevices::png(file, width = 7, height = 4.6, units = "in", res = dpi)
       tryCatch(grDevices::replayPlot(p), finally = grDevices::dev.off())
     } else return(FALSE)
     file.exists(file) && file.info(file)$size > 0
@@ -232,7 +232,35 @@
   }, character(1), USE.NAMES = FALSE)
 }
 
-.report_pdf_body <- function(object, index, top_n, enrichment_n, supplementary) {
+.report_pdf_options <- function(options = list()) {
+  defaults <- list(include_summary = TRUE, include_methods = TRUE,
+    include_interpretation = TRUE, include_reproducibility = TRUE,
+    include_appendix = TRUE, figure_dpi = 300, table_rows = 50L,
+    table_orientation = "auto")
+  utils::modifyList(defaults, options)
+}
+
+.report_pdf_filter_sections <- function(lines, options) {
+  controls <- c("Executive Summary" = options$include_summary,
+    "Methods and Reproducibility" = options$include_methods,
+    "Interpretation and Limitations" = options$include_interpretation,
+    "Analysis Provenance" = options$include_reproducibility,
+    "Optional Supplementary Material" = options$include_appendix)
+  keep <- rep(TRUE, length(lines))
+  headings <- which(startsWith(lines, "\\subsection{"))
+  for (i in seq_along(headings)) {
+    title <- substr(lines[headings[i]], nchar("\\subsection{") + 1L, nchar(lines[headings[i]]) - 1L)
+    if (title %in% names(controls) && !controls[[title]]) {
+      start <- max(1L, headings[i] - 2L)
+      end <- if (i < length(headings)) headings[i + 1L] - 3L else length(lines)
+      keep[seq.int(start, end)] <- FALSE
+    }
+  }
+  lines[keep]
+}
+
+.report_pdf_body <- function(object, index, top_n, enrichment_n, supplementary, options = list()) {
+  options <- .report_pdf_options(options)
   rank <- .report_rank_model(object, top_n)
   inventory <- .report_method_inventory(object)
   enrichment <- .report_enrichment(object, enrichment_n)
@@ -242,7 +270,11 @@
   title <- .report_result_title(object, index)
   text <- function(x) c(.report_tex(x), "")
   heading <- .report_pdf_heading
-  table <- .report_pdf_table
+  table <- function(df, widths) {
+    shown <- utils::head(df, options$table_rows)
+    c(.report_pdf_table(shown, widths), if (nrow(df) > nrow(shown)) text(sprintf(
+      "Showing %d of %d summary rows; complete values remain in the input object.", nrow(shown), nrow(df))))
+  }
   raw <- Filter(function(x) startsWith(x$path, "Drug searching / Raw"), inventory)
   n_methods <- length(raw)
   methods <- if (n_methods) paste(vapply(raw, function(x) sub("Drug searching / Raw / ", "", x$path, fixed = TRUE), character(1)), collapse = ", ") else "not recorded"
@@ -291,7 +323,7 @@
   if (length(rank$source)) lines <- c(lines, text(paste("Rank columns:", paste(paste(names(rank$source), rank$source, sep = " = "), collapse = "; "))))
   display_top <- top
   display_top$Drug <- .report_display_ids(top$Drug, top$Drug)
-  lines <- c(lines, table(display_top, c(0.43, 0.19, 0.19, 0.19)))
+  lines <- c(lines, .report_pdf_table(display_top, c(0.43, 0.19, 0.19, 0.19)))
   if (any(nchar(top$Drug) > 80L)) lines <- c(lines, text("Identifiers longer than 80 characters are abbreviated with a unique C-number referring to their position in this candidate table. Full identifiers remain in the original objects and optional supplementary exports."))
   tied <- all$CRank[is.finite(all$CRank) & all$CRank > 0]
   tied_groups <- sum(base::table(tied) > 1L)
@@ -331,10 +363,10 @@
     evidence <- vapply(seq_len(nrow(annotation)), function(i) {
       paste(vapply(cols, function(col) paste0(if (col %in% names(labels)) labels[[col]] else gsub("_", " ", col), ": ", annotation[[col]][i]), character(1)), collapse = "; ")
     }, character(1))
-    lines <- c(lines, table(data.frame(Drug = .report_display_ids(annotation$Drug, top$Drug), Annotation = evidence), c(0.3, 0.7)))
+    lines <- c(lines, .report_pdf_table(data.frame(Drug = .report_display_ids(annotation$Drug, top$Drug), Annotation = evidence), c(0.3, 0.7)))
   } else lines <- c(lines, heading("Drug Annotation"), text("No supported annotation fields were available for the prioritized candidates. Full annotation payloads, if supplied, remain in the original objects."))
   if (enrichment$total) {
-    lines <- c(lines, heading("Functional Enrichment"), text(sprintf("The %d displayed terms are the smallest stored adjusted p-values across all available libraries (not per library); ties are ordered by library and term. Identical term-library-p-overlap records are collapsed. No additional multiple-testing adjustment is applied. Overlap is reproduced as supplied (usually hit count / term-set size); missing denominators are not inferred.", nrow(enrichment$top))), table(enrichment$top, c(0.48, 0.16, 0.18, 0.18)), text("Enrichment describes overrepresentation in the supplied gene or target set. Related terms may share genes and are not independent mechanisms. Background, library versions, and the original correction scope must be checked in the source analysis; ranking across libraries does not harmonize their statistical tests."))
+    lines <- c(lines, heading("Functional Enrichment"), text(sprintf("The %d displayed terms are the smallest stored adjusted p-values across all available libraries (not per library); ties are ordered by library and term. Identical term-library-p-overlap records are collapsed. No additional multiple-testing adjustment is applied. Overlap is reproduced as supplied (usually hit count / term-set size); missing denominators are not inferred.", nrow(enrichment$top))), .report_pdf_table(enrichment$top, c(0.48, 0.16, 0.18, 0.18)), text("Enrichment describes overrepresentation in the supplied gene or target set. Related terms may share genes and are not independent mechanisms. Background, library versions, and the original correction scope must be checked in the source analysis; ranking across libraries does not harmonize their statistical tests."))
   }
   if (enrichment$total && length(unique(enrichment$all$Library)) > 1L) {
     lines <- c(lines, sprintf("```{r enrichment-scope-%d, fig.height=3.3, fig.cap='Full enrichment scope by library, including terms outside the displayed shortlist. Counts use stored adjusted p < 0.05 as a descriptive threshold; correction scopes may differ between libraries.'}", index),
@@ -375,6 +407,7 @@
     params <- params[params$Summary != "Parameters not recorded" | startsWith(params$Method, "Drug searching / Raw"), , drop = FALSE]
     lines <- c(lines, table(params, c(0.35, 0.65)))
   }
+  lines <- c(lines, heading("Analysis Provenance"))
   metadata <- object[intersect(c("metadata", "provenance", "parameters"), names(object))]
   if (length(metadata)) {
     meta <- do.call(rbind, lapply(names(metadata), function(nm) {
@@ -389,18 +422,19 @@
     if (nrow(meta) > 20L) lines <- c(lines, text("Provenance abridged to 20 entries; complete metadata remain in the object."))
   } else lines <- c(lines, text("No additional source provenance metadata were retained. Report-time software versions below describe this rendering environment, not necessarily the original analysis environment. Database releases and analysis dates are unknown unless recorded in the method parameters."))
   if (index == 1L) lines <- c(lines, heading("Optional Supplementary Material"), text(if (supplementary) "Complete original input object(s), including annotations, parameters, and visualization objects, were saved to the companion _supplementary.rds file. Existing Excel exports, if requested, provide tabular results. Neither export changes stored rankings." else "Complete results remain accessible in the supplied pipeline objects. Set supplementary = TRUE to save an unabridged RDS companion, or write_results = TRUE for the existing Excel table exports. Synonyms, structures, full enrichment, and large method inputs are intentionally excluded from the main PDF."))
-  list(lines = lines, ranks = all, plots = plots, enrichment = enrichment$all)
+  list(lines = .report_pdf_filter_sections(lines, options), ranks = all, plots = plots, enrichment = enrichment$all)
 }
 
-.write_pdf_report <- function(objects, title, base_name, author, top_n, enrichment_n, supplementary) {
+.write_pdf_report <- function(objects, title, base_name, author, top_n, enrichment_n, supplementary, options = list()) {
+  options <- .report_pdf_options(options)
   engine <- .report_latex_engine()
   if (!requireNamespace("rmarkdown", quietly = TRUE) || !requireNamespace("knitr", quietly = TRUE)) stop("PDF reports require rmarkdown and knitr.", call. = FALSE)
-  models <- lapply(seq_along(objects), function(i) .report_pdf_body(objects[[i]], i, top_n, enrichment_n, supplementary))
+  models <- lapply(seq_along(objects), function(i) .report_pdf_body(objects[[i]], i, top_n, enrichment_n, supplementary, options))
   # YAML quoted scalars protect titles/authors containing colons, quotes or lines.
   quote_yaml <- function(x) encodeString(paste(x, collapse = ", "), quote = '"')
   yaml <- c("---", paste0("title: ", quote_yaml(title)), paste0("date: ", quote_yaml(Sys.Date())),
     if (!is.null(author)) paste0("author: ", quote_yaml(author)),
-    "documentclass: article", "fontsize: 11pt", "geometry: margin=22mm", "colorlinks: true",
+    "documentclass: article", "fontsize: 11pt", if (identical(options$table_orientation, "landscape")) "geometry: [margin=22mm, landscape]" else "geometry: margin=22mm", "colorlinks: true",
     "output:", "  pdf_document:", paste0("    latex_engine: ", engine), "    keep_tex: true", "    toc: false",
     "header-includes:", "  - \\usepackage{longtable,booktabs,array,needspace,float}",
     "  - \\usepackage[section]{placeins}", "  - \\usepackage{caption}",
@@ -408,15 +442,15 @@
     "  - \\setlength{\\parskip}{5pt}", "  - \\setlength{\\tabcolsep}{5pt}",
     "  - \\raggedbottom", "  - \\pagestyle{plain}", "---", "")
   setup <- c("```{r setup, include=FALSE}",
-    "knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.7, fig.height=4, dpi=180, fig.align='center', out.width='100%', fig.pos='H', dev='png')", "```", "")
+    sprintf("knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.7, fig.height=4, dpi=%s, fig.align='center', out.width='100%%', fig.pos='H', dev='png')", format(options$figure_dpi, scientific = FALSE)), "```", "")
   packages <- c("DrugSigNet", "ggplot2", "rmarkdown", "knitr", "RobustRankAggreg", "reticulate", "plotly")
   versions <- vapply(packages, function(pkg) if (requireNamespace(pkg, quietly = TRUE)) as.character(utils::packageVersion(pkg)) else "Not installed", character(1))
   software <- data.frame(Component = c("R", packages, "LaTeX engine", "Pandoc"), Version = c(R.version.string, versions, engine, as.character(rmarkdown::pandoc_version())))
-  footer <- c(.report_pdf_heading("Report Software", "section"), .report_pdf_table(software, c(0.35, 0.65)))
+  footer <- if (options$include_reproducibility) c(.report_pdf_heading("Report Software", "section"), .report_pdf_table(software, c(0.35, 0.65))) else character()
   rmd <- paste0(base_name, ".Rmd")
   output <- paste0(base_name, ".pdf")
   writeLines(c(yaml, setup, unlist(lapply(models, `[[`, "lines"), use.names = FALSE), footer), rmd)
   rmarkdown::render(rmd, output_format = rmarkdown::pdf_document(latex_engine = engine, keep_tex = TRUE), output_file = basename(output),
-    envir = list2env(list(pdf_models = models, static_plot = .report_static_plot), parent = asNamespace("DrugSigNet")), quiet = TRUE)
+    envir = list2env(list(pdf_models = models, static_plot = function(item, file) .report_static_plot(item, file, dpi = options$figure_dpi)), parent = asNamespace("DrugSigNet")), quiet = TRUE)
   invisible(normalizePath(output, winslash = "/", mustWork = FALSE))
 }

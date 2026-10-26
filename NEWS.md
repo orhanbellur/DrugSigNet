@@ -39,3 +39,8 @@
   exports receive an informative fallback.
 * New optional `top_n` (10), `enrichment_n` (12), and `supplementary` (FALSE)
   arguments control PDF detail and complete original-object RDS exports.
+
+* Explicit `figure_dpi` and section/layout controls now use the concise PDF
+  renderer, fixing the legacy routing regression that produced raw-data tables
+  and repeated `tab:analyses` labels. Resolution and section controls are honored
+  without changing candidate selection or stored ranks.

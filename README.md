@@ -1040,3 +1040,8 @@ visualizations. `write_results = TRUE` continues to create Excel exports.
 Detailed HTML reports and Shiny dashboards retain their existing behavior.
 PDF generation requires `rmarkdown`, `knitr`, and a LaTeX engine; no additional
 R dependencies are introduced for the scientific layout.
+
+PDF options such as `figure_dpi = 300`, `include_methods = FALSE`, and
+`table_orientation = "landscape"` use the same concise renderer. Passing an
+explicit option does not restore exhaustive tables. `table_rows` bounds summary
+tables; candidate and prioritized annotation tables follow `top_n`.

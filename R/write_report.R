@@ -133,8 +133,8 @@
 #' ranks are never recalculated. Invalid/nonpositive ranks sort after valid
 #' ranks; candidates without any valid rank are excluded. Full results remain
 #' in the input object or optional supplementary RDS / Excel exports.
-#' Explicit legacy section, orientation, DPI, or table-row controls continue
-#' to select the previous configurable PDF renderer.
+#' Section, orientation, DPI, and table-row controls all use the same concise
+#' PDF renderer; explicitly passing a control never selects a legacy layout.
 #'
 #' In HTML, the visualization section is generated from every entry in
 #' `object@Visualization$plots`; it is not limited to a fixed set of plot names.
@@ -169,8 +169,9 @@
 #' @param table_orientation PDF table orientation: `"auto"`, `"portrait"`, or
 #'   `"landscape"`.
 #' @param figure_dpi Resolution used for PDF figures.
-#' @param table_rows Maximum rows shown per PDF table. Complete results remain
-#'   in the pipeline object and optional Excel export.
+#' @param table_rows Maximum rows in PDF input, method, and provenance summaries.
+#'   Candidate and annotation tables follow `top_n`. Complete results remain
+#'   in the pipeline object and optional exports.
 #'
 #' @param top_n Positive integer number of candidates in the PDF (default 10).
 #'   Selection uses increasing stored CRank, Dowdall, RRA, then identifier;
@@ -242,8 +243,16 @@ write_report <- function(object,
   dashboard <- match.arg(dashboard)
   table_orientation <- match.arg(table_orientation)
   if (!identical(template, "scientific")) stop("`template` must be 'scientific'.", call. = FALSE)
-  if (length(figure_dpi) != 1L || !is.finite(figure_dpi) || figure_dpi <= 0) stop("`figure_dpi` must be positive.", call. = FALSE)
-  if (length(table_rows) != 1L || !is.finite(table_rows) || table_rows < 1) stop("`table_rows` must be a positive integer.", call. = FALSE)
+  if (!is.numeric(figure_dpi) || length(figure_dpi) != 1L || !is.finite(figure_dpi) || figure_dpi <= 0) stop("`figure_dpi` must be positive.", call. = FALSE)
+  if (!is.numeric(table_rows) || length(table_rows) != 1L || !is.finite(table_rows) || table_rows < 1 || table_rows != floor(table_rows)) stop("`table_rows` must be a positive integer.", call. = FALSE)
+
+  for (nm in c("include_summary", "include_methods", "include_interpretation",
+               "include_reproducibility", "include_appendix")) {
+    value <- get(nm)
+    if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+      stop("`", nm, "` must be TRUE or FALSE.", call. = FALSE)
+    }
+  }
 
   for (nm in c("top_n", "enrichment_n")) {
     value <- get(nm)
@@ -296,20 +305,13 @@ write_report <- function(object,
   output_file <- paste0(base_name, ".", ifelse(device == "html", "html", "pdf"))
 
   if (device == "pdf") {
-    legacy_controls <- c("include_summary", "include_methods", "include_interpretation",
-                         "include_reproducibility", "include_appendix", "table_orientation",
-                         "figure_dpi", "table_rows")
-    if (any(legacy_controls %in% names(match.call()))) {
-      .report_latex_engine()
-      return(.report_render_scientific_pdf(
-        objects, report_title, author, rmd_file, output_file, as.integer(top_n),
-        include_summary, include_methods, include_interpretation,
-        include_reproducibility, include_appendix, table_orientation,
-        as.integer(figure_dpi), as.integer(table_rows)
-      ))
-    }
-    return(.write_pdf_report(objects, report_title, base_name, author,
-                             top_n, enrichment_n, supplementary))
+    return(.write_pdf_report(
+      objects, report_title, base_name, author, top_n, enrichment_n, supplementary,
+      options = list(include_summary = include_summary, include_methods = include_methods,
+        include_interpretation = include_interpretation,
+        include_reproducibility = include_reproducibility, include_appendix = include_appendix,
+        table_orientation = table_orientation, figure_dpi = figure_dpi, table_rows = table_rows)
+    ))
   }
 
   if (dashboard == "shinydashboard") {

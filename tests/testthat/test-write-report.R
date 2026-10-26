@@ -87,13 +87,6 @@ test_that("scientific PDF template includes publication report features", {
   expect_match(yaml, "fancyhdr", fixed = TRUE)
 })
 
-test_that("scientific PDF tables avoid LaTeX resizebox overflow", {
-  implementation <- paste(deparse(body(DrugSigNet:::.report_render_scientific_pdf)), collapse = "\n")
-  expect_false(grepl("scale_down", implementation, fixed = TRUE))
-  expect_match(implementation, "nchar(values, type='width') > 80L", fixed = TRUE)
-  expect_match(implementation, "ceiling(seq_along", fixed = TRUE)
-})
-
 test_that("scientific PDF renders when LaTeX is available", {
   skip_if_not_installed("rmarkdown")
   skip_if(!any(nzchar(Sys.which(c("pdflatex", "xelatex", "lualatex")))))
@@ -235,13 +228,14 @@ test_that("PDF renders long tables, large parameters and optional complete expor
   path <- file.path(tmp, "report")
   before <- serialize(obj, NULL)
   output <- write_report(obj, title = 'Scientific report: "quoted" & validated',
-                         file = path, device = "pdf", top_n = 40L, supplementary = TRUE)
+                         file = path, device = "pdf", top_n = 40L, figure_dpi = 300, supplementary = TRUE)
   expect_true(file.exists(output))
   expect_gt(file.info(output)$size, 10000)
   expect_identical(readRDS(paste0(path, "_supplementary.rds")), obj)
   expect_identical(serialize(obj, NULL), before)
   tex <- paste(readLines(paste0(path, ".tex")), collapse = "\n")
-  expect_false(grepl("NO_RAW_DUMP|Session Info|SMILES", tex))
+  expect_false(grepl("NO_RAW_DUMP|Session Info|SMILES|tab:analyses", tex))
+  expect_match(paste(readLines(paste0(path, ".Rmd")), collapse = "\n"), "dpi=300", fixed = TRUE)
   expect_match(tex, "\\pagestyle{plain}", fixed = TRUE)
   expect_match(tex, "\\endhead", fixed = TRUE)
   expect_match(tex, "Executive Summary", fixed = TRUE)
@@ -253,8 +247,8 @@ test_that("PDF renders long tables, large parameters and optional complete expor
     c("-interaction=nonstopmode", "-halt-on-error", "report.tex"),
     stdout = TRUE, stderr = TRUE), finally = setwd(previous_dir))
   expect_null(attr(compilation, "status"))
-  expect_false(any(grepl("Overfull", compilation, fixed = TRUE)),
-               info = paste(compilation[grepl("Overfull", compilation, fixed = TRUE)], collapse = "\n"))
+  expect_false(any(grepl("Overfull|multiply[ -]defined", compilation)),
+               info = paste(compilation[grepl("Overfull|multiply[ -]defined", compilation)], collapse = "\n"))
 })
 
 test_that("new report options validate without invoking a renderer", {
@@ -341,15 +335,45 @@ test_that("empty and unnamed provenance metadata remain renderable", {
   expect_silent(DrugSigNet:::.report_pdf_body(obj, 1, 3, 12, FALSE))
 })
 
-test_that("existing explicit PDF layout controls keep their configurable renderer", {
+test_that("explicit layout controls and figure DPI always use the concise renderer", {
+  received <- NULL
   testthat::local_mocked_bindings(
-    .report_render_scientific_pdf = function(...) "legacy-pdf",
-    .write_pdf_report = function(...) "concise-pdf",
-    .report_latex_engine = function(...) "xelatex",
+    .report_render_scientific_pdf = function(...) stop("Legacy renderer must not run"),
+    .write_pdf_report = function(..., options) { received <<- options; "concise-pdf" },
     .package = "DrugSigNet"
   )
   obj <- report_fixture()
-  expect_identical(write_report(obj, device = "pdf"), "concise-pdf")
-  expect_identical(write_report(obj, device = "pdf", include_methods = FALSE), "legacy-pdf")
-  expect_identical(write_report(obj, device = "pdf", figure_dpi = 180), "legacy-pdf")
+  expect_identical(write_report(obj, device = "pdf", top_n = 20, figure_dpi = 300), "concise-pdf")
+  expect_identical(received$figure_dpi, 300)
+  expect_identical(write_report(obj, device = "pdf", include_methods = FALSE,
+    include_reproducibility = FALSE, table_orientation = "landscape", table_rows = 5), "concise-pdf")
+  expect_false(received$include_methods)
+  expect_false(received$include_reproducibility)
+  expect_identical(received$table_orientation, "landscape")
+  expect_equal(received$table_rows, 5)
+})
+
+test_that("section controls remove only their own scientific content", {
+  opts <- list(include_summary = FALSE, include_methods = FALSE,
+    include_interpretation = FALSE, include_reproducibility = FALSE,
+    include_appendix = FALSE)
+  text <- paste(DrugSigNet:::.report_pdf_body(report_fixture(), 1, 20, 12, FALSE, opts)$lines, collapse = "\n")
+  expect_false(grepl("Executive Summary|Methods and Reproducibility|Interpretation and Limitations|Analysis Provenance|Optional Supplementary Material", text))
+  expect_match(text, "Analysis Overview", fixed = TRUE)
+  expect_match(text, "Top-Ranked Drug Candidates", fixed = TRUE)
+  expect_match(text, "Method Comparison and Visualizations", fixed = TRUE)
+})
+
+test_that("DPI applies to stored static figures", {
+  skip_if_not_installed("ggplot2")
+  path <- tempfile(fileext = ".png")
+  on.exit(unlink(path), add = TRUE)
+  plot <- ggplot2::ggplot(data.frame(x = 1:3, y = 1:3), ggplot2::aes(x = x, y = y)) + ggplot2::geom_point()
+  expect_true(DrugSigNet:::.report_static_plot(plot, path, dpi = 100))
+  # The PNG IHDR stores big-endian width and height immediately after its tag.
+  header <- readBin(path, "raw", n = 24)
+  decode <- function(bytes) sum(as.integer(bytes) * 256^(3:0))
+  expect_equal(decode(header[17:20]), 700)
+  # Raster devices may truncate a fractional pixel from 4.6 inches.
+  expect_lte(abs(decode(header[21:24]) - 460), 1)
 })
