@@ -52,23 +52,25 @@ be exported as Excel files. Default is `FALSE`.}
 
 \item{template}{PDF template. `"scientific"` produces the publication-oriented layout.}
 
-\item{include_summary, include_methods, include_interpretation}{Logical controls for PDF sections.}
+\item{include_summary, include_methods, include_interpretation}{Logical scientific HTML/PDF section controls.}
 
-\item{include_reproducibility, include_appendix}{Logical controls for PDF sections.}
+\item{include_reproducibility}{Logical scientific HTML/PDF provenance and rendering-software control.}
+
+\item{include_appendix}{Logical PDF supplementary-material section control.}
 
 \item{table_orientation}{PDF table orientation: `"auto"`, `"portrait"`, or `"landscape"`.}
 
-\item{figure_dpi}{Positive PDF figure resolution in dots per inch.}
+\item{figure_dpi}{Positive static HTML/PDF figure resolution in dots per inch.}
 
 \item{table_rows}{Maximum rows in PDF input, method, and provenance summaries.
 Candidate and annotation tables follow `top_n`. Complete results remain
 in the pipeline object and optional exports.}
-\item{top_n}{Positive integer number of candidates in the PDF (default 10).
+\item{top_n}{Positive integer number of prioritized candidates in scientific HTML/PDF reports (default 10).
 Selection uses increasing stored CRank, Dowdall, RRA, then identifier;
 ties are preserved and the display does not expand ties at the cutoff.}
 
 \item{enrichment_n}{Positive integer number of enrichment terms across all
-libraries in the PDF (default 12), ordered by stored adjusted p-value.}
+libraries in scientific HTML/PDF reports (default 12), ordered by stored adjusted p-value.}
 
 \item{supplementary}{Logical; save the complete original input as a companion
 `_supplementary.rds` file (default `FALSE`).}
@@ -85,16 +87,12 @@ results.
 DrugSigNet workflows. A combined `drugRepurposingPipeline()` result is shown
 in separate signature-based, network-based, and integrated report parts.
 
-HTML reports include interactive sections for:
-\itemize{
-  \item Drug searching results,
-  \item Rank aggregation,
-  \item Drug annotation,
-  \item Visualization.
-}
-Tabular collections use searchable, styled, scrollable HTML tables with
-sticky headers; complex list or matrix columns are converted to readable
-cell text without nesting HTML widgets inside Shiny tabs.
+Scientific HTML reports provide sidebar navigation, an executive summary,
+input and rank-availability statistics, a verified candidate shortlist,
+ranking agreement, focused annotations/enrichment, interpretation, and
+compact methods/provenance. Complete Results retains full result tables with
+client-side search, stable sorting, pagination, expandable cells, and CSV
+downloads of all matching rows. This report does not require Shiny or DT.
 
 Reports can optionally export pipeline results as Excel files using
 `write_pipeline_results()`. PDF reports require a LaTeX engine such as
@@ -113,14 +111,16 @@ PDFs include a linked contents page and stored pipeline figures, placed in
 the comparison, annotation, or enrichment section. Unavailable Plotly sunbursts
 may use a labelled summary of stored branch values as a static fallback.
 
-In HTML, the visualization section is generated from every entry in
+HTML figures are generated from every entry in
 `object@Visualization$plots`; it is not limited to a fixed set of plot names.
-Optional DrugAnnotation and Visualization sections are omitted when those
-components are absent from the pipeline result.
+Missing annotations, enrichment, and input metadata are explicitly identified.
+Stored Plotly figures remain interactive; compatible ggplots can be converted
+when `interactive = TRUE`.
 
 HTML reports can be generated either as:
 \itemize{
-  \item a tabset-based R Markdown report, or
+  \item a scientific R Markdown report (`dashboard = "tabset"`, retained
+as the compatibility name), or
   \item a Shiny dashboard application.
 }
 }

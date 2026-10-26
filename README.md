@@ -1051,3 +1051,23 @@ comparison, annotation, or enrichment sections. Plot captions distinguish the
 original plot scope from the report Top-N. If static Plotly export is unavailable,
 a sunburst can be summarized from its stored branch values; unsupported plots
 receive an explicit availability note and remain available in HTML.
+
+### Scientific HTML reports
+
+```r
+write_report(result, device = "html", file = "DrugSigNet_interactive",
+             top_n = 20, enrichment_n = 12, interactive = TRUE)
+```
+
+The standalone HTML report includes navigation, verified summary statistics,
+a deterministic candidate shortlist, annotation coverage, ranking agreement,
+functional enrichment, interpretation, and methods/provenance. Full tables
+remain in **Complete Results**. Table searches and CSV downloads cover all
+matching rows, including rows beyond the current page. Long cells expand in
+place. Stored Plotly figures remain interactive; `interactive = TRUE` also
+converts compatible ggplots when Plotly is available. Static fallbacks remain
+available without additional dependencies.
+
+The default `dashboard = "tabset"` name is retained for compatibility with
+existing calls. `dashboard = "shinydashboard"` still generates the existing
+Shiny application. Prioritization algorithms and stored results are unchanged.

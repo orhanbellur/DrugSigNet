@@ -286,7 +286,6 @@ test_that("failed Plotly static exports do not abort a PDF", {
 
 test_that("existing HTML and Shiny report paths retain detailed views", {
   skip_if_not_installed("rmarkdown")
-  skip_if_not_installed("shiny")
   skip_if_not_installed("htmltools")
   skip_if_not(rmarkdown::pandoc_available())
   obj <- report_fixture()

@@ -49,3 +49,14 @@
   are included once under the relevant scientific section, including wrapped
   plot objects. Unavailable Plotly sunbursts get a labelled static branch-summary
   fallback; export notes no longer render as console output.
+
+* Scientific HTML reports now use a responsive sidebar layout with verified
+  summary cards, input/rank/annotation coverage, a candidate shortlist, ranking
+  agreement, focused enrichment, interpretation, and compact provenance.
+* Full results have searchable, sortable, paginated native HTML tables with
+  expandable cells and CSV downloads across all matching rows. The previous
+  200-row preview limit no longer hides later rows from table search/export.
+* Standalone HTML no longer requires Shiny or DT; the existing Shiny dashboard
+  remains available. Native Plotly figures are retained and `interactive` is
+  honored for ggplot conversion. Scientific summaries share PDF extraction and
+  tie handling without modifying rankings.
