@@ -1,7 +1,7 @@
 ---
-title: "Network workflow with DrugSigNet"
+title: "09. Network workflow with DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -34,8 +39,8 @@ workflow.
 The emphasis is on how method-specific network outputs are converted to ranks,
 how diffusion evidence is aggregated, and how topology, proximity, and
 diffusion evidence are combined into the final network consensus. For
-algorithm-specific details, see `network-methods.Rmd`; for CRank, Dowdall,
-and RRA, see `rank-aggregation.Rmd`.
+algorithm-specific details, see [Network methods](network-methods.html); for CRank, Dowdall,
+and RRA, see [Rank aggregation](rank-aggregation.html).
 
 # Workflow overview
 
@@ -67,6 +72,139 @@ With `run_all_network_methods = TRUE`, it additionally runs:
 Network_proximity
 Diffusion
 ```
+
+## Centrality-only path: `run_all_network_methods = FALSE`
+
+Final aggregation still runs in this configuration, using the three centrality
+rank lists only.
+
+```{r network-centrality-workflow-diagram, eval=TRUE, echo=FALSE, fig.width=8.5, fig.height=5.8, fig.retina=2, fig.cap="With run_all_network_methods = FALSE, final network ranking combines only the three centrality-derived rank lists. Proximity, diffusion and diffusion aggregation are skipped.", fig.alt="For FALSE, disease genes and networks feed TrustRank, harmonic centrality and degree centrality. Their scores become ranks, which CRank, Dowdall and RRA aggregate into final network rankings."}
+local({
+  grid::grid.newpage()
+  card <- function(x, y, w, h, title, detail, style = "blue") {
+    palette <- switch(style,
+      blue = c("#EFF7FB", "#A8C8DA"),
+      green = c("#EFF8F5", "#A6CFC0"),
+      amber = c("#FFF7E8", "#D8BE87"),
+      purple = c("#EDF1F8", "#A7B6CE"),
+      c("#F5F7F9", "#BCC7D0"))
+    grid::grid.roundrect(x, y, w, h, r = grid::unit(3, "mm"),
+      gp = grid::gpar(fill = palette[1], col = palette[2], lwd = 1))
+    grid::grid.text(title, x, y + h * 0.23,
+      gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#183247"))
+    grid::grid.text(detail, x, y - h * 0.19,
+      gp = grid::gpar(fontsize = 9, lineheight = 1.25, col = "#526575"))
+  }
+  arrow <- function(x, from, to) {
+    grid::grid.lines(x = c(x, x), y = c(from, to),
+      arrow = grid::arrow(length = grid::unit(2.2, "mm"), type = "closed"),
+      gp = grid::gpar(col = "#8294A3", fill = "#8294A3", lwd = 1.2))
+  }
+  join <- function(xs, from, at) {
+    for (x in xs) grid::grid.lines(x = c(x, x), y = c(from, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+    grid::grid.lines(x = range(xs), y = c(at, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  }
+  card(0.5, 0.9, 0.86, 0.14, "Disease seed genes + interaction networks",
+       "PPI network and drug-target interactions", "green")
+  arrow(0.5, 0.82, 0.77)
+  card(0.5, 0.66, 0.86, 0.2, "Run the three centrality methods",
+       "TrustRank, harmonic centrality and degree centrality\nNo proximity or diffusion", "green")
+  arrow(0.5, 0.55, 0.51)
+  card(0.5, 0.44, 0.86, 0.12, "Convert centrality scores to ranks",
+       "One smaller-is-better rank per centrality method", "green")
+  arrow(0.5, 0.37, 0.33)
+  card(0.5, 0.25, 0.86, 0.14, "Aggregate the three centrality ranks",
+       "CRank, Dowdall and RRA", "purple")
+  arrow(0.5, 0.17, 0.135)
+  card(0.5, 0.075, 0.86, 0.1, "Final network candidate rankings",
+       "Network_CRank, Network_Dowdall, Network_RRA", "gray")
+})
+```
+
+## Full path: `run_all_network_methods = TRUE`
+
+Diffusion has its **own aggregation stage** before the final network stage.
+Each final aggregator receives the corresponding diffusion consensus, the
+proximity rank, and all three centrality ranks. The three diffusion consensuses
+are not all pooled into every final aggregator.
+
+```{r network-full-workflow-diagram, eval=TRUE, echo=FALSE, fig.width=8.5, fig.height=7.4, fig.retina=2, fig.cap="With run_all_network_methods = TRUE, the five diffusion rank measures are first combined into Diffusion_CRank, Diffusion_Dowdall and Diffusion_RRA. Each final network aggregator uses its matching diffusion consensus together with proximity and the three centrality ranks.", fig.alt="For TRUE, centrality, proximity and diffusion run in parallel conceptual paths. The diffusion ranks first form three consensus lists. Final CRank uses Diffusion_CRank, final Dowdall uses Diffusion_Dowdall and final RRA uses Diffusion_RRA, each together with centrality and proximity ranks."}
+local({
+  grid::grid.newpage()
+  card <- function(x, y, w, h, title, detail, style = "blue") {
+    palette <- switch(style,
+      blue = c("#EFF7FB", "#A8C8DA"),
+      green = c("#EFF8F5", "#A6CFC0"),
+      amber = c("#FFF7E8", "#D8BE87"),
+      purple = c("#EDF1F8", "#A7B6CE"),
+      c("#F5F7F9", "#BCC7D0"))
+    grid::grid.roundrect(x, y, w, h, r = grid::unit(3, "mm"),
+      gp = grid::gpar(fill = palette[1], col = palette[2], lwd = 1))
+    grid::grid.text(title, x, y + h * 0.23,
+      gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#183247"))
+    grid::grid.text(detail, x, y - h * 0.19,
+      gp = grid::gpar(fontsize = 9, lineheight = 1.25, col = "#526575"))
+  }
+  arrow <- function(x, from, to) {
+    grid::grid.lines(x = c(x, x), y = c(from, to),
+      arrow = grid::arrow(length = grid::unit(2.2, "mm"), type = "closed"),
+      gp = grid::gpar(col = "#8294A3", fill = "#8294A3", lwd = 1.2))
+  }
+  join <- function(xs, from, at) {
+    for (x in xs) grid::grid.lines(x = c(x, x), y = c(from, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+    grid::grid.lines(x = range(xs), y = c(at, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  }
+  card(0.5, 0.94, 0.9, 0.1, "Disease seed genes + interaction networks",
+       "PPI network and drug-target interactions", "green")
+  grid::grid.lines(x = c(0.5, 0.5), y = c(0.89, 0.875),
+    gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  join(c(0.18, 0.5, 0.82), 0.875, 0.875)
+  arrow(0.18, 0.875, 0.855)
+  arrow(0.5, 0.875, 0.855)
+  arrow(0.82, 0.875, 0.855)
+  card(0.18, 0.75, 0.29, 0.2, "Centrality methods",
+       "TrustRank\nHarmonic centrality\nDegree centrality", "green")
+  card(0.5, 0.75, 0.29, 0.2, "Network proximity",
+       "Observed distance\nversus randomized background", "green")
+  card(0.82, 0.75, 0.29, 0.2, "Diffusion rank measures",
+       "DSD-min, KL-med, KL-min\nJS-med, JS-min", "blue")
+  arrow(0.18, 0.64, 0.605)
+  arrow(0.5, 0.64, 0.605)
+  arrow(0.82, 0.64, 0.605)
+  card(0.18, 0.535, 0.29, 0.13, "Centrality ranks",
+       "Convert each score\nto a rank", "green")
+  card(0.5, 0.535, 0.29, 0.13, "Proximity rank",
+       "Rank by Z-score\nSmaller Z is better", "green")
+  card(0.82, 0.535, 0.29, 0.13, "Aggregate diffusion ranks",
+       "CRank, Dowdall, RRA\nThree consensus lists", "blue")
+  join(c(0.18, 0.5, 0.82), 0.46, 0.435)
+  arrow(0.18, 0.435, 0.395)
+  arrow(0.5, 0.435, 0.395)
+  arrow(0.82, 0.435, 0.395)
+  card(0.18, 0.3, 0.29, 0.18, "Final CRank",
+       "Centrality + proximity\n+ Diffusion_CRank", "purple")
+  card(0.5, 0.3, 0.29, 0.18, "Final Dowdall",
+       "Centrality + proximity\n+ Diffusion_Dowdall", "purple")
+  card(0.82, 0.3, 0.29, 0.18, "Final RRA",
+       "Centrality + proximity\n+ Diffusion_RRA", "purple")
+  join(c(0.18, 0.5, 0.82), 0.2, 0.175)
+  arrow(0.5, 0.175, 0.135)
+  card(0.5, 0.075, 0.86, 0.1, "Final network candidate rankings",
+       "Network_CRank, Network_Dowdall, Network_RRA", "gray")
+})
+```
+
+# Runtime prerequisites
+
+Configure Python and `graph-tool` before the first network run; see the setup
+steps in [Getting started](getting-started.html). Native Windows returns `NULL` for network
+analysis; use Docker or WSL. Default networks need a populated cache or Synapse
+access. Small disease-gene sets do not make reference downloads or diffusion
+matrices small.
 
 # Prepare disease genes
 
@@ -140,7 +278,10 @@ net_res_full <- drugNetworkPipeline(
 
 Centrality methods are run sequentially for Python/reticulate backend stability.
 `n_workers` is currently used by network proximity when parallel execution is
-supported.
+supported. The pipeline supplies `random_seed = 42` to proximity internally;
+for an explicit alternative seed, run `Network_proximity()` separately as shown
+in [Network methods](network-methods.html). Retain network versions and resolved inputs as well as
+the seed when reproducing results.
 
 The same workflow can also be called through:
 
@@ -290,7 +431,7 @@ The important native score directions are:
 | Diffusion | DSD, KL, JS metrics and their ranks | Lower metric / lower rank |
 
 Detailed method definitions and raw result columns are documented in
-`network-methods.Rmd`.
+[Network methods](network-methods.html).
 
 # Processed network rankings
 
@@ -420,8 +561,8 @@ With:
 run_all_network_methods = FALSE
 ```
 
-the pipeline stops after the three centrality methods have been converted to
-ranks. No network-proximity or diffusion result is added.
+only the three centrality methods contribute to final aggregation after their
+scores have been converted to ranks. No proximity or diffusion result is added.
 
 Each final aggregation method therefore combines only:
 
@@ -553,14 +694,15 @@ the top `top_k` by `Network_CRank`, `Network_Dowdall`, or `Network_RRA`.
 When annotation is enabled and drug targets are available, targets of those
 top-ranked drugs are also used for GO target-set enrichment with `TSEA()`.
 
-See `drug-annotation.Rmd` and `visualization.Rmd` for the standalone
+See [Drug annotation](drug-annotation.html) and [Visualization](visualization.html) for the standalone
 annotation and plotting interfaces.
 
 # Exporting and reporting results
 
 Completed network pipeline results can be exported with
 `write_pipeline_results()` or summarized in an HTML/PDF report with
-`write_report()`. See `complete-case-study.Rmd` for complete examples.
+`write_report()`. See the reporting section in [Integrated workflow walkthrough](complete-case-study.html) for
+HTML/PDF options, complete-object exports, and `top_k` versus `top_n`.
 
 # Interpretation checklist
 
@@ -599,25 +741,23 @@ Start with `run_all_network_methods = FALSE` to validate the disease genes,
 network mapping, and centrality results. Add proximity and diffusion only when
 those inputs and computational requirements are appropriate.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Understand individual network methods | `network-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize network rankings | `visualization.Rmd` |
-| Compare with the signature workflow | `signature-workflow.Rmd` |
-| Integrate signature and network evidence | `complete-case-study.Rmd` |
+| Understand individual network methods | [Network methods](network-methods.html) |
+| Understand CRank, Dowdall, and RRA | [Rank aggregation](rank-aggregation.html) |
+| Annotate prioritized drugs | [Drug annotation](drug-annotation.html) |
+| Visualize network rankings | [Visualization](visualization.html) |
+| Compare with the signature workflow | [Signature workflow](signature-workflow.html) |
+| Integrate signature and network evidence | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

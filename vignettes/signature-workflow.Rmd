@@ -1,7 +1,7 @@
 ---
-title: "Signature workflow with DrugSigNet"
+title: "08. Signature workflow with DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -34,8 +39,8 @@ DrugSigNet workflow.
 The emphasis is on how the pipeline converts method-specific signature-search
 results into standardized rank scores and then combines evidence across
 reference databases and signature-search methods. For algorithm-specific
-details, see `signature-methods.Rmd`; for the aggregation algorithms
-themselves, see `rank-aggregation.Rmd`.
+details, see [Signature methods](signature-methods.html); for the aggregation algorithms
+themselves, see [Rank aggregation](rank-aggregation.html).
 
 # Workflow overview
 
@@ -54,6 +59,61 @@ themselves, see `rank-aggregation.Rmd`.
    and correlation; and
 7. returns method-specific and harmonized signature rankings for downstream
    annotation and visualization.
+
+```{r signature-workflow-diagram, eval=TRUE, echo=FALSE, fig.width=8.5, fig.height=7, fig.retina=2, fig.cap="Signature ranking has two aggregation stages. Family CRank ranks feed the final CRank, family Dowdall ranks feed final Dowdall, and family RRA ranks feed final RRA. The diagram assumes the reference searches succeed.", fig.alt="A signed expression signature is searched against CMAP and LINCS2 with four methods. Processed rank scores are combined across references within each family, then across families with matching CRank, Dowdall or RRA aggregation."}
+local({
+  grid::grid.newpage()
+  card <- function(x, y, w, h, title, detail, style = "blue") {
+    palette <- switch(style,
+      blue = c("#EFF7FB", "#A8C8DA"),
+      green = c("#EFF8F5", "#A6CFC0"),
+      amber = c("#FFF7E8", "#D8BE87"),
+      purple = c("#EDF1F8", "#A7B6CE"),
+      c("#F5F7F9", "#BCC7D0"))
+    grid::grid.roundrect(x, y, w, h, r = grid::unit(3, "mm"),
+      gp = grid::gpar(fill = palette[1], col = palette[2], lwd = 1))
+    grid::grid.text(title, x, y + h * 0.23,
+      gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#183247"))
+    grid::grid.text(detail, x, y - h * 0.19,
+      gp = grid::gpar(fontsize = 9, lineheight = 1.25, col = "#526575"))
+  }
+  arrow <- function(x, from, to) {
+    grid::grid.lines(x = c(x, x), y = c(from, to),
+      arrow = grid::arrow(length = grid::unit(2.2, "mm"), type = "closed"),
+      gp = grid::gpar(col = "#8294A3", fill = "#8294A3", lwd = 1.2))
+  }
+  join <- function(xs, from, at) {
+    for (x in xs) grid::grid.lines(x = c(x, x), y = c(from, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+    grid::grid.lines(x = range(xs), y = c(at, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  }
+  card(0.5, 0.94, 0.76, 0.1, "Signed disease expression signature",
+       "Prepare up/down gene sets and a quantitative profile", "blue")
+  grid::grid.lines(x = c(0.5, 0.5), y = c(0.89, 0.875),
+    gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  join(c(0.26, 0.74), 0.875, 0.875)
+  arrow(0.26, 0.875, 0.85)
+  arrow(0.74, 0.875, 0.85)
+  card(0.26, 0.77, 0.43, 0.15, "CMAP reference",
+       "CMAP, LINCS, gCMAP\nand correlation searches", "blue")
+  card(0.74, 0.77, 0.43, 0.15, "LINCS2 reference",
+       "CMAP, LINCS, gCMAP\nand correlation searches", "blue")
+  join(c(0.26, 0.74), 0.685, 0.67)
+  arrow(0.5, 0.67, 0.655)
+  card(0.5, 0.59, 0.86, 0.12, "Method-specific rank scores",
+       "Normalize compound identities; score each method/reference", "blue")
+  arrow(0.5, 0.52, 0.495)
+  card(0.5, 0.41, 0.86, 0.15, "Stage 1: combine references within each family",
+       "CMAP + LINCS2 for each search family\nCRank, Dowdall and RRA", "purple")
+  arrow(0.5, 0.325, 0.31)
+  card(0.5, 0.23, 0.86, 0.15, "Stage 2: combine signature-family consensus ranks",
+       "Across CMAP, LINCS, gCMAP and correlation\nUse the matching aggregation method", "purple")
+  arrow(0.5, 0.145, 0.125)
+  card(0.5, 0.065, 0.86, 0.1, "Final signature candidate rankings",
+       "Signature_CRank, Signature_Dowdall, Signature_RRA", "gray")
+})
+```
 
 The eight signature-search results are:
 
@@ -183,7 +243,7 @@ head(
 
 Each raw entry is a `SignatureBased` object containing the native
 method-specific output. Its `@parameters` slot retains the query and search
-settings; see `signature-methods.Rmd` for details.
+settings; see [Signature methods](signature-methods.html) for details.
 
 Raw native scores differ by method:
 
@@ -219,14 +279,14 @@ For each method, DrugSigNet first retains the strongest absolute
 drug-signature association for each perturbagen. Cell information is collapsed
 when the same perturbagen is represented in multiple cells.
 
-Qualifying perturbagens are then ranked by the **absolute magnitude** of the
-method-specific score:
+The retained strongest-profile results are ranked by the **absolute magnitude**
+of the method-specific score, before applying the significance criterion:
 
 \[
 \mathrm{rank\_score} = \frac{1}{\mathrm{rank}}.
 \]
 
-Thus, among qualifying perturbagens:
+Before significance filtering, reciprocal ranks follow:
 
 ```text
 rank 1  -> rank_score 1
@@ -237,7 +297,10 @@ rank 3  -> rank_score 1/3
 
 **Larger `rank_score` values indicate stronger method-specific priority.**
 Perturbagens that do not pass the method-specific criterion receive
-`rank_score = 0`.
+`rank_score = 0`. The remaining nonzero scores are not renumbered: a drug can
+have `rank_score = 1/3` even if only one or two drugs pass the criterion. Ties
+also affect the denominator; `ties_method = "max"` assigns tied entries the
+largest occupied rank.
 
 The sign/direction is retained separately in `trend`; ranking by absolute
 magnitude does not discard the original direction from the processed output.
@@ -257,6 +320,25 @@ correlation significance test.
 
 The `ties_method` argument controls ties during these reciprocal-rank
 calculations.
+
+## Worked example: gaps and ties
+
+The synthetic inputs below have two equally strong, significant profiles.
+The stronger but nonsignificant profile still occupies rank 1; the tied profiles
+occupy positions 2 and 3 and both receive rank 3 under `ties_method = "max"`.
+No reference search is performed by this example.
+
+```{r signature-rank-score-example, eval=TRUE}
+raw_example <- data.frame(
+  pert = c("drug_a", "drug_b", "drug_c", "drug_d"),
+  cell = "A375", trend = "down",
+  WTCS = c(-0.9, -0.8, -0.8, -0.01),
+  WTCS_Pval = c(0.9, 1e-6, 1e-6, 0.9)
+)
+DrugSigNet::lincs_rank_score(raw_example, ties_method = "max") |>
+  dplyr::arrange(perturbation) |>
+  dplyr::select(perturbation, WTCS, rank_score)
+```
 
 # Harmonizing the processed drug universe
 
@@ -388,9 +470,16 @@ assuming that one aggregation method is universally preferable.
 
 # Reference-database reproducibility
 
-By default, DrugSigNet uses the reference resources resolved through
-`signatureSearch`. Frozen Synapse-backed CMAP and LINCS2 HDF5 resources can be
-used when the analysis needs to be repeated against fixed reference files.
+With one worker, `signature_refdb_mode = "default"` uses references resolved
+through `signatureSearch`. With multiple workers, default mode resolves frozen
+files before dispatch so workers share the same reference inputs. Frozen LINCS2
+perturbation IDs are normalized to compound names before filtering and scoring;
+unmapped IDs retain their original identity. This prevents multiple IDs for one
+compound from being ranked as separate drugs.
+
+Use an explicit frozen mode to make the reference choice clear. The cache is
+version-aware and may refresh when Synapse versions change, so also retain
+reference metadata and checksums for exact reproduction.
 
 ```{r frozen-signature-reference}
 sig_frozen <- drugSignaturePipeline(
@@ -406,7 +495,7 @@ sig_frozen <- drugSignaturePipeline(
 )
 ```
 
-See `signature-methods.Rmd` for reference-database provenance and individual
+See [Signature methods](signature-methods.html) for reference-database provenance and individual
 method parameters.
 
 # Downstream annotation and visualization
@@ -424,13 +513,17 @@ top `top_k` drugs across `Signature_CRank`, `Signature_Dowdall`, and
 `Signature_RRA` for downstream target-based summaries.
 
 Detailed annotation and plotting interfaces are documented in
-`drug-annotation.Rmd` and `visualization.Rmd`.
+[Drug annotation](drug-annotation.html) and [Visualization](visualization.html).
 
 # Exporting and reporting results
 
 Completed signature pipeline results can be exported with
 `write_pipeline_results()` or summarized in an HTML/PDF report with
-`write_report()`. See `complete-case-study.Rmd` for complete examples.
+`write_report()`. See the reporting section in [Integrated workflow walkthrough](complete-case-study.html) for
+HTML/PDF options, complete-object exports, and `top_k` versus `top_n`.
+
+Before interpretation, follow the completeness checks in
+[Integrated workflow walkthrough](complete-case-study.html), including failed-method and CRank convergence checks.
 
 # Interpretation checklist
 
@@ -473,25 +566,23 @@ cells, and perturbation conditions. The pairwise aggregation stage is designed
 to summarize evidence across those reference resources before the
 method-family consensus is calculated.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Understand individual signature methods | `signature-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate prioritized drugs | `drug-annotation.Rmd` |
-| Visualize signature rankings | `visualization.Rmd` |
-| Run the network workflow | `network-workflow.Rmd` |
-| Integrate signature and network evidence | `complete-case-study.Rmd` |
+| Understand individual signature methods | [Signature methods](signature-methods.html) |
+| Understand CRank, Dowdall, and RRA | [Rank aggregation](rank-aggregation.html) |
+| Annotate prioritized drugs | [Drug annotation](drug-annotation.html) |
+| Visualize signature rankings | [Visualization](visualization.html) |
+| Run the network workflow | [Network workflow](network-workflow.html) |
+| Integrate signature and network evidence | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

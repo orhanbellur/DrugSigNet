@@ -1,14 +1,14 @@
 ---
-title: "Integrated DrugSigNet workflow and complete case study"
+title: "10. Integrated DrugSigNet workflow walkthrough"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
     number_sections: true
 vignette: >
-  %\VignetteIndexEntry{10. Integrated DrugSigNet workflow and complete case study}
+  %\VignetteIndexEntry{10. Integrated DrugSigNet workflow walkthrough}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -21,63 +21,100 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
 
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
+
 # Introduction
 
-This vignette demonstrates the integrated DrugSigNet workflow using
-`drugRepurposingPipeline(mode = "both")`.
+This vignette is a walkthrough of `drugRepurposingPipeline(mode = "both")`,
+not a completed biological case study. External analyses are not run during the
+build, and no drug efficacy or study-specific ranking is asserted. The examples
+show how to generate and inspect results from the bundled inputs.
 
 The signature and network branches are described in detail in
-`signature-workflow.Rmd` and `network-workflow.Rmd`. Here, the focus is on
+[Signature workflow](signature-workflow.html) and [Network workflow](network-workflow.html). Here, the focus is on
 how those two evidence layers are run together, how their rankings are
 integrated, and how to inspect the resulting signature-network consensus.
 
 # Integrated workflow overview
 
-With `mode = "both"`, `drugRepurposingPipeline()`:
+With `mode = "both"`, `drugRepurposingPipeline()` runs the signature and
+network branches, then combines their method-level ranks through
+`integrateSignatureNetwork()`. The two evidence paths are shown below.
 
-1. runs `drugSignaturePipeline()`;
-2. runs `drugNetworkPipeline()`;
-3. validates that usable signature rankings are available;
-4. passes the two completed pipeline objects to `integrateSignatureNetwork()`;
-5. computes integrated CRank, Dowdall, and RRA rankings; and
-6. returns the signature, network, and integrated sections in one
-   `DrugSearchingPipeline` object.
-
-Conceptually:
-
-```text
-Disease expression signature
-          |
-          v
- Signature workflow
-          |
-          |  Pairwise signature-family ranks
-          |
-          +-------------------+
-                              |
-                              v
-                    Signature-network
-                      integration
-                              ^
-                              |
-          +-------------------+
-          |
-          |  Network method ranks
-          |
-    Network workflow
-          ^
-          |
-   Disease seed genes
+```{r integrated-workflow-diagram, eval=TRUE, echo=FALSE, fig.width=8.5, fig.height=7, fig.retina=2, fig.cap="Only compounds represented in both evidence branches are eligible for integration. Drug identities are matched before integrated CRank, Dowdall and RRA ranking; method-specific missing-rank handling still applies.", fig.alt="Signature and network branches produce method-level ranks, then an explicit intersection step keeps only shared compounds before integrated CRank, Dowdall and RRA aggregation."}
+local({
+  grid::grid.newpage()
+  card <- function(x, y, w, h, title, detail, style = "blue") {
+    palette <- switch(style,
+      blue = c("#EFF7FB", "#A8C8DA"),
+      green = c("#EFF8F5", "#A6CFC0"),
+      amber = c("#FFF7E8", "#D8BE87"),
+      purple = c("#EDF1F8", "#A7B6CE"),
+      c("#F5F7F9", "#BCC7D0"))
+    grid::grid.roundrect(x, y, w, h, r = grid::unit(3, "mm"),
+      gp = grid::gpar(fill = palette[1], col = palette[2], lwd = 1))
+    grid::grid.text(title, x, y + h * 0.23,
+      gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#183247"))
+    grid::grid.text(detail, x, y - h * 0.19,
+      gp = grid::gpar(fontsize = 9, lineheight = 1.25, col = "#526575"))
+  }
+  arrow <- function(x, from, to) {
+    grid::grid.lines(x = c(x, x), y = c(from, to),
+      arrow = grid::arrow(length = grid::unit(2.2, "mm"), type = "closed"),
+      gp = grid::gpar(col = "#8294A3", fill = "#8294A3", lwd = 1.2))
+  }
+  join <- function(xs, from, at) {
+    for (x in xs) grid::grid.lines(x = c(x, x), y = c(from, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+    grid::grid.lines(x = range(xs), y = c(at, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  }
+  card(0.26, 0.92, 0.43, 0.12, "Disease expression signature",
+       "Signed molecular changes", "blue")
+  arrow(0.26, 0.85, 0.82)
+  card(0.74, 0.92, 0.43, 0.12, "Disease seed genes",
+       "Disease-associated genes", "green")
+  arrow(0.74, 0.85, 0.82)
+  card(0.26, 0.74, 0.43, 0.15, "Signature workflow",
+       "CMAP, LINCS, gCMAP\nand correlation searches", "blue")
+  arrow(0.26, 0.655, 0.63)
+  card(0.74, 0.74, 0.43, 0.15, "Network workflow",
+       "Centrality; optional proximity\nand diffusion", "green")
+  arrow(0.74, 0.655, 0.63)
+  card(0.26, 0.55, 0.43, 0.15, "Signature-family ranks",
+       "Consensus across CMAP\nand LINCS2 references", "blue")
+  card(0.74, 0.55, 0.43, 0.15, "Network-method ranks",
+       "Ranks from available\nnetwork methods", "green")
+  join(c(0.26, 0.74), 0.465, 0.445)
+  arrow(0.5, 0.445, 0.425)
+  card(0.5, 0.365, 0.76, 0.115, "Keep compounds shared by BOTH branches",
+       "Match drug identities; retain the intersection", "amber")
+  arrow(0.5, 0.3, 0.27)
+  card(0.5, 0.205, 0.76, 0.115, "Integrate method-level ranks for shared compounds",
+       "CRank, Dowdall and RRA", "purple")
+  arrow(0.5, 0.14, 0.12)
+  card(0.5, 0.065, 0.76, 0.1, "Integrated candidate rankings",
+       "Branch-only compounds stay in their original results", "gray")
+})
 ```
 
-The integrated analysis does **not** simply combine
-`Signature_CRank` with `Network_CRank`. Instead, it integrates the underlying
-signature-family consensus ranks with the available network method ranks.
+Only compounds present in **both** the signature and network ranking inputs are
+eligible for integration. Compounds unique to either branch remain in that
+branch's results and are not assigned an integrated rank. Consistent drug
+identifiers are therefore essential; no overlap produces an error rather than
+an integrated candidate list.
+
+Integration uses signature-family consensus ranks and network method ranks,
+rather than simply combining `Signature_CRank` with `Network_CRank`. The
+returned `DrugSearchingPipeline` retains all three result sections.
 
 # Prepare inputs
 
@@ -143,10 +180,10 @@ Network proximity and diffusion are not run. Consequently, the integrated
 ranking uses only those three network-derived ranks together with the
 signature-family ranks.
 
-# Reproducible case-study run
+# Explicit reference configuration
 
-A more fully specified analysis can use frozen signature reference databases,
-drug-name harmonization, and downstream annotation.
+A more fully specified analysis can use frozen signature reference databases
+and downstream annotation.
 
 The following configuration mirrors a typical integrated analysis:
 
@@ -156,7 +193,7 @@ integrated_res <- drugRepurposingPipeline(
   disease_genes = disease_seeds,
   mode = "both",
   padj = 0.05,
-  drug_name_synonym = signature_drug_map,
+  drug_name_synonym = NULL,
   ties_method = "max",
   prior = 0.093,
   num_bin = 200,
@@ -175,8 +212,11 @@ integrated_res <- drugRepurposingPipeline(
 )
 ```
 
-In this example, `signature_drug_map` is an analysis-specific synonym table
-prepared before running the pipeline.
+This runnable configuration uses `drug_name_synonym = NULL`. If you have a
+validated synonym table, supply it using the schema in
+`?drugSignaturePipeline`; retain both the table and its provenance. Confirm the
+overlap of compound identities across the two evidence layers before
+interpreting the integrated candidate set.
 
 The explicit `padj = 0.05` is included because
 `drugRepurposingPipeline()` uses `0.05` as its default signature-mode value.
@@ -248,7 +288,7 @@ head(signature_rankings)
 
 The signature branch first calculates method-specific `rank_score`s, then
 aggregates CMAP and LINCS2 reference results within CMAP, LINCS, gCMAP, and
-correlation families. See `signature-workflow.Rmd` for the full processing
+correlation families. See [Signature workflow](signature-workflow.html) for the full processing
 sequence.
 
 # Inspect the network branch
@@ -271,7 +311,7 @@ TrustRank, harmonic centrality, and degree centrality only.
 
 When `run_all_network_methods = TRUE`, network proximity and diffusion are also
 run and incorporated into the network workflow as described in
-`network-workflow.Rmd`.
+[Network workflow](network-workflow.html).
 
 # How signature and network rankings are integrated
 
@@ -495,7 +535,7 @@ Functional_Enrichment
 ```
 
 Detailed drug annotation and `TSEA()` usage are covered in
-`drug-annotation.Rmd`.
+[Drug annotation](drug-annotation.html).
 
 # Visualization
 
@@ -509,7 +549,7 @@ integrated_res@Visualization[["integrated"]]
 ```
 
 For standalone plotting of the integrated ranking table, use the current
-`plot_*()` functions documented in `visualization.Rmd`.
+`plot_*()` functions documented in [Visualization](visualization.html).
 
 For example, rank agreement among the three integrated consensus rankings can
 be inspected with:
@@ -592,36 +632,56 @@ If `file_path` is a directory, the default workbook name
 
 ## Generate an analysis report
 
-`write_report()` generates an HTML or PDF summary of one or more DrugSigNet
-pipeline results. Reports can include drug-search results, rank aggregation,
-annotation, and visualization sections when available.
+`write_report()` adapts to signature, network, and integrated results. The
+default standalone HTML report uses a scientific sidebar with searchable result
+tables, CSV downloads, focused summaries, and available figures. The legacy
+`dashboard = "tabset"` argument remains accepted. Use
+`dashboard = "shinydashboard"` only when a Shiny dashboard is needed.
 
-```{r write-integrated-report}
+```{r write-integrated-html-report}
 write_report(
   object = integrated_res,
   title = "DrugSigNet integrated analysis",
   file = "DrugSigNet_integrated_report",
   device = "html",
+  top_n = 20,
+  enrichment_n = 12,
   interactive = TRUE
 )
 ```
 
-Set `write_results = TRUE` to export the corresponding Excel result workbook
-while generating the report:
+The PDF uses a contents page, concise scientific sections, bounded tables, and
+static figures. A LaTeX engine and Pandoc must be available. The renderer uses
+available static alternatives or explanatory export notes when an interactive
+Plotly figure cannot be exported; inspect those notes before publication.
 
-```{r write-integrated-report-with-results}
+```{r write-integrated-pdf-report}
 write_report(
   object = integrated_res,
+  title = "DrugSigNet integrated analysis",
   file = "DrugSigNet_integrated_report",
-  device = "html",
-  interactive = TRUE,
+  device = "pdf",
+  top_n = 20,
+  enrichment_n = 12,
+  figure_dpi = 300,
+  supplementary = TRUE,
   write_results = TRUE
 )
 ```
 
-Use `device = "pdf"` for PDF output. PDF rendering requires an available LaTeX
-engine. HTML reports use the tabset layout by default; set
-`dashboard = "shinydashboard"` when an interactive Shiny dashboard is preferred.
+| Control | Meaning |
+|---|---|
+| Pipeline `top_k` | Union of drugs with rank <= threshold in any selected consensus column for downstream analysis; can exceed `top_k` |
+| Report `top_n` | Maximum number of candidates in the displayed shortlist, using the report's documented deterministic selection and tie breaking |
+| Report `enrichment_n` | Maximum number of displayed terms across enrichment sources |
+| Report `supplementary = TRUE` | Save the complete original input as a companion `_supplementary.rds` file |
+| Report `write_results = TRUE` | Export companion Excel results; does not change stored rankings |
+
+Reducing report detail does not truncate the input object or recompute ranks.
+Retain the original RDS for complete results. Report figures require stored
+visualizations: run the pipeline with `run_visualization = TRUE` when those
+figures are wanted, then check the generated report for missing-output notes.
+The report's rendering switches do not regenerate a search or an enrichment.
 
 # Reproducibility checklist
 
@@ -639,6 +699,30 @@ For a manuscript or shared analysis, report:
 - `top_k`;
 - annotation sources and trial condition when used; and
 - versions or retrieval dates of external resources.
+
+# Check completeness before interpretation
+
+A non-NULL pipeline object can contain partial results if a stage failed.
+Before selecting candidates:
+
+1. Retain messages and warnings from the run; do not infer success from object
+   creation alone.
+2. Check available raw and processed method names in each branch against the
+   expected methods for the chosen configuration.
+3. Confirm that each aggregation has a nonempty result, matching identifiers,
+   finite ranks, and the intended input columns in `@parameters`.
+4. Inspect CRank convergence and the number of compounds retained in the
+   signature-network intersection. Low overlap can reflect naming or coverage.
+5. Record annotation/target mapping coverage separately from candidate counts;
+   distinguish an empty successful enrichment from a failed enrichment request.
+6. Generate the report only after these checks. Review export notes and the
+   candidate-selection rule in the report.
+
+For sensitivity analysis, compare plausible gene-selection thresholds,
+reference resources, candidate-set sizes, and CRank settings while keeping
+other inputs fixed. Report top-k overlap and rank agreement, including changes
+in the candidate universe. Shared inputs and correlated algorithms mean that
+agreement is not independent validation.
 
 # Troubleshooting
 
@@ -665,26 +749,24 @@ the integrated aggregation.
 Check `signature_refdb_auth_token`, `auth_token`, Synapse access, local cache
 permissions, and HDF5 validation.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Review individual signature methods | `signature-methods.Rmd` |
-| Review individual network methods | `network-methods.Rmd` |
-| Understand CRank, Dowdall, and RRA | `rank-aggregation.Rmd` |
-| Annotate integrated candidates | `drug-annotation.Rmd` |
-| Visualize integrated rankings | `visualization.Rmd` |
-| Review the signature branch in detail | `signature-workflow.Rmd` |
-| Review the network branch in detail | `network-workflow.Rmd` |
+| Review individual signature methods | [Signature methods](signature-methods.html) |
+| Review individual network methods | [Network methods](network-methods.html) |
+| Understand CRank, Dowdall, and RRA | [Rank aggregation](rank-aggregation.html) |
+| Annotate integrated candidates | [Drug annotation](drug-annotation.html) |
+| Visualize integrated rankings | [Visualization](visualization.html) |
+| Review the signature branch in detail | [Signature workflow](signature-workflow.html) |
+| Review the network branch in detail | [Network workflow](network-workflow.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```

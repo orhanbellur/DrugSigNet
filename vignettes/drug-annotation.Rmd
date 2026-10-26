@@ -1,7 +1,7 @@
 ---
-title: "Drug annotation with DrugSigNet"
+title: "06. Drug annotation with DrugSigNet"
 author: "DrugSigNet authors"
-date: "Last update: `r format(Sys.Date(), '%d %B %Y')`"
+date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -21,10 +21,15 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE,
   fig.align = "center",
+  out.width = "100%",
   fig.width = 7,
   fig.height = 5
 )
 ```
+
+> External-data and installation examples are shown without running them during
+> the documentation build. Chunks explicitly marked `eval = TRUE` run locally
+> without downloading reference databases or contacting annotation services.
 
 # Introduction
 
@@ -69,7 +74,7 @@ of the remaining annotations.
 >
 > Some annotation resources require a Synapse Personal Access Token. Configure
 > authentication before running these functions; see the
-> [Getting Started vignette](getting-started.Rmd).
+> [Getting Started vignette](getting-started.html).
 
 Several DrugSigNet annotation resources are loaded from a local cache or
 Synapse. The configured token can be read from the environment when it is
@@ -436,6 +441,23 @@ tsea_ensembl@result
 When `target_id_from = NULL`, DrugSigNet attempts to detect Ensembl gene IDs;
 otherwise targets are treated as symbols.
 
+## Background, coverage, and candidate-set size
+
+The implemented backend submits unique mapped target symbols to Enrichr's GO
+libraries. `TSEA()` does not expose a custom background/universe argument;
+interpret its adjusted p-values relative to the selected Enrichr library's
+background, not an experiment-specific set of detectable genes. Record library
+names, retrieval date, submitted target count, and identifier-mapping losses.
+If a restricted experimental universe is required, use an enrichment workflow
+that supports it and document that choice separately.
+
+Targets of prioritized drugs are not independent samples: several drugs may
+share a target, and well-studied compounds can have better annotation coverage.
+Deduplicate target genes and compare reasonable candidate-set sizes. Different
+`top_k` values can change both the tested biology and statistical power. Report
+adjusted p-values and overlap numerators/denominators; an enriched term does not
+show that an individual drug reverses that biological process.
+
 ## Inspect enrichment provenance
 
 `TSEA()` also returns a `DrugAnnotation` object, so the enrichment input and
@@ -510,9 +532,10 @@ The merged data frame or individual S4 annotation objects can be saved for
 reproducible downstream analysis.
 
 ```{r save-annotation}
-saveRDS(ann, file = "inst/extdata/example_drug_annotation.rds")
-saveRDS(moa_res, file = "inst/extdata/example_moa_annotation.rds")
-saveRDS(tsea, file = "inst/extdata/example_tsea.rds")
+dir.create("results", showWarnings = FALSE)
+saveRDS(ann, file = "results/drug_annotation.rds")
+saveRDS(moa_res, file = "results/moa_annotation.rds")
+saveRDS(tsea, file = "results/tsea.rds")
 ```
 
 # Common pitfalls
@@ -550,24 +573,22 @@ Use `force = TRUE` when a supported resource should be refreshed and ensure that
 the required Synapse authentication is available when the requested dataset is
 not already cached locally.
 
-# Summary
-
-This vignette described the relevant DrugSigNet concepts, inputs, outputs, and interpretation principles. Preserve the input data, function arguments, package version, and returned S4 objects when reporting or reproducing an analysis.
-
 # Next steps
 
 | Goal | Recommended vignette |
 |---|---|
-| Understand how candidates were ranked | `rank-aggregation.Rmd` |
-| Visualize ranking and annotation results | `visualization.Rmd` |
-| Run a complete signature analysis | `signature-workflow.Rmd` |
-| Run a complete network analysis | `network-workflow.Rmd` |
-| Run integrated prioritization and interpretation | `complete-case-study.Rmd` |
+| Understand how candidates were ranked | [Rank aggregation](rank-aggregation.html) |
+| Visualize ranking and annotation results | [Visualization](visualization.html) |
+| Run a complete signature analysis | [Signature workflow](signature-workflow.html) |
+| Run a complete network analysis | [Network workflow](network-workflow.html) |
+| Run integrated prioritization and interpretation | [Integrated workflow walkthrough](complete-case-study.html) |
 
-# Session information
+# Build information
 
-Record the R and package versions used to build this vignette.
+These versions describe the documentation build, not execution of the external
+analysis examples. Save `sessionInfo()` with your own analysis results.
 
 ```{r session-info, eval=TRUE}
-sessionInfo()
+c(R = as.character(getRversion()),
+  DrugSigNet = as.character(utils::packageVersion("DrugSigNet")))
 ```
