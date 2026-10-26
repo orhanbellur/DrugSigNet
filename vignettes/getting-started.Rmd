@@ -4,6 +4,9 @@ author: "DrugSigNet authors"
 date: "Built: `r format(Sys.Date(), '%d %B %Y')`"
 output:
   rmarkdown::html_vignette:
+    self_contained: false
+    lib_dir: libs
+    css: vignette.css
     toc: true
     toc_depth: 3
     number_sections: true
@@ -14,6 +17,12 @@ vignette: >
 ---
 
 ```{r global-options, include=FALSE}
+# Keep the overview with this vignette's local assets in the installed package.
+dir.create("getting-started_files", showWarnings = FALSE)
+if (!file.copy("images/DrugSigNet_workflow.png",
+               "getting-started_files/DrugSigNet_workflow.png", overwrite = TRUE)) {
+  stop("Could not prepare the workflow overview figure.")
+}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -63,7 +72,7 @@ prioritization, as well as an integrated workflow that combines both evidence
 types. The schematic below summarizes the required inputs, major analysis
 stages, and optional interpretation steps.
 
-![Overview of the DrugSigNet workflow. A signed disease expression signature is used by `drugSignaturePipeline()`, disease genes are used by `drugNetworkPipeline()`, and both evidence types can be integrated with `drugRepurposingPipeline(mode = "both")`.](images/DrugSigNet_workflow.png){width=100%}
+![Overview of the DrugSigNet workflow. A signed disease expression signature is used by `drugSignaturePipeline()`, disease genes are used by `drugNetworkPipeline()`, and both evidence types can be integrated with `drugRepurposingPipeline(mode = "both")`.](getting-started_files/DrugSigNet_workflow.png){width=100%}
 
 # Installation
 

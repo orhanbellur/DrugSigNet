@@ -10,6 +10,18 @@
   Java connection with a CDK fingerprint calculation.
 - Add a dedicated macOS ARM64 Pixi installation check with vignette builds.
 
+### R 4.4 check compatibility
+
+- Treat the three conditionally used plotting packages ggalluvial, ggforce, and
+  wordcloud as optional dependencies; their plotting functions retain existing
+  availability checks. Complete runtime installers still install these packages.
+- Select compatible ggplot2/ggiraph archive releases for Bioconductor 3.20 CI.
+- Build HTML vignettes with local shared assets rather than embedding duplicate
+  images and scripts in each HTML file. Keep the installed doc directory together
+  when sharing vignettes. Render workflow diagrams as compact SVGs, and display
+  the static alluvial example while retaining the interactive sunburst
+  calculation and instructions for opening it in R.
+
 ### Initial release
 
 - Added signature-based, network-based, and integrated drug-repurposing

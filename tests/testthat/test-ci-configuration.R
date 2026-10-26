@@ -26,7 +26,7 @@ test_that("CI uses a compatible fixed R and Bioconductor release", {
                   c("ubuntu-latest", "macOS-latest", "windows-latest"))
   expect_true(all(grepl("bioc: '3.20'", older, fixed = TRUE)))
   expect_match(workflow, "R_BIOC_VERSION: ${{ matrix.config.bioc }}", fixed = TRUE)
-  expect_match(workflow, "any::ggplot2@3.5.2", fixed = TRUE)
+  expect_match(workflow, "ggplot2_3.5.2.tar.gz", fixed = TRUE)
   expect_match(workflow, "RETICULATE_USE_MANAGED_VENV: 'no'", fixed = TRUE)
   expect_match(workflow, "r-lib/actions/setup-r-dependencies@v2", fixed = TRUE)
   expect_false(grepl("Rebuild macOS native tidyverse core", workflow, fixed = TRUE))

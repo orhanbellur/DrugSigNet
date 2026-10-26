@@ -96,6 +96,8 @@ DrugSigNet::setup_python_dependencies()
 DrugSigNet::check_drugsignet_installation(stop_on_error = TRUE)
 ```
 
+Optional annotation plots use `ggalluvial`, `ggforce`, and `wordcloud`. For a plain R installation, install the packages needed for those plots with `install.packages(c("ggalluvial", "ggforce", "wordcloud"))`. Complete Pixi/container installers include them. Installed HTML vignettes use local asset directories; keep the complete `doc` directory together when copying or sharing them.
+
 The signature workflow additionally uses the optional Bioconductor package `signatureSearch`; install it if your chosen signature methods require it:
 
 ```r

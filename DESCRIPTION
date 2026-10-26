@@ -17,8 +17,6 @@ Imports:
     data.table,
     dplyr,
     enrichR,
-    ggalluvial,
-    ggforce,
     ggsci,
     ggplot2,
     ggraph,
@@ -39,9 +37,11 @@ Imports:
     tibble,
     tidyr,
     tidyselect,
-    utils,
-    wordcloud
+    utils
 Suggests: 
+    ggalluvial,
+    ggforce,
+    wordcloud,
     AnnotationDbi,
     BoutrosLab.plotting.general,
     ExperimentHub,
@@ -58,6 +58,7 @@ Suggests:
     remotes,
     rmarkdown,
     signatureSearch,
+    svglite,
     testthat,
     tinytex,
     withr

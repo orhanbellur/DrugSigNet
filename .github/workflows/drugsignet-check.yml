@@ -126,8 +126,9 @@ jobs:
         needs: check
         # Bioconductor 3.20 ships ggtree 3.14.0, which uses ggplot2's
         # check_linewidth helper removed in ggplot2 4.0. Use the compatible
-        # pre-4.0 release while retaining the complete dependency/test graph.
-        extra-packages: ${{ matrix.config.bioc == '3.20' && 'any::rcmdcheck, any::ggplot2@3.5.2' || 'any::rcmdcheck' }}
+        # pre-4.0 release and compatible ggiraph (new ggiraph requires 4.0).
+        # Explicit archive URLs pin versions; pak pkg@version is a minimum.
+        extra-packages: ${{ matrix.config.bioc == '3.20' && 'any::rcmdcheck, url::https://cloud.r-project.org/src/contrib/Archive/ggplot2/ggplot2_3.5.2.tar.gz, url::https://cloud.r-project.org/src/contrib/Archive/ggiraph/ggiraph_0.8.13.tar.gz' || 'any::rcmdcheck' }}
         cache-version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || 'cache-v2' }}
     - id: runtime-install
       name: Install package and prepare pre-check runtime

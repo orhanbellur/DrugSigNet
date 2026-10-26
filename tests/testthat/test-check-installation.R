@@ -1,12 +1,13 @@
-test_that("installation check classifies runtime visualization packages as required", {
+test_that("installation check classifies conditional visualization packages as optional", {
   result <- check_drugsignet_installation(
     check_python = FALSE,
     check_optional = TRUE
   )
 
   expect_true("wordcloud" %in% result$packages$package)
-  expect_true(result$packages$required[result$packages$package == "wordcloud"])
-  expect_true(all(c("enrichR", "ggalluvial", "ggforce", "plotly") %in%
+  expect_false(result$packages$required[result$packages$package == "wordcloud"])
+  expect_false(any(result$packages$required[result$packages$package %in% c("ggalluvial", "ggforce")]))
+  expect_true(all(c("enrichR", "plotly") %in%
     result$packages$package[result$packages$required]))
   expect_false(result$packages$required[result$packages$package == "signatureSearch"])
 })
@@ -17,8 +18,8 @@ test_that("required runtime packages remain when optional checks are disabled", 
     check_optional = FALSE
   )
 
-  expect_true(all(c("enrichR", "plotly", "wordcloud") %in% result$packages$package))
-  expect_false(any(c("kableExtra", "signatureSearch", "tinytex") %in%
+  expect_true(all(c("enrichR", "plotly") %in% result$packages$package))
+  expect_false(any(c("ggalluvial", "ggforce", "wordcloud", "kableExtra", "signatureSearch", "tinytex") %in%
     result$packages$package))
 })
 
@@ -79,4 +80,20 @@ test_that("installation check retains Python import diagnostics", {
 
   expect_false(result$ok)
   expect_match(result$python$diagnostic, "DLL load failed", fixed = TRUE)
+})
+
+test_that("missing optional plot packages do not fail a core installation check", {
+  checker <- check_drugsignet_installation
+  optional_plots <- c("ggalluvial", "ggforce", "wordcloud")
+  environment(checker) <- list2env(list(
+    requireNamespace = function(package, ...) {
+      if (package %in% optional_plots) FALSE else base::requireNamespace(package, ...)
+    }
+  ), parent = environment(checker))
+  result <- checker(check_python = FALSE, check_optional = TRUE, stop_on_error = TRUE)
+  expect_true(result$ok)
+  rows <- result$packages$package %in% optional_plots
+  expect_equal(sum(rows), 3L)
+  expect_false(any(result$packages$required[rows]))
+  expect_false(any(result$packages$available[rows]))
 })
