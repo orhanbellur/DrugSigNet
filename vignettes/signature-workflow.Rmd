@@ -60,6 +60,61 @@ themselves, see [Rank aggregation](rank-aggregation.html).
 7. returns method-specific and harmonized signature rankings for downstream
    annotation and visualization.
 
+```{r signature-workflow-diagram, eval=TRUE, echo=FALSE, fig.width=8.5, fig.height=7, fig.retina=2, fig.cap="Signature ranking has two aggregation stages. Family CRank ranks feed the final CRank, family Dowdall ranks feed final Dowdall, and family RRA ranks feed final RRA. The diagram assumes the reference searches succeed.", fig.alt="A signed expression signature is searched against CMAP and LINCS2 with four methods. Processed rank scores are combined across references within each family, then across families with matching CRank, Dowdall or RRA aggregation."}
+local({
+  grid::grid.newpage()
+  card <- function(x, y, w, h, title, detail, style = "blue") {
+    palette <- switch(style,
+      blue = c("#EFF7FB", "#A8C8DA"),
+      green = c("#EFF8F5", "#A6CFC0"),
+      amber = c("#FFF7E8", "#D8BE87"),
+      purple = c("#EDF1F8", "#A7B6CE"),
+      c("#F5F7F9", "#BCC7D0"))
+    grid::grid.roundrect(x, y, w, h, r = grid::unit(3, "mm"),
+      gp = grid::gpar(fill = palette[1], col = palette[2], lwd = 1))
+    grid::grid.text(title, x, y + h * 0.23,
+      gp = grid::gpar(fontsize = 10.5, fontface = "bold", col = "#183247"))
+    grid::grid.text(detail, x, y - h * 0.19,
+      gp = grid::gpar(fontsize = 9, lineheight = 1.25, col = "#526575"))
+  }
+  arrow <- function(x, from, to) {
+    grid::grid.lines(x = c(x, x), y = c(from, to),
+      arrow = grid::arrow(length = grid::unit(2.2, "mm"), type = "closed"),
+      gp = grid::gpar(col = "#8294A3", fill = "#8294A3", lwd = 1.2))
+  }
+  join <- function(xs, from, at) {
+    for (x in xs) grid::grid.lines(x = c(x, x), y = c(from, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+    grid::grid.lines(x = range(xs), y = c(at, at),
+      gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  }
+  card(0.5, 0.94, 0.76, 0.1, "Signed disease expression signature",
+       "Prepare up/down gene sets and a quantitative profile", "blue")
+  grid::grid.lines(x = c(0.5, 0.5), y = c(0.89, 0.875),
+    gp = grid::gpar(col = "#8294A3", lwd = 1.2))
+  join(c(0.26, 0.74), 0.875, 0.875)
+  arrow(0.26, 0.875, 0.85)
+  arrow(0.74, 0.875, 0.85)
+  card(0.26, 0.77, 0.43, 0.15, "CMAP reference",
+       "CMAP, LINCS, gCMAP\nand correlation searches", "blue")
+  card(0.74, 0.77, 0.43, 0.15, "LINCS2 reference",
+       "CMAP, LINCS, gCMAP\nand correlation searches", "blue")
+  join(c(0.26, 0.74), 0.685, 0.67)
+  arrow(0.5, 0.67, 0.655)
+  card(0.5, 0.59, 0.86, 0.12, "Method-specific rank scores",
+       "Normalize compound identities; score each method/reference", "blue")
+  arrow(0.5, 0.52, 0.495)
+  card(0.5, 0.41, 0.86, 0.15, "Stage 1: combine references within each family",
+       "CMAP + LINCS2 for each search family\nCRank, Dowdall and RRA", "purple")
+  arrow(0.5, 0.325, 0.31)
+  card(0.5, 0.23, 0.86, 0.15, "Stage 2: combine signature-family consensus ranks",
+       "Across CMAP, LINCS, gCMAP and correlation\nUse the matching aggregation method", "purple")
+  arrow(0.5, 0.145, 0.125)
+  card(0.5, 0.065, 0.86, 0.1, "Final signature candidate rankings",
+       "Signature_CRank, Signature_Dowdall, Signature_RRA", "gray")
+})
+```
+
 The eight signature-search results are:
 
 ```text
