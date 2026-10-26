@@ -71,7 +71,7 @@ stages, and optional interpretation steps.
 
 | Component | When needed |
 |---|---|
-| R >= 4.5.0 | Current package version |
+| R >= 4.4.0 | Bioconductor 3.20 for R 4.4; 3.22 for R 4.5. Default isolated runtime: R 4.5. |
 | Python >= 3.12 | CRank and Python-backed network methods |
 | `graph-tool` | Network centrality methods; supported Linux/macOS runtime |
 | Synapse access and a local cache | Default networks, frozen signature references, and some annotations |

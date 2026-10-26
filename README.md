@@ -37,7 +37,7 @@ For a first test run, set `run_drug_annotation = FALSE` and `run_visualization =
 
 ## Installation
 
-DrugSigNet requires **R 4.5.0 or newer**. Choose an installation method based on your environment. The maintained dependency manifest is [`tools/runtime-dependencies.tsv`](tools/runtime-dependencies.tsv).
+DrugSigNet requires **R 4.4.0 or newer**. Choose an installation method based on your environment. Use Bioconductor 3.20 with R 4.4, or Bioconductor 3.22 with R 4.5. The default Pixi/container runtime remains on R 4.5. The maintained dependency manifest is [`tools/runtime-dependencies.tsv`](tools/runtime-dependencies.tsv).
 
 | Environment | Recommended method | Notes |
 |---|---|---|
@@ -50,7 +50,7 @@ DrugSigNet requires **R 4.5.0 or newer**. Choose an installation method based on
 The Pixi installer creates a reproducible project with its own R, Python, native libraries, and lock file, without requiring sudo. Run in R (including RStudio):
 
 ```r
-branch <- "codex/verify-drugsignet-installation-dependencies-gu6bme"
+branch <- "codex/support-r-44"
 source(paste0(
   "https://raw.githubusercontent.com/orhanbellur/DrugSigNet/",
   branch, "/install-pixi.R"
@@ -70,7 +70,7 @@ The installer configures access from RStudio as well. Restart R if a different P
 Use this route only when the required system libraries are already installed, or when your Linux session has root/passwordless sudo for package-manager operations.
 
 ```r
-stopifnot(getRversion() >= "4.5.0")
+stopifnot(getRversion() >= "4.4.0")
 if (!requireNamespace("pak", quietly = TRUE)) {
   install.packages("pak")
 }
@@ -78,7 +78,7 @@ options(timeout = max(1200, getOption("timeout", 60)))
 options(pkg.sysreqs = FALSE, pkg.build_vignettes = TRUE)
 Sys.setenv(PKG_SYSREQS = "false", PKG_BUILD_VIGNETTES = "true")
 pak::pkg_install(
-  "orhanbellur/DrugSigNet@codex/verify-drugsignet-installation-dependencies-gu6bme",
+  "orhanbellur/DrugSigNet@codex/support-r-44",
   dependencies = NA,
   upgrade = FALSE,
   ask = FALSE

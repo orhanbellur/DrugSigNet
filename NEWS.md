@@ -95,3 +95,13 @@
   report the selected interpreter and the native error instead of partial data.
 * Clarify that activating a Pixi package library does not replace the running
   R executable; document clean session restart after reinstallation.
+
+### R 4.4 compatibility
+
+- Support R 4.4 with its matching Bioconductor 3.20 release, alongside the
+  existing R 4.5/Bioconductor 3.22 environment. Add full checks on Linux,
+  macOS ARM64 and Windows for both R versions. The recommended isolated
+  runtime remains R 4.5 and Python 3.12; ranking algorithms are unchanged.
+- Remove the unused `webr` suggestion. Its current dependency chain reaches
+  `Deriv` (R >= 4.5), blocking complete dependency installation on R 4.4
+  despite no DrugSigNet code, documentation, or tests using it.

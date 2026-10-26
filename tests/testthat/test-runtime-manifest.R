@@ -64,3 +64,19 @@ test_that("legacy installer entry points use the supported Python version", {
     expect_false(grepl("pandas=2.0.3", text, fixed = TRUE))
   }
 })
+
+test_that("standard Linux installer accepts R 4.4 and rejects older releases", {
+  script <- readLines(drugsignet_repository_file("tools", "install_drugsignet_linux.sh"))
+  start <- which(script == "Rscript --vanilla - <<'RSCRIPT'")[[1L]]
+  end <- which(seq_along(script) > start & script == "RSCRIPT")[[1L]]
+  guard <- parse(text = script[seq.int(start + 1L, end - 1L)])
+  run_guard <- function(version) {
+    environment <- new.env(parent = baseenv())
+    environment$getRversion <- function() numeric_version(version)
+    eval(guard, envir = environment)
+  }
+  expect_error(run_guard("4.3.3"), "requires R >= 4.4.0", fixed = TRUE)
+  for (version in c("4.4.0", "4.4.3", "4.5.3")) {
+    expect_no_error(run_guard(version))
+  }
+})

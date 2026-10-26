@@ -32,7 +32,7 @@ fi
 # Without this guard, an old Bioconductor release can spend a long time building
 # a dependency tree that cannot satisfy the current DrugSigNet installation.
 Rscript --vanilla - <<'RSCRIPT'
-required <- numeric_version("4.5.0")
+required <- numeric_version("4.4.0")
 current <- getRversion()
 if (current < required) {
   stop(

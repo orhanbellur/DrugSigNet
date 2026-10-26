@@ -20,6 +20,12 @@ test_that("CI uses a compatible fixed R and Bioconductor release", {
   expect_match(workflow, "r: '4.5.2'", fixed = TRUE)
   expect_match(workflow, "r: '4.5.3'", fixed = TRUE)
   expect_match(workflow, "RELEASE_3_22-R-4.5.2", fixed = TRUE)
+  matrix_rows <- strsplit(workflow, "\n        - os: ", fixed = TRUE)[[1L]][-1L]
+  older <- matrix_rows[grepl("r: '4.4.3'", matrix_rows, fixed = TRUE)]
+  expect_setequal(vapply(strsplit(older, "\n", fixed = TRUE), `[[`, character(1), 1L),
+                  c("ubuntu-latest", "macOS-latest", "windows-latest"))
+  expect_true(all(grepl("bioc: '3.20'", older, fixed = TRUE)))
+  expect_match(workflow, "R_BIOC_VERSION: ${{ matrix.config.bioc }}", fixed = TRUE)
   expect_match(workflow, "RETICULATE_USE_MANAGED_VENV: 'no'", fixed = TRUE)
   expect_match(workflow, "r-lib/actions/setup-r-dependencies@v2", fixed = TRUE)
   expect_false(grepl("Rebuild macOS native tidyverse core", workflow, fixed = TRUE))
