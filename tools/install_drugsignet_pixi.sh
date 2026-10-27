@@ -304,7 +304,11 @@ if [[ "${source_r_deps}" == true ]]; then
   }
   # Embed the JVM search path; macOS system shells can strip DYLD_* vars.
   # javareconf evals assignment arguments, so pass multiword flags via env.
+  jni_platform=linux
+  [[ "${pixi_platform}" == osx-* ]] && jni_platform=darwin
   pixi_clean_run env JAVA_HOME="${runtime_prefix}/lib/jvm" \
+    JAVA_CPPFLAGS="-I${runtime_prefix}/lib/jvm/include -I${runtime_prefix}/lib/jvm/include/${jni_platform}" \
+    JAVA_LD_LIBRARY_PATH="${runtime_prefix}/lib/jvm/lib/server" \
     JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm" \
     R CMD javareconf
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'

@@ -151,6 +151,11 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       flags <- grep("^JAVA_LIBS=", java_args, value = TRUE)
       expect_length(flags, 1L)
       expect_match(flags, " -Wl,-rpath,", fixed = TRUE)
+      headers <- grep("^JAVA_CPPFLAGS=", java_args, value = TRUE)
+      expect_length(headers, 1L)
+      expect_match(headers, "/lib/jvm/include -I", fixed = TRUE)
+      expect_match(headers, if (startsWith(platform, "osx-")) "/include/darwin" else "/include/linux", fixed = TRUE)
+      expect_length(grep("^JAVA_LD_LIBRARY_PATH=", java_args), 1L)
       expect_lt(grep("R CMD javareconf", calls), utils::tail(grep("Rscript --vanilla -$", calls), 1L))
       expect_lt(utils::tail(grep("Rscript --vanilla -$", calls), 1L), grep("R CMD build", calls))
     }
