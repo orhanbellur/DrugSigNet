@@ -2,6 +2,15 @@
 
 ## DrugSigNet 1.0.0
 
+### Host R and Pixi installation
+
+- Add opt-in install_host to install a separate DrugSigNet copy for the caller's
+  R version, including R 4.4.0, while preserving the validated Pixi environment.
+- Use Bioconductor 3.20 with the 2025-04-30 CRAN snapshot for host R 4.4 and
+  persist a version-guarded host library in user and project startup profiles.
+- Explain where to run the Pixi launch command when host installation is omitted.
+- Add an exact R 4.4.0 CI job exercising host installation and full package checks.
+
 ### Apple Silicon Pixi installation
 
 - Provide macOS libintl development files and the arch utility for source

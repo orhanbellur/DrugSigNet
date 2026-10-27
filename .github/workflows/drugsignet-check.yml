@@ -50,6 +50,11 @@ jobs:
         # ubuntu-latest now has glibc/GCC changes incompatible with that stack.
         - os: ubuntu-24.04
           bioc: '3.20'
+          r: '4.4.0'
+          cont: ~
+          rspm: https://packagemanager.posit.co/cran/__linux__/noble/2025-04-30
+        - os: ubuntu-24.04
+          bioc: '3.20'
           r: '4.4.3'
           cont: ~
           rspm: https://packagemanager.posit.co/cran/__linux__/noble/2025-04-30
@@ -154,6 +159,15 @@ jobs:
         # embed incompatible from_theme() defaults in binary packages.
         extra-packages: any::rcmdcheck
         cache-version: ${{ runner.os == 'Windows' && format('windows-{0}-{1}', github.run_id, github.run_attempt) || (matrix.config.bioc == '3.20' && 'r44-cran-2025-04-30-v1' || 'cache-v2') }}
+    - name: Test host R and Pixi installation boundaries
+      if: ${{ matrix.config.r == '4.4.0' }}
+      shell: Rscript {0}
+      run: |
+        source("tests/testthat/helper-repository.R")
+        testthat::test_file(
+          "tests/testthat/test-pixi-host-r-version.R",
+          reporter = "summary", stop_on_failure = TRUE
+        )
     - name: Validate R 4.4 plotting stack
       if: ${{ matrix.config.bioc == '3.20' }}
       shell: Rscript {0}
@@ -164,10 +178,23 @@ jobs:
         DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
       shell: Rscript {0}
       run: |
-        remotes::install_local(
-          ".", dependencies = FALSE, upgrade = "never",
-          build_vignettes = TRUE, force = TRUE
-        )
+        if (identical(as.character(getRversion()), "4.4.0")) {
+          source("install-pixi.R")
+          .drugsignet_install_host_package(
+            package_ref = paste0(Sys.getenv("GITHUB_REPOSITORY"), "@", Sys.getenv("GITHUB_SHA")),
+            host_library = file.path(Sys.getenv("RUNNER_TEMP"), "drugsignet-host-r44-library"),
+            build_vignettes = TRUE, repository_root = "."
+          )
+        } else {
+          remotes::install_local(
+            ".", dependencies = FALSE, upgrade = "never",
+            build_vignettes = TRUE, force = TRUE
+          )
+        }
+        if (identical(as.character(getRversion()), "4.4.0")) {
+          cat(paste0("R_LIBS_USER=", paste(.libPaths(), collapse = .Platform$path.sep), "\n"),
+              file = Sys.getenv("GITHUB_ENV"), append = TRUE)
+        }
         is_macos <- identical(Sys.info()[["sysname"]], "Darwin")
         if (is_macos) {
           loadNamespace("DrugSigNet")
