@@ -53,6 +53,8 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     container: rocker/rstudio:4.4.0
+    env:
+      DRUGSIGNET_CI_PROJECT_ROOT: /home/rstudio/drugsignet-ci
     steps:
       - name: Provide download tools
         run: |
@@ -63,11 +65,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          chown -R rstudio:rstudio "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
           runuser -u rstudio -- bash -s <<'SCRIPT' 2>&1 | tee "$RUNNER_TEMP/rootless-sdk.log"
           set -euo pipefail
           curl -fsSL --retry 3 https://pixi.sh/install.sh | bash
-          project="$RUNNER_TEMP/sdk-tools"
+          project="$DRUGSIGNET_CI_PROJECT_ROOT/sdk-tools"
           mkdir -p "$project"
           cat > "$project/pixi.toml" <<'MANIFEST'
           [workspace]
@@ -110,6 +111,7 @@ jobs:
       DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
       DRUGSIGNET_CI_REF: ${{ github.head_ref || github.ref_name }}
       RETICULATE_USE_MANAGED_VENV: 'no'
+      DRUGSIGNET_CI_PROJECT_ROOT: ${{ matrix.config.container != null && '/home/rstudio/drugsignet-ci' || runner.temp }}
     steps:
       - name: Provide container bootstrap tools
         if: ${{ matrix.config.container != null }}
@@ -137,7 +139,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          script="$RUNNER_TEMP/drugsignet-pixi-host.R"
+          script="$GITHUB_WORKSPACE/.drugsignet-pixi-host.R"
           cat > "$script" <<'RSCRIPT'
           source("install-pixi.R")
           host_r_home <- R.home()
@@ -152,7 +154,7 @@ jobs:
           if (Sys.info()[["sysname"]] == "Linux" && file.exists(system_cpp)) {
             dyn.load(system_cpp, local = FALSE)
           }
-          project <- file.path(Sys.getenv("RUNNER_TEMP"), "DrugSigNet-test")
+          project <- file.path(Sys.getenv("DRUGSIGNET_CI_PROJECT_ROOT"), "DrugSigNet-test")
           install_drugsignet_pixi(
             package_ref = paste0(Sys.getenv("GITHUB_REPOSITORY"), "@", Sys.getenv("DRUGSIGNET_CI_REF")),
             project_dir = project,
@@ -186,8 +188,7 @@ jobs:
           }
           RSCRIPT
           if [ "$DRUGSIGNET_EXPECT_NATIVE_HOST" = true ]; then
-            chown -R rstudio:rstudio "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
-            runuser -u rstudio -- Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
+              runuser -u rstudio -- Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
           else
             Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
           fi
@@ -210,4 +211,4 @@ jobs:
           fi
           "${runner[@]}" env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
             -u JAVA_HOME -u R_JAVA_LD_LIBRARY_PATH \
-            "$pixi" run --clean-env --manifest-path "$RUNNER_TEMP/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'
+            "$pixi" run --clean-env --manifest-path "$DRUGSIGNET_CI_PROJECT_ROOT/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'

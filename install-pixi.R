@@ -90,11 +90,22 @@
             file.path(root, "lib", multiarch), file.path(root, "lib"))
   bridge <- file.path(root, "tools")
   dir.create(bridge, showWarnings = FALSE)
-  pkg_config <- file.path(runtime_prefix, "bin", "pkg-config")
+  pkg_config <- file.path(runtime_prefix, "bin", "pkgconf")
+  if (!file.exists(pkg_config)) pkg_config <- file.path(runtime_prefix, "bin", "pkg-config")
   if (!file.exists(pkg_config)) stop("The Pixi development runtime is missing pkg-config.", call. = FALSE)
   link <- file.path(bridge, "pkg-config")
   unlink(link)
-  if (!file.symlink(pkg_config, link)) stop("Cannot create the private pkg-config bridge.", call. = FALSE)
+  # The metadata tool is an isolated executable: give only this child its
+  # Conda loader/PATH settings, without changing the host R's loaded runtimes.
+  writeLines(c("#!/bin/sh", paste0("export CONDA_PREFIX=", shQuote(runtime_prefix)),
+    paste0("export PATH=", shQuote(file.path(runtime_prefix, "bin")), ':"$PATH"'),
+    paste0("export LD_LIBRARY_PATH=", shQuote(file.path(runtime_prefix, "lib")), '${LD_LIBRARY_PATH:+:"$LD_LIBRARY_PATH"}'),
+    paste0("exec ", shQuote(pkg_config), ' "$@"')), link)
+  Sys.chmod(link, "0755")
+  tool_log <- file.path(root, "pkg-config.log")
+  if (!identical(system2(link, "--version", stdout = tool_log, stderr = tool_log), 0L)) {
+    stop("The isolated pkg-config tool failed: ", paste(readLines(tool_log, warn = FALSE), collapse = "\n"), call. = FALSE)
+  }
   configure <- function() {
     # Only private native-library tools precede PATH, never the Pixi R/compiler.
     Sys.setenv(PATH = paste(bridge, Sys.getenv("PATH"), sep = .Platform$path.sep),
