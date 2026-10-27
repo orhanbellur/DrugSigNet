@@ -90,7 +90,7 @@
   }
   old_options <- options()
   old_environment <- Sys.getenv(c("CONDA_PREFIX", "R_LIBS", "R_LIBS_USER", "R_LIBS_SITE",
-                                  "JAVA_HOME", "R_JAVA_LD_LIBRARY_PATH", "R_MAKEVARS_USER"), unset = NA_character_)
+                                  "JAVA_HOME", "R_JAVA_LD_LIBRARY_PATH", "R_MAKEVARS_USER", "RSTUDIO_PANDOC"), unset = NA_character_)
   on.exit({
     options(old_options)
     for (name in names(old_environment)) {
@@ -122,6 +122,13 @@
   if (isTRUE(full_runtime)) {
     if (is.null(runtime_prefix) || is.null(source_archive) || !file.exists(source_archive)) {
       stop("The matching package source archive is missing; rerun the Pixi installer.", call. = FALSE)
+    }
+    if (isTRUE(build_vignettes)) {
+      pandoc <- file.path(runtime_prefix, "bin")
+      if (!file.exists(file.path(pandoc, "pandoc"))) {
+        stop("The validated runtime is missing Pandoc for host vignette builds.", call. = FALSE)
+      }
+      Sys.setenv(RSTUDIO_PANDOC = pandoc)
     }
     descriptor <- file.path(runtime_prefix, "lib", "R", "library", "DrugSigNet", "DESCRIPTION")
     imports <- read.dcf(descriptor, fields = "Imports")[[1L]]

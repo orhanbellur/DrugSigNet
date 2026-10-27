@@ -109,7 +109,7 @@ Native host packages are stored under
 `host_library`). Official macOS R uses native CRAN/Bioconductor binaries where
 available; source-only dependencies use the host R toolchain. A compatible
 compiler and native development libraries are needed when binaries are absent,
-and Pandoc is needed for vignette builds. Native `rJava` includes the JNI support
+and host vignette builds reuse the project's Pandoc. Native `rJava` includes the JNI support
 used by CDK; its optional Java-to-R embedding component (JRI) is not built.
 `install_host = TRUE` can force this
 route, but ABI incompatibilities select it automatically. No manual flag or

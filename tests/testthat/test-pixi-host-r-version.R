@@ -331,6 +331,9 @@ test_that("native Java configure variables use real compiler paths rather than l
   entry <- new.env(parent = globalenv())
   sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
   project <- tempfile("native-java-")
+  dir.create(file.path(project, "bin"), recursive = TRUE)
+  file.create(file.path(project, "bin", "pandoc"))
+  withr::local_envvar(c(RSTUDIO_PANDOC = "/original-pandoc"))
   descriptor <- file.path(project, "lib", "R", "library", "DrugSigNet", "DESCRIPTION")
   dir.create(dirname(descriptor), recursive = TRUE)
   writeLines(c("Package: DrugSigNet", "Imports: stats"), descriptor)
@@ -346,6 +349,7 @@ test_that("native Java configure variables use real compiler paths rather than l
     install.packages = function(pkgs, ..., configure.vars = NULL, configure.args = NULL) {
       if (!identical(pkgs, "rJava")) return(invisible(NULL))
       expect_identical(configure.args, "--disable-jri")
+      expect_identical(Sys.getenv("RSTUDIO_PANDOC"), file.path(project, "bin"))
       # R passes this string through a shell. Embedded quotes in CPPFLAGS
       # remain literal compiler-path characters after variable expansion.
       command <- paste(configure.vars,
@@ -360,5 +364,6 @@ test_that("native Java configure variables use real compiler paths rather than l
     }, .package = "utils"
   )
   expect_error(entry$.drugsignet_install_host_package("owner/repo", file.path(project, "native"),
-    FALSE, runtime_prefix = project, source_archive = archive, full_runtime = TRUE), "configure captured")
+    TRUE, runtime_prefix = project, source_archive = archive, full_runtime = TRUE), "configure captured")
+  expect_identical(Sys.getenv("RSTUDIO_PANDOC"), "/original-pandoc")
 })
