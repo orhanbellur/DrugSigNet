@@ -80,12 +80,14 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     }
     expect_identical(any(grepl('"libintl-devel"', manifest, fixed = TRUE)), startsWith(platform, "osx-"))
     expect_identical(file.exists(file.path(runtime, "arch")), startsWith(platform, "osx-"))
+    expect_identical(any(grepl('"r-boutroslabplottinggeneral"', manifest, fixed = TRUE)), r_series != "4.4")
     expect_identical(file.exists(file.path(project, "plotting.R")), r_series == "4.4")
     if (r_series == "4.4") {
       expect_true(any(grepl('"r-ggplot2" = "<4"', manifest, fixed = TRUE)))
       plotting <- paste(readLines(file.path(project, "plotting.R")), collapse = "\n")
       expect_match(plotting, "2025-04-30", fixed = TRUE)
       expect_match(plotting, 'type = "source"', fixed = TRUE)
+      expect_match(plotting, "BoutrosLab.plotting.general", fixed = TRUE)
     }
     bioc <- grepl('^"bioconductor-', manifest)
     expect_equal(sum(bioc), if (platform == "osx-arm64") 0L else 2L)

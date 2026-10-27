@@ -95,6 +95,7 @@ pixi_toml="${project_dir}/pixi.toml"
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
     if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
+    if (r_series == "4.4" && $2 == "r-boutroslabplottinggeneral") next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
@@ -242,8 +243,9 @@ pixi_clean_run git "${clone_args[@]}"
 if [[ "${r_series}" == "4.4" ]]; then
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
 options(repos = c(CRAN = "https://packagemanager.posit.co/cran/2025-04-30"))
-install.packages(c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph"), type = "source")
-required <- c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph")
+install.packages(c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph",
+                   "BoutrosLab.plotting.general"), type = "source")
+required <- c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph", "BoutrosLab.plotting.general")
 missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing) || packageVersion("ggplot2") >= "4.0.0") {
   stop("The R 4.4 plotting stack could not be configured consistently.")

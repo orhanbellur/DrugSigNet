@@ -87,7 +87,8 @@ Bioconductor inside the selected Pixi R because Bioconda does not provide them
 for `osx-arm64`. R 4.4 uses Bioconductor 3.20 and the 2025-04-30 CRAN snapshot;
 R 4.5 uses Bioconductor 3.22. The installer configures project OpenJDK, installs
 `rcdk`/`fingerprint` from CRAN, and validates a CDK fingerprint calculation.
-R 4.4 plotting extensions are rebuilt against the same dated CRAN snapshot to
+R 4.4 obtains `BoutrosLab.plotting.general` from CRAN because its available
+Conda build requires R 4.5. Its plotting extensions are rebuilt against the same dated CRAN snapshot to
 avoid incompatible serialized ggplot2 defaults. These source installations are
 outside `pixi.lock`; keep the printed package versions for reproducibility.
 
