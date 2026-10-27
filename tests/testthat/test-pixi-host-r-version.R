@@ -330,6 +330,7 @@ test_that("native Java configure variables use real compiler paths rather than l
   skip_if_not_installed("remotes")
   entry <- new.env(parent = globalenv())
   sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  entry$.drugsignet_check_host_build_dependencies <- function(...) invisible(TRUE)
   project <- tempfile("native-java-")
   dir.create(file.path(project, "bin"), recursive = TRUE)
   file.create(file.path(project, "bin", "pandoc"))
@@ -366,4 +367,28 @@ test_that("native Java configure variables use real compiler paths rather than l
   expect_error(entry$.drugsignet_install_host_package("owner/repo", file.path(project, "native"),
     TRUE, runtime_prefix = project, source_archive = archive, full_runtime = TRUE), "configure captured")
   expect_identical(Sys.getenv("RSTUDIO_PANDOC"), "/original-pandoc")
+})
+
+
+test_that("native source prerequisites fail early without borrowing Conda headers", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  entry$Sys.which <- function(...) ""
+  expect_error(entry$.drugsignet_check_host_build_dependencies(character(), "Linux"),
+               "pkg-config libfontconfig1-dev")
+  expect_silent(entry$.drugsignet_check_host_build_dependencies(
+    c("systemfonts", "png", "XML", "XVector", "Rhdf5lib"), "Linux"))
+  expect_silent(entry$.drugsignet_check_host_build_dependencies(character(), "Darwin"))
+  entry$Sys.which <- function(...) "/native/pkg-config"
+  modules <- character()
+  entry$system2 <- function(command, args, ...) {
+    expect_identical(command, "/native/pkg-config")
+    modules <<- c(modules, args[[2L]])
+    if (grepl("libpng", args[[2L]], fixed = TRUE)) 1L else 0L
+  }
+  expect_error(entry$.drugsignet_check_host_build_dependencies(character(), "Linux"),
+               "development headers: libpng\\.")
+  expect_length(modules, 5L)
+  entry$system2 <- function(...) 0L
+  expect_silent(entry$.drugsignet_check_host_build_dependencies(character(), "Linux"))
 })

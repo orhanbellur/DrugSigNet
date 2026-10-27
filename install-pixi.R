@@ -27,6 +27,31 @@
   invisible(NULL)
 }
 
+# Source builds for the host R need host headers, not Conda's native libraries.
+.drugsignet_check_host_build_dependencies <- function(
+    installed = rownames(utils::installed.packages(lib.loc = .libPaths())),
+    system = Sys.info()[["sysname"]]) {
+  if (!identical(system, "Linux")) return(invisible(TRUE))
+  dependencies <- list(fontconfig = "systemfonts", freetype2 = "systemfonts",
+                       libpng = "png", `libxml-2.0` = "XML",
+                       zlib = c("XVector", "Rhdf5lib"))
+  required <- names(dependencies)[!vapply(dependencies, function(packages) all(packages %in% installed), logical(1))]
+  if (!length(required)) return(invisible(TRUE))
+  config <- Sys.which("pkg-config")
+  missing <- if (!nzchar(config)) required else required[vapply(required, function(module) {
+    !identical(system2(config, c("--exists", shQuote(module)), stdout = FALSE, stderr = FALSE), 0L)
+  }, logical(1))]
+  if (length(missing)) {
+    stop("Native host R source builds require development headers: ", paste(missing, collapse = ", "),
+         ". These must match the host OS; Pixi headers cannot safely replace them.",
+         "\nOn Debian/Ubuntu, ask the administrator to run:\n",
+         "sudo apt-get update && sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype6-dev libpng-dev libxml2-dev zlib1g-dev",
+         "\nThen rerun install_drugsignet_pixi() in the same R version. The Pixi runtime remains available.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 # Probe foreign native libraries in a child of the HOST R, never in the live
 # RStudio process: an incompatible macOS libR can terminate R with SIGSEGV.
 .drugsignet_can_share_runtime <- function(library, prefix,
@@ -136,6 +161,7 @@
     required <- unique(c(core, "knitr", "rmarkdown", "rcdk", "fingerprint",
                          "BoutrosLab.plotting.general", "ggforce", "ggalluvial", "wordcloud"))
     required <- setdiff(required, rownames(utils::installed.packages(priority = "base")))
+    .drugsignet_check_host_build_dependencies()
     java <- file.path(runtime_prefix, "lib", "jvm")
     Sys.setenv(JAVA_HOME = java, R_JAVA_LD_LIBRARY_PATH = file.path(java, "lib", "server"))
     # Bake the project JVM path into a library compiled by the HOST R.

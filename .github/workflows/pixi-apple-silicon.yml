@@ -75,7 +75,8 @@ jobs:
         if: ${{ matrix.config.container != null }}
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends curl ca-certificates git
+          apt-get install -y --no-install-recommends curl ca-certificates git \
+            pkg-config libfontconfig1-dev libfreetype6-dev libpng-dev libxml2-dev zlib1g-dev
       - uses: actions/checkout@v4
       - name: Verify native runner architecture
         run: |
@@ -93,6 +94,7 @@ jobs:
         env:
           JAVA_HOME: ${{ runner.temp }}/host-java-must-not-leak
           R_JAVA_LD_LIBRARY_PATH: ${{ runner.temp }}/host-java-must-not-leak/lib/server
+          DRUGSIGNET_EXPECT_NATIVE_HOST: ${{ matrix.config.container != null && 'true' || 'false' }}
         shell: bash
         run: |
           set -o pipefail
@@ -122,6 +124,9 @@ jobs:
           native <- normalizePath(.drugsignet_default_host_library(), mustWork = FALSE)
           stopifnot(selected %in% c(shared, native))
           if (identical(selected, native)) stopifnot(!shared %in% normalizePath(.libPaths()))
+          if (identical(Sys.getenv("DRUGSIGNET_EXPECT_NATIVE_HOST"), "true")) {
+            stopifnot(identical(selected, native))
+          }
           message("Host R home: ", R.home(), "; selected library: ", selected)
           stopifnot(requireNamespace("signatureSearch", quietly = TRUE))
           molecule <- rcdk::parse.smiles("CCO")[[1L]]
