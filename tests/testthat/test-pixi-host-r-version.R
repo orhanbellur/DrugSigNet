@@ -304,7 +304,14 @@ test_that("ABI-incompatible runtimes automatically install for the original R wi
     installed <<- TRUE
     expect_identical(host_library, native)
     expect_identical(runtime_prefix, prefix)
-    expect_identical(source_archive, file.path(project, ".drugsignet-source.tar.gz"))
+    expect_identical(source_archive, file.path(project, "DrugSigNet-source.tar.gz"))
+    if (requireNamespace("remotes", quietly = TRUE)) {
+      writeLines("archive fixture", source_archive)
+      downloaded <- remotes:::remote_download(remotes:::local_remote(source_archive))
+      on.exit(unlink(dirname(downloaded), recursive = TRUE), add = TRUE)
+      expect_true(file.exists(downloaded))
+      expect_identical(readLines(downloaded), "archive fixture")
+    }
     expect_true(full_runtime)
     expect_false(normalizePath(pixi) %in% .libPaths())
     dir.create(native)
@@ -316,4 +323,41 @@ test_that("ABI-incompatible runtimes automatically install for the original R wi
   expect_true(installed)
   expect_identical(result, normalizePath(project))
   expect_identical(.libPaths()[1L], normalizePath(native))
+})
+
+test_that("native Java configure variables use real compiler paths rather than literal quotes", {
+  skip_if_not_installed("BiocManager")
+  skip_if_not_installed("remotes")
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  project <- tempfile("native-java-")
+  descriptor <- file.path(project, "lib", "R", "library", "DrugSigNet", "DESCRIPTION")
+  dir.create(dirname(descriptor), recursive = TRUE)
+  writeLines(c("Package: DrugSigNet", "Imports: stats"), descriptor)
+  archive <- file.path(project, "DrugSigNet-source.tar.gz")
+  file.create(archive)
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  withr::local_libpaths(.libPaths())
+  entry$loadedNamespaces <- function() setdiff(base::loadedNamespaces(), "DrugSigNet")
+  testthat::local_mocked_bindings(
+    repositories = function(...) c(CRAN = "https://example.invalid"), .package = "BiocManager"
+  )
+  testthat::local_mocked_bindings(
+    install.packages = function(pkgs, ..., configure.vars = NULL) {
+      if (!identical(pkgs, "rJava")) return(invisible(NULL))
+      # R passes this string through a shell. Embedded quotes in CPPFLAGS
+      # remain literal compiler-path characters after variable expansion.
+      command <- paste(configure.vars,
+                       "; printf '%s\\n' \"$JAVA\" \"$JAVA_CPPFLAGS\" \"$JAVA_LIBS\"")
+      values <- system2("sh", c("-c", shQuote(command)), stdout = TRUE)
+      java <- file.path(project, "lib", "jvm")
+      expect_identical(values[[1L]], file.path(java, "bin", "java"))
+      expect_match(values[[2L]], paste0("-I", java, "/include"), fixed = TRUE)
+      expect_false(grepl("['\"]", values[[2L]]))
+      expect_false(grepl("['\"]", values[[3L]]))
+      stop("configure captured")
+    }, .package = "utils"
+  )
+  expect_error(entry$.drugsignet_install_host_package("owner/repo", file.path(project, "native"),
+    FALSE, runtime_prefix = project, source_archive = archive, full_runtime = TRUE), "configure captured")
 })

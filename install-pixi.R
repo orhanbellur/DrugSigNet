@@ -132,13 +132,20 @@
     java <- file.path(runtime_prefix, "lib", "jvm")
     Sys.setenv(JAVA_HOME = java, R_JAVA_LD_LIBRARY_PATH = file.path(java, "lib", "server"))
     # Bake the project JVM path into a library compiled by the HOST R.
-    includes <- paste0("-I", shQuote(file.path(java, c("include", paste0("include/", if (Sys.info()[["sysname"]] == "Darwin") "darwin" else "linux")))))
-    java_libs <- paste0("-L", shQuote(file.path(java, "lib", "server")),
-                        " -Wl,-rpath,", shQuote(file.path(java, "lib", "server")), " -ljvm")
-    configure <- paste0("JAVA_HOME=", shQuote(java), " JAVA_CPPFLAGS=", shQuote(paste(includes, collapse = " ")),
+    includes <- paste0("-I", file.path(java, c("include", paste0("include/", if (Sys.info()[["sysname"]] == "Darwin") "darwin" else "linux"))))
+    java_libs <- paste0("-L", file.path(java, "lib", "server"),
+                        " -Wl,-rpath,", file.path(java, "lib", "server"), " -ljvm")
+    configure <- paste0("JAVA_HOME=", shQuote(java),
+                         " JAVA=", shQuote(file.path(java, "bin", "java")),
+                         " JAVAC=", shQuote(file.path(java, "bin", "javac")),
+                         " JAR=", shQuote(file.path(java, "bin", "jar")),
+                         " JAVA_CPPFLAGS=", shQuote(paste(includes, collapse = " ")),
                          " JAVA_LIBS=", shQuote(java_libs))
     utils::install.packages("rJava", lib = host_library, repos = cran,
                             type = "source", configure.vars = configure)
+    if (!file.exists(file.path(host_library, "rJava", "DESCRIPTION"))) {
+      stop("Native rJava installation failed; inspect the compiler output above.", call. = FALSE)
+    }
     installed <- rownames(utils::installed.packages(lib.loc = .libPaths()))
     missing <- setdiff(required, installed)
     if (length(missing)) utils::install.packages(missing, lib = host_library, repos = repositories, dependencies = NA)
@@ -384,7 +391,7 @@ install_drugsignet_pixi <- function(
     }
     .drugsignet_install_host_package(
       package_ref, host_library, build_vignettes, repository_root,
-      runtime_prefix = prefix, source_archive = file.path(project_dir, ".drugsignet-source.tar.gz"),
+      runtime_prefix = prefix, source_archive = file.path(project_dir, "DrugSigNet-source.tar.gz"),
       full_runtime = TRUE
     )
     host_installed <- TRUE

@@ -259,7 +259,7 @@ echo "[DrugSigNet] Downloading ${package_ref} with Git (pak metadata resolution 
 pixi_clean_run git "${clone_args[@]}"
 # Retain exactly the source revision used for this runtime for host-native R.
 pixi_clean_run git -C "${source_dir}" archive --format=tar.gz --prefix=DrugSigNet/ \
-  --output="${project_dir}/.drugsignet-source.tar.gz" HEAD
+  --output="${project_dir}/DrugSigNet-source.tar.gz" HEAD
 
 
 # R 4.4/Bioconductor 3.20 need a coherent plotting generation, including
@@ -356,7 +356,7 @@ if [[ "${DRUGSIGNET_BUILD_VIGNETTES:-false}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]
   )
   install_source="$(find "${install_work}" -maxdepth 1 -name 'DrugSigNet_*.tar.gz' -print -quit)"
   [[ -n "${install_source}" ]] || { echo "ERROR: R CMD build did not create a package archive." >&2; exit 1; }
-  cp "${install_source}" "${project_dir}/.drugsignet-source.tar.gz"
+  cp "${install_source}" "${project_dir}/DrugSigNet-source.tar.gz"
 else
   echo "[DrugSigNet] Installing DrugSigNet directly (vignette rebuild disabled)."
 fi
