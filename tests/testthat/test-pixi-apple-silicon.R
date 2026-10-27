@@ -2,7 +2,11 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
   bash <- Sys.which("bash")
   skip_if(!nzchar(bash), "Bash is required to exercise the shell installer")
   root <- drugsignet_repository_root()
-  for (platform in c("osx-arm64", "osx-64", "linux-64")) {
+  for (case in list(c("osx-arm64", "4.4"), c("osx-arm64", "4.5"),
+                    c("osx-64", "4.4"), c("linux-64", "4.4"), c("linux-64", "4.5"),
+                    c("linux-64", "4.4", "4.5"))) {
+    platform <- case[[1L]]
+    r_series <- case[[2L]]
     project <- tempfile("pixi-platform-")
     dir.create(project)
     on.exit(unlink(project, recursive = TRUE), add = TRUE)
@@ -11,6 +15,10 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     runtime <- file.path(project, ".pixi", "envs", "default", "bin")
     dir.create(runtime, recursive = TRUE)
     file.create(file.path(project, ".pixi", ".drugsignet-post-link-enabled"))
+    previous_series <- if (length(case) == 3L) case[[3L]] else r_series
+    writeLines(paste0(previous_series, ".3"), file.path(dirname(runtime), ".drugsignet-r-version"))
+    file.create(file.path(project, "user-results.txt"))
+    file.create(file.path(dirname(runtime), "old-package-sentinel"))
     for (name in c("conda", "bash")) {
       writeLines(c("#!/bin/sh", "exit 0"), file.path(runtime, name))
       Sys.chmod(file.path(runtime, name), "0755")
@@ -25,8 +33,20 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     writeLines(c(
       "#!/bin/bash", "set -eu",
       'printf "%s\\n" "$*" >> "$DRUGSIGNET_PIXI_PROJECT/calls"',
+      'if [[ "$1" == install ]]; then',
+      '  bin="$DRUGSIGNET_PIXI_PROJECT/.pixi/envs/default/bin"',
+      '  if [[ ! -d "$bin" ]]; then',
+      '    mkdir -p "$bin"',
+      '    for name in bash conda; do printf "#!/bin/sh\\nexit 0\\n" > "$bin/$name"; chmod +x "$bin/$name"; done',
+      '  fi',
+      'fi',
       'if [[ "$*" == *"Rscript --vanilla -" ]]; then',
-      '  cat > "$DRUGSIGNET_PIXI_PROJECT/bioconductor.R"',
+      '  cat > "$DRUGSIGNET_PIXI_PROJECT/last.R"',
+      '  if grep -q bioc_version "$DRUGSIGNET_PIXI_PROJECT/last.R"; then',
+      '    cp "$DRUGSIGNET_PIXI_PROJECT/last.R" "$DRUGSIGNET_PIXI_PROJECT/bioconductor.R"',
+      '  else',
+      '    cp "$DRUGSIGNET_PIXI_PROJECT/last.R" "$DRUGSIGNET_PIXI_PROJECT/plotting.R"',
+      '  fi',
       'fi',
       '# Stop at the build boundary: no network, packages, or host changes.',
       'if [[ "$*" == *"R CMD build"* ]]; then exit 73; fi',
@@ -41,13 +61,17 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       paste0("PIXI_HOME=", shQuote(pixi_home)),
       paste0("DRUGSIGNET_PIXI_PROJECT=", shQuote(project)),
       paste0("DRUGSIGNET_PIXI_PLATFORM=", platform),
+      paste0("DRUGSIGNET_PIXI_R_VERSION=", r_series),
       paste0("DRUGSIGNET_MACOS_SDKROOT=", shQuote(sdk)),
       "JAVA_HOME=/host-java-must-not-leak",
       "R_JAVA_LD_LIBRARY_PATH=/host-java-must-not-leak/lib/server",
       "DRUGSIGNET_BUILD_VIGNETTES=true"
     )))
     expect_equal(attr(output, "status"), 73L, info = paste(output, collapse = "\n"))
+    expect_true(file.exists(file.path(project, "user-results.txt")))
+    expect_identical(file.exists(file.path(dirname(runtime), "old-package-sentinel")), previous_series == r_series)
     manifest <- readLines(file.path(project, "pixi.toml"))
+    expect_true(any(grepl(paste0('"r-base" = "', r_series, '.*"'), manifest, fixed = TRUE)))
     expect_true(any(grepl("[activation.env]", manifest, fixed = TRUE)))
     expect_true(any(grepl(paste0('JAVA_HOME = "', project, '/.pixi/envs/default/lib/jvm"'), manifest, fixed = TRUE)))
     if (startsWith(platform, "osx-")) {
@@ -56,6 +80,13 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     }
     expect_identical(any(grepl('"libintl-devel"', manifest, fixed = TRUE)), startsWith(platform, "osx-"))
     expect_identical(file.exists(file.path(runtime, "arch")), startsWith(platform, "osx-"))
+    expect_identical(file.exists(file.path(project, "plotting.R")), r_series == "4.4")
+    if (r_series == "4.4") {
+      expect_true(any(grepl('"r-ggplot2" = "<4"', manifest, fixed = TRUE)))
+      plotting <- paste(readLines(file.path(project, "plotting.R")), collapse = "\n")
+      expect_match(plotting, "2025-04-30", fixed = TRUE)
+      expect_match(plotting, 'type = "source"', fixed = TRUE)
+    }
     bioc <- grepl('^"bioconductor-', manifest)
     expect_equal(sum(bioc), if (platform == "osx-arm64") 0L else 2L)
     expect_equal(any(grepl('^"r-rcdk"', manifest)), platform != "osx-arm64")
@@ -66,6 +97,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       library <- file.path(dirname(runtime), "lib", "R", "library")
       dir.create(library, recursive = TRUE)
       version_file <- file.path(dirname(runtime), ".drugsignet-r-version")
+      unlink(version_file)
       previous <- .libPaths()
       withr::local_libpaths(previous)
       expect_silent(sys.source(profile, envir = new.env(parent = globalenv())))
@@ -79,7 +111,8 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       .libPaths(previous)
       expect_silent(parse(script))
       code <- paste(readLines(script), collapse = "\n")
-      expect_match(code, 'version = "3.22"', fixed = TRUE)
+      expect_match(code, 'version = bioc_version', fixed = TRUE)
+      expect_match(code, 'if (r_series == "4.4") "3.20"', fixed = TRUE)
       expect_match(code, '"signatureSearchData"', fixed = TRUE)
       expect_match(code, 'stop("Apple Silicon Bioconductor installation failed:', fixed = TRUE)
       expect_match(code, 'install.packages(cran_missing)', fixed = TRUE)
@@ -87,8 +120,8 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       expect_match(code, 'Pixi Java isolation failed:', fixed = TRUE)
       expect_match(code, 'stop("Apple Silicon CRAN installation failed:', fixed = TRUE)
       calls <- readLines(file.path(project, "calls"))
-      expect_lt(grep("R CMD javareconf", calls), grep("Rscript --vanilla -$", calls))
-      expect_lt(grep("Rscript --vanilla -$", calls), grep("R CMD build", calls))
+      expect_lt(grep("R CMD javareconf", calls), utils::tail(grep("Rscript --vanilla -$", calls), 1L))
+      expect_lt(utils::tail(grep("Rscript --vanilla -$", calls), 1L), grep("R CMD build", calls))
     }
   }
 })

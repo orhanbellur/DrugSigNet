@@ -2,6 +2,17 @@
 
 ## DrugSigNet 1.0.0
 
+### Match Pixi to the calling R session
+
+- Select the calling R major/minor series automatically, including R 4.4.0,
+  and verify DrugSigNet loads directly in the same R/RStudio session.
+- Recreate the managed Pixi runtime when changing R series to remove packages
+  compiled for the previous R. Reject an unexpected R series before activation.
+- Match Apple Silicon Bioconductor setup to the selected R and keep R 4.4
+  plotting dependencies consistent with its dated CRAN snapshot.
+- Exercise native Pixi installation and same-session loading on Linux and
+  Apple Silicon with both R 4.4 and R 4.5.
+
 ### Host R and Pixi installation
 
 - Add opt-in install_host to install a separate DrugSigNet copy for the caller's

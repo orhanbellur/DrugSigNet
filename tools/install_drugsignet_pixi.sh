@@ -56,6 +56,16 @@ case "${pixi_platform}" in
 esac
 echo "[DrugSigNet] Pixi target platform: ${pixi_platform}."
 
+# R entry points select the caller's ABI series. Standalone shell/container
+# installations retain the manifest default when no host R is specified.
+r_series="${DRUGSIGNET_PIXI_R_VERSION:-$(awk -F '\t' '$1 == "conda" && $2 ~ /^r-base=/ {sub(/^r-base=/, "", $2); print $2; exit}' "${manifest}")}"
+if [[ ! "${r_series}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: DRUGSIGNET_PIXI_R_VERSION must be an R major.minor series." >&2
+  exit 2
+fi
+echo "[DrugSigNet] Pixi R series: ${r_series} (matching the calling R when supplied)."
+
+
 # Conda's macOS compilers need the host SDK headers (not supplied by Pixi).
 # Persist the SDK in Pixi activation so --clean-env does not discard it.
 macos_sdk=""
@@ -81,7 +91,7 @@ pixi_toml="${project_dir}/pixi.toml"
     "platforms = [\"${pixi_platform}\"]" \
     '' \
     '[dependencies]'
-  awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
+  awk -F '\t' -v platform="${pixi_platform}" -v r_series="${r_series}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
     if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
@@ -89,6 +99,8 @@ pixi_toml="${project_dir}/pixi.toml"
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
     }
+    if (name == "r-base") version = r_series ".*"
+    if (r_series == "4.4" && name == "r-ggplot2") version = "<4"
     printf "\"%s\" = \"%s\"\n", name, version
   }' "${manifest}"
   printf '%s\n' '' '[pypi-dependencies]'
@@ -157,8 +169,12 @@ EOF
 echo "[DrugSigNet] Resolving and installing the Pixi runtime."
 post_link_marker="${project_dir}/.pixi/.drugsignet-post-link-enabled"
 runtime_prefix="${project_dir}/.pixi/envs/default"
-if [[ -d "${runtime_prefix}" && ! -f "${post_link_marker}" ]]; then
-  echo "[DrugSigNet] Recreating the existing Pixi runtime once to enable required Bioconductor post-link scripts."
+previous_r=""
+if [[ -f "${runtime_prefix}/.drugsignet-r-version" ]]; then
+  previous_r="$(awk -F . 'NR == 1 { print $1 "." $2 }' "${runtime_prefix}/.drugsignet-r-version")"
+fi
+if [[ -d "${runtime_prefix}" && ( ! -f "${post_link_marker}" || "${previous_r}" != "${r_series}" ) ]]; then
+  echo "[DrugSigNet] Recreating the project runtime for the requested R series and required post-link scripts."
   rm -rf "${runtime_prefix}"
 fi
 (
@@ -221,7 +237,22 @@ pixi_clean_run() {
 echo "[DrugSigNet] Downloading ${package_ref} with Git (pak metadata resolution is skipped)."
 pixi_clean_run git "${clone_args[@]}"
 
-# Use the Bioconductor release matching the maintained Pixi R 4.5 runtime.
+# R 4.4/Bioconductor 3.20 need a coherent plotting generation, including
+# serialized ggproto defaults. Rebuild extensions against the selected ggplot2.
+if [[ "${r_series}" == "4.4" ]]; then
+  pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
+options(repos = c(CRAN = "https://packagemanager.posit.co/cran/2025-04-30"))
+install.packages(c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph"), type = "source")
+required <- c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph")
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing) || packageVersion("ggplot2") >= "4.0.0") {
+  stop("The R 4.4 plotting stack could not be configured consistently.")
+}
+RSCRIPT
+  pixi_clean_run Rscript --vanilla "${source_dir}/.github/scripts/check-r44-plotting.R"
+fi
+
+# Use the Bioconductor release associated with the selected Pixi R series.
 # Run before building vignettes: they load signatureSearch as well.
 if [[ "${pixi_platform}" == "osx-arm64" ]]; then
   echo "[DrugSigNet] Configuring Pixi Java and installing Apple Silicon R dependencies."
@@ -233,16 +264,17 @@ if [[ "${pixi_platform}" == "osx-arm64" ]]; then
   pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm" \
     JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm"
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
-options(repos = c(CRAN = "https://cloud.r-project.org"))
+r_series <- paste(strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2], collapse = ".")
+cran <- if (r_series == "4.4") "https://packagemanager.posit.co/cran/2025-04-30" else "https://cloud.r-project.org"
+options(repos = c(CRAN = cran))
 expected_java <- normalizePath(file.path(R.home(), "..", "jvm"), mustWork = TRUE)
 actual_java <- normalizePath(Sys.getenv("JAVA_HOME"), mustWork = TRUE)
 if (!identical(actual_java, expected_java)) {
   stop("Pixi Java isolation failed: JAVA_HOME must point to ", expected_java)
 }
 message("Using project OpenJDK: ", actual_java)
-if (getRversion() < "4.5" || getRversion() >= "4.6") {
-  stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
-}
+bioc_version <- if (r_series == "4.4") "3.20" else as.character(BiocManager::version())
+message("Using Pixi R ", getRversion(), " with Bioconductor ", bioc_version)
 cran_required <- c("fingerprint", "rcdk", "gdtools")
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(cran_missing)) install.packages(cran_missing)
@@ -257,10 +289,10 @@ if (!inherits(fingerprint, "fingerprint")) {
   stop("Apple Silicon CDK fingerprint validation failed.")
 }
 required <- c("signatureSearch", "signatureSearchData")
-BiocManager::install(version = "3.22", ask = FALSE, update = FALSE)
+BiocManager::install(version = bioc_version, ask = FALSE, update = FALSE)
 missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing)) {
-  BiocManager::install(missing, version = "3.22", ask = FALSE, update = FALSE)
+  BiocManager::install(missing, version = bioc_version, ask = FALSE, update = FALSE)
 }
 missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing)) {

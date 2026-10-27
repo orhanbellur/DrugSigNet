@@ -1,4 +1,4 @@
-name: Pixi Apple Silicon installation
+name: Pixi host R compatibility
 on:
   push:
     branches: [codex/fix-pixi-apple-silicon]
@@ -14,7 +14,16 @@ permissions:
   contents: read
 jobs:
   install:
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: macos-14, r: '4.4.3'}
+          - {os: macos-14, r: '4.5.3'}
+          - {os: ubuntu-24.04, r: '4.4.0'}
+          - {os: ubuntu-24.04, r: '4.5.3'}
+    name: ${{ matrix.config.os }} / host R ${{ matrix.config.r }}
+    runs-on: ${{ matrix.config.os }}
     timeout-minutes: 180
     env:
       DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
@@ -24,11 +33,16 @@ jobs:
       RETICULATE_USE_MANAGED_VENV: 'no'
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Apple Silicon runner
-        run: test "$(uname -m)" = arm64
+      - name: Verify native runner architecture
+        run: |
+          if [ "$(uname -s)" = Darwin ]; then
+            test "$(uname -m)" = arm64
+          else
+            test "$(uname -m)" = x86_64
+          fi
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.4.3'
+          r-version: ${{ matrix.config.r }}
       - name: Install complete Pixi runtime and build vignettes
         # Exercise isolation from a host RStudio/Java setup as well.
         env:
@@ -37,12 +51,27 @@ jobs:
         shell: Rscript {0}
         run: |
           source("install-pixi.R")
+          host_r_home <- R.home()
+          project <- file.path(Sys.getenv("RUNNER_TEMP"), "DrugSigNet-test")
           install_drugsignet_pixi(
             package_ref = paste0(Sys.getenv("GITHUB_REPOSITORY"), "@", Sys.getenv("DRUGSIGNET_CI_REF")),
-            project_dir = file.path(Sys.getenv("RUNNER_TEMP"), "DrugSigNet-test"),
+            project_dir = project,
             build_vignettes = TRUE,
             repository_root = "."
           )
+          # This is the same host R process that launched the installer.
+          stopifnot(identical(R.home(), host_r_home))
+          prefix <- file.path(project, ".pixi", "envs", "default")
+          version <- readLines(file.path(prefix, ".drugsignet-r-version"))
+          stopifnot(identical(.drugsignet_r_minor(version), .drugsignet_r_minor(getRversion())))
+          library(DrugSigNet)
+          stopifnot(identical(normalizePath(dirname(find.package("DrugSigNet"))),
+                              normalizePath(file.path(prefix, "lib", "R", "library"))))
+          stopifnot(requireNamespace("signatureSearch", quietly = TRUE))
+          DrugSigNet::check_drugsignet_installation(check_python = FALSE, stop_on_error = TRUE)
+          if (.drugsignet_r_minor(getRversion()) == "4.4") {
+            source(".github/scripts/check-r44-plotting.R")
+          }
       - name: Record installed R and Bioconductor versions
         run: |
           env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \

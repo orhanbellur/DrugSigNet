@@ -36,7 +36,7 @@ test_that("persisted Pixi profiles preserve user settings and guard the R versio
   }
 })
 
-test_that("cross-version installation succeeds without loading foreign R packages", {
+test_that("unexpected cross-version runtimes are rejected without loading foreign R packages", {
   entry <- new.env(parent = globalenv())
   sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
   project <- tempfile("pixi-completed-runtime-")
@@ -56,12 +56,11 @@ test_that("cross-version installation succeeds without loading foreign R package
   entry$requireNamespace <- function(...) stop("Unsafe cross-version host load")
   persisted <- FALSE
   entry$.drugsignet_persist_pixi_host_config <- function(...) persisted <<- TRUE
-  expect_message(
-    result <- entry$install_drugsignet_pixi(project_dir = project, repository_root = project),
-    "use Pixi R for this project"
+  expect_error(
+    entry$install_drugsignet_pixi(project_dir = project, repository_root = project),
+    "must provide the same R major/minor"
   )
-  expect_identical(result, normalizePath(project))
-  expect_true(persisted)
+  expect_false(persisted)
   expect_false(normalizePath(file.path(prefix, "lib", "R", "library")) %in% .libPaths())
   unlink(version)
   expect_error(entry$install_drugsignet_pixi(project_dir = project, repository_root = project),
@@ -160,4 +159,49 @@ test_that("host dependency builds isolate Conda and restore caller settings on f
   expect_identical(Sys.getenv("CONDA_PREFIX"), "/foreign-pixi")
   expect_identical(Sys.getenv("R_LIBS_USER"), "/foreign-library")
   if (entry$.drugsignet_r_minor(getRversion()) == "4.4") expect_identical(repositories, "3.20")
+})
+
+test_that("the caller R series selects Pixi and activates it in the same session", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  project <- tempfile("pixi matching runtime ")
+  prefix <- file.path(project, ".pixi", "envs", "default")
+  library <- file.path(prefix, "lib", "R", "library")
+  dir.create(file.path(prefix, "bin"), recursive = TRUE)
+  dir.create(library, recursive = TRUE)
+  file.create(file.path(prefix, "bin", "python"))
+  file.create(file.path(prefix, ".drugsignet-runtime-validated"))
+  writeLines("4.4.3", file.path(prefix, ".drugsignet-r-version"))
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  withr::local_libpaths(.libPaths())
+  withr::local_envvar(c(DRUGSIGNET_PIXI_PROJECT = NA, RETICULATE_PYTHON = NA,
+                       RETICULATE_CONDA = NA, CONDA_PREFIX = NA,
+                       DRUGSIGNET_PIXI_VALIDATION_MARKER = NA))
+  entry$getRversion <- function() numeric_version("4.4.0")
+  environment <- NULL
+  entry$system2 <- function(..., env) { environment <<- env; 0L }
+  entry$requireNamespace <- function(package, quietly) {
+    expect_identical(package, "DrugSigNet")
+    expect_identical(.libPaths()[1L], normalizePath(library))
+    TRUE
+  }
+  entry$.drugsignet_install_host_package <- function(...) stop("No second installation should be needed")
+  entry$.drugsignet_persist_pixi_host_config <- function(...) TRUE
+  expect_message(result <- entry$install_drugsignet_pixi(project_dir = project,
+    repository_root = project), "can be called directly")
+  expect_identical(result, normalizePath(project))
+  expect_true("DRUGSIGNET_PIXI_R_VERSION=4.4" %in% environment)
+  entry$getRversion <- function() numeric_version("4.3.3")
+  entry$system2 <- function(...) stop("Installer must not launch")
+  expect_error(entry$install_drugsignet_pixi(), "requires R >= 4.4.0")
+})
+
+test_that("Pixi architecture follows the calling R, including Intel R on Apple Silicon", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  expect_identical(entry$.drugsignet_pixi_platform("Darwin", "aarch64"), "osx-arm64")
+  expect_identical(entry$.drugsignet_pixi_platform("Darwin", "x86_64"), "osx-64")
+  expect_identical(entry$.drugsignet_pixi_platform("Linux", "x86_64"), "linux-64")
+  expect_identical(entry$.drugsignet_pixi_platform("Linux", "aarch64"), "linux-aarch64")
+  expect_error(entry$.drugsignet_pixi_platform("Linux", "unknown"), "Unsupported host R")
 })

@@ -37,7 +37,7 @@ For a first test run, set `run_drug_annotation = FALSE` and `run_visualization =
 
 ## Installation
 
-DrugSigNet requires **R 4.4.0 or newer**. Choose an installation method based on your environment. Use Bioconductor 3.20 with R 4.4, or Bioconductor 3.22 with R 4.5. The default Pixi/container runtime remains on R 4.5. The maintained dependency manifest is [`tools/runtime-dependencies.tsv`](tools/runtime-dependencies.tsv).
+DrugSigNet requires **R 4.4.0 or newer**. Choose an installation method based on your environment. Use Bioconductor 3.20 with R 4.4, or Bioconductor 3.22 with R 4.5. The R Pixi installer matches the calling R major/minor series; standalone shell/container installations default to R 4.5. The maintained dependency manifest is [`tools/runtime-dependencies.tsv`](tools/runtime-dependencies.tsv).
 
 | Environment | Recommended method | Notes |
 |---|---|---|
@@ -65,50 +65,42 @@ The installer provisions the environment, installs DrugSigNet, and validates it.
 
 Native macOS Pixi installs require Xcode Command Line Tools (`xcode-select --install`). The installer detects the macOS SDK and preserves its header path in Pixi activation for source package compilation.
 
-On Apple Silicon Macs, the installer obtains `signatureSearch` and `signatureSearchData` through Bioconductor 3.22 using the project's R 4.5, because Bioconda does not provide these packages for `osx-arm64`. The installer also obtains `rcdk` and its `fingerprint` dependency through CRAN, configures the project's OpenJDK for R, and validates a CDK fingerprint calculation. These steps require internet access and may compile R dependencies. These R installations are outside `pixi.lock`; retain the printed installation logs and package versions when reproducing an analysis. The R version used to launch the installer does not change the project's R version.
-
-The installer configures library access only when the caller and Pixi use the same R major/minor version. If you launch it from R 4.4 while Pixi uses R 4.5, installation still completes in Pixi; start the Pixi R command printed by the installer to run the analysis. Opening the generated RStudio project alone does not change the R executable. Restart R if a different Python interpreter was already initialized, and retain the generated `.pixi/` directory and lock file for reproducibility.
-
-#### Use DrugSigNet in both host R 4.4 and Pixi R
-
-To run `library(DrugSigNet)` in your current R 4.4.0/RStudio session **as well as**
-in Pixi, request a second, independent R package installation:
+The installer selects the calling R **major/minor series** automatically: R
+4.4.0 selects Pixi R 4.4.x; R 4.5 selects Pixi R 4.5.x. Pixi can select a newer
+patch release within that series. It does not replace the R executable running
+inside RStudio. The installer validates the runtime, activates the matching
+package library in the current session, and verifies that DrugSigNet loads.
+After the installation call above, run directly in the **same R console**:
 
 ```r
-install_drugsignet_pixi(
-  package_ref = paste0("orhanbellur/DrugSigNet@", branch),
-  project_dir = "~/DrugSigNet-test",
-  build_vignettes = TRUE,
-  install_host = TRUE
-)
-library(DrugSigNet)  # Runs in the current R 4.4 session.
+library(DrugSigNet)
 ```
 
-The host copy uses a separate writable library (`~/R/DrugSigNet/4.4/library` by
-default; override with `host_library`). R 4.4 uses Bioconductor 3.20 and the
-2025-04-30 CRAN snapshot to keep its dependency stack consistent. The installer
-preserves this library in the user and project startup profiles, guarded by the
-R major/minor version. Restart R before replacing an already loaded DrugSigNet.
+No second RStudio session or Terminal command is needed for normal use. User
+and project startup profiles preserve the library selection for the matching R
+series. The installer recreates its managed runtime when changing R series so
+packages compiled for the previous R are not retained. Keep user data outside
+`.pixi/envs/default`, which is an installer-managed directory.
 
-Host installation builds for your existing R and requires its native system
-libraries, compiler tools, and Pandoc when building vignettes. It does not borrow
-R 4.5 compiled dependencies from Pixi or install system packages with sudo.
-Optional signature/annotation dependencies follow the standard R installation
-instructions below. A host installation failure leaves the validated Pixi
-installation available. Python-backed methods use the selected Pixi Python;
-the R package libraries remain separate.
+On Apple Silicon Macs, `signatureSearch`/`signatureSearchData` are installed from
+Bioconductor inside the selected Pixi R because Bioconda does not provide them
+for `osx-arm64`. R 4.4 uses Bioconductor 3.20 and the 2025-04-30 CRAN snapshot;
+R 4.5 uses Bioconductor 3.22. The installer configures project OpenJDK, installs
+`rcdk`/`fingerprint` from CRAN, and validates a CDK fingerprint calculation.
+R 4.4 plotting extensions are rebuilt against the same dated CRAN snapshot to
+avoid incompatible serialized ggplot2 defaults. These source installations are
+outside `pixi.lock`; keep the printed package versions for reproducibility.
 
-With the default `install_host = FALSE`, a successful Pixi installation does
-**not** install a package into a different-version host R. In that case, open a
-**Terminal** (the Terminal tab in RStudio also works), run the command printed by
-the installer, and call `library(DrugSigNet)` in the R console it starts. For the
-default project and Pixi installation paths:
+A compatible R series and dependencies must be available in the configured
+Conda channels. An unavailable combination produces an installation error;
+the installer does not substitute a different R series. Package support for
+R >= 4.4.0 and availability of external Pixi packages are separate requirements.
 
-```sh
-~/.pixi/bin/pixi run --manifest-path ~/DrugSigNet-test/pixi.toml R
-```
-
-Opening the `.Rproj` alone does not switch RStudio from R 4.4 to Pixi R 4.5.
+For hosts whose native libraries require a separate source build, the optional
+`install_host = TRUE` mode installs a second copy into
+`~/R/DrugSigNet/<major.minor>/library` (override with `host_library`). This mode
+requires the host's native development dependencies and Pandoc for vignette
+builds. The default version-matched route does not require this flag.
 
 ### Standard R installation
 
