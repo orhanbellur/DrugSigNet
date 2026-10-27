@@ -42,7 +42,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       '    for name in bash conda; do printf "#!/bin/sh\\nexit 0\\n" > "$bin/$name"; chmod +x "$bin/$name"; done',
       '  fi',
       'fi',
-      'if [[ "$*" == *"Rscript --vanilla -" ]]; then',
+      'if [[ "$*" == *"Rscript --vanilla -"* ]]; then',
       '  cat > "$DRUGSIGNET_PIXI_PROJECT/last.R"',
       '  if grep -q bioc_version "$DRUGSIGNET_PIXI_PROJECT/last.R"; then',
       '    cp "$DRUGSIGNET_PIXI_PROJECT/last.R" "$DRUGSIGNET_PIXI_PROJECT/bioconductor.R"',
@@ -87,6 +87,12 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     expect_identical(any(grepl('"r-boutroslabplottinggeneral"', manifest, fixed = TRUE)), r_series == "4.5")
     expect_identical(file.exists(file.path(project, "plotting.R")), r_series == "4.4")
     expect_identical(file.exists(file.path(project, "boutros.R")), !r_series %in% c("4.4", "4.5"))
+    if (!r_series %in% c("4.4", "4.5")) {
+      expect_false(any(grepl('"r-wordcloud"', manifest, fixed = TRUE)))
+      extra <- paste(readLines(file.path(project, "boutros.R")), collapse = "\n")
+      expect_match(extra, '"wordcloud"', fixed = TRUE)
+      expect_match(extra, 'fields = "Imports"', fixed = TRUE)
+    }
     expect_identical(any(grepl("R_MAKEVARS_USER =", manifest, fixed = TRUE)), r_series == "4.4")
     if (r_series == "4.4") {
       expect_identical(readLines(file.path(project, ".R", "Makevars-r44")), "CXX11STD = -std=gnu++14")

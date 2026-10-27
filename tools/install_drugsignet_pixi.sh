@@ -109,6 +109,8 @@ pixi_toml="${project_dir}/pixi.toml"
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
     if (source_r_deps == "true" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
+    # New R releases can precede CRAN-feedstock migrations (e.g. wordcloud).
+    if (r_series != "4.4" && r_series != "4.5" && $2 ~ /^r-/ && $2 !~ /^r-base=/) next
     if (r_series != "4.5" && $2 == "r-boutroslabplottinggeneral") next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
@@ -275,11 +277,16 @@ if (length(missing) || packageVersion("ggplot2") >= "4.0.0") {
 RSCRIPT
   pixi_clean_run Rscript --vanilla "${source_dir}/.github/scripts/check-r44-plotting.R"
 elif [[ "${r_series}" != "4.5" ]]; then
-  pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
-install.packages("BoutrosLab.plotting.general", repos = "https://cloud.r-project.org", type = "source")
-if (!requireNamespace("BoutrosLab.plotting.general", quietly = TRUE)) {
-  stop("The Boutros plotting dependency could not be installed for the selected R series.")
-}
+  pixi_clean_run Rscript --vanilla - "${source_dir}/DESCRIPTION" <<'RSCRIPT'
+options(repos = c(CRAN = "https://cloud.r-project.org"), timeout = 1200)
+imports <- read.dcf(commandArgs(trailingOnly = TRUE)[[1L]], fields = "Imports")[[1L]]
+core <- trimws(sub("\\s*\\(.*$", "", strsplit(imports, ",", fixed = TRUE)[[1L]]))
+required <- unique(c(core, "BiocManager", "pak", "knitr", "rmarkdown", "BoutrosLab.plotting.general",
+                     "ggforce", "ggalluvial", "wordcloud"))
+required <- setdiff(required, rownames(installed.packages(priority = "base")))
+install.packages(required, type = "source")
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) stop("CRAN dependencies missing for the selected R series: ", paste(missing, collapse = ", "))
 RSCRIPT
 fi
 
