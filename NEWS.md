@@ -15,13 +15,17 @@
   compiled for the previous R. Reject an unexpected R series before activation.
 - Match Apple Silicon Bioconductor setup to the selected R and keep R 4.4
   plotting dependencies consistent with its dated CRAN snapshot.
+- Configure JNI headers, JVM library directories, and linker paths together
+  for the project JDK; host rJava builds retain JNI without optional JRI.
+- Reuse project Pandoc for host vignette builds and report missing native
+  development headers before the full source dependency build.
 - Exercise native Pixi installation and same-session loading on Linux and
   Apple Silicon with both R 4.4 and R 4.5.
 
 ### Host R and Pixi installation
 
-- Add opt-in install_host to install a separate DrugSigNet copy for the caller's
-  R version, including R 4.4.0, while preserving the validated Pixi environment.
+- Retain install_host as a force-native option alongside automatic ABI
+  detection, while preserving the validated Pixi environment.
 - Use Bioconductor 3.20 with the 2025-04-30 CRAN snapshot for host R 4.4 and
   persist a version-guarded host library in user and project startup profiles.
 - Explain where to run the Pixi launch command when host installation is omitted.
