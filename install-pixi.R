@@ -42,7 +42,8 @@
   } else "https://cloud.r-project.org"
   options(repos = c(CRAN = cran), timeout = max(1200, getOption("timeout", 60)))
   .libPaths(unique(c(host_library, .libPaths())))
-  for (package in c("BiocManager", "remotes")) {
+  bootstrap <- c("BiocManager", "remotes", if (isTRUE(build_vignettes)) c("knitr", "rmarkdown"))
+  for (package in bootstrap) {
     if (!requireNamespace(package, quietly = TRUE)) {
       utils::install.packages(package, lib = host_library, repos = cran)
     }
