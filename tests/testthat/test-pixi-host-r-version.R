@@ -89,7 +89,7 @@ test_that("opt-in host installation uses a separate library and persists both en
   .libPaths(c(pixi_library, .libPaths()))
   calls <- list()
   entry$.drugsignet_install_host_package <- function(package_ref, host_library,
-                                                     build_vignettes, repository_root) {
+                                                     build_vignettes, repository_root, ...) {
     expect_false(normalizePath(pixi_library) %in% .libPaths())
     calls$install <<- list(package_ref, host_library, build_vignettes, repository_root)
   }
@@ -183,6 +183,7 @@ test_that("the caller R series selects Pixi and activates it in the same session
   entry$getRversion <- function() numeric_version("4.4.0")
   environment <- NULL
   entry$system2 <- function(..., env) { environment <<- env; 0L }
+  entry$.drugsignet_can_share_runtime <- function(...) TRUE
   entry$requireNamespace <- function(package, quietly) {
     expect_identical(package, "DrugSigNet")
     expect_identical(.libPaths()[1L], normalizePath(library))
@@ -211,4 +212,108 @@ test_that("Pixi architecture follows the calling R, including Intel R on Apple S
   expect_identical(entry$.drugsignet_pixi_platform("Linux", "x86_64"), "linux-64")
   expect_identical(entry$.drugsignet_pixi_platform("Linux", "aarch64"), "linux-aarch64")
   expect_error(entry$.drugsignet_pixi_platform("Linux", "unknown"), "Unsupported host R")
+})
+
+test_that("native ABI probe failures are isolated from the live R session", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  before <- .libPaths()
+  entry$system2 <- function(command, args, stdout, stderr, ...) {
+    expect_true("--vanilla" %in% args)
+    writeLines("Rcpp.so: CXXABI_1.3.15 not found; child terminated", stdout)
+    139L
+  }
+  expect_message(
+    compatible <- entry$.drugsignet_can_share_runtime("/candidate/library", "/candidate", system = "Linux", r_home = "/host/R"),
+    "native host packages"
+  )
+  expect_false(compatible)
+  expect_identical(.libPaths(), before)
+  entry$system2 <- function(...) stop("Foreign macOS libraries must not be loaded")
+  expect_false(entry$.drugsignet_can_share_runtime("/candidate/library", "/candidate", system = "Darwin", r_home = "/Framework/R"))
+  expect_true(entry$.drugsignet_can_share_runtime("/candidate/library", "/candidate", system = "Darwin", r_home = "/candidate/lib/R"))
+})
+
+test_that("startup profiles never mix host-native and Pixi R engines", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  project <- tempfile("native-profile-")
+  native <- file.path(project, "native-library")
+  pixi <- file.path(project, ".pixi", "envs", "default", "lib", "R", "library")
+  dir.create(native, recursive = TRUE)
+  dir.create(pixi, recursive = TRUE)
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  withr::local_libpaths(.libPaths())
+  entry$.drugsignet_persist_pixi_host_config(project, "python", native, "validated", config_dir = project)
+  profile <- file.path(project, ".Rprofile")
+  .libPaths(c(pixi, .libPaths()))
+  sys.source(profile, envir = new.env(parent = globalenv()))
+  expect_identical(.libPaths()[1L], normalizePath(native))
+  expect_false(normalizePath(pixi) %in% .libPaths())
+  .libPaths(c(pixi, .libPaths()))
+  own <- new.env(parent = globalenv())
+  own$R.home <- function(...) dirname(pixi)
+  sys.source(profile, envir = own)
+  expect_false(normalizePath(native) %in% .libPaths())
+  expect_true(normalizePath(pixi) %in% .libPaths())
+  .libPaths(c(native, pixi, .libPaths()))
+  other <- new.env(parent = globalenv())
+  other$R.home <- function(...) "/another/R/installation"
+  sys.source(profile, envir = other)
+  expect_false(normalizePath(native) %in% .libPaths())
+  expect_false(normalizePath(pixi) %in% .libPaths())
+})
+
+test_that("host libraries are keyed to the actual R installation", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  first <- entry$.drugsignet_default_host_library()
+  expect_identical(first, entry$.drugsignet_default_host_library())
+  other <- tempfile("other-r-home-")
+  dir.create(other)
+  on.exit(unlink(other, recursive = TRUE), add = TRUE)
+  entry$R.home <- function(...) other
+  expect_false(identical(first, entry$.drugsignet_default_host_library()))
+})
+
+test_that("ABI-incompatible runtimes automatically install for the original R without a flag", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  project <- tempfile("automatic-native-")
+  prefix <- file.path(project, ".pixi", "envs", "default")
+  pixi <- file.path(prefix, "lib", "R", "library")
+  native <- file.path(project, "native")
+  dir.create(file.path(prefix, "bin"), recursive = TRUE)
+  dir.create(pixi, recursive = TRUE)
+  file.create(file.path(prefix, "bin", "python"))
+  file.create(file.path(prefix, ".drugsignet-runtime-validated"))
+  writeLines(as.character(getRversion()), file.path(prefix, ".drugsignet-r-version"))
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  withr::local_libpaths(.libPaths())
+  withr::local_envvar(c(DRUGSIGNET_PIXI_PROJECT = NA, RETICULATE_PYTHON = NA,
+                       RETICULATE_CONDA = NA, CONDA_PREFIX = NA,
+                       DRUGSIGNET_PIXI_VALIDATION_MARKER = NA))
+  .libPaths(c(pixi, .libPaths()))
+  entry$system2 <- function(...) 0L
+  entry$.drugsignet_can_share_runtime <- function(...) FALSE
+  entry$requireNamespace <- function(...) stop("The live R must not probe foreign DLLs")
+  installed <- FALSE
+  entry$.drugsignet_install_host_package <- function(package_ref, host_library, build_vignettes,
+                                                     repository_root, runtime_prefix, source_archive,
+                                                     full_runtime) {
+    installed <<- TRUE
+    expect_identical(host_library, native)
+    expect_identical(runtime_prefix, prefix)
+    expect_identical(source_archive, file.path(project, ".drugsignet-source.tar.gz"))
+    expect_true(full_runtime)
+    expect_false(normalizePath(pixi) %in% .libPaths())
+    dir.create(native)
+    .libPaths(c(native, .libPaths()))
+  }
+  entry$.drugsignet_persist_pixi_host_config <- function(...) TRUE
+  expect_message(result <- entry$install_drugsignet_pixi(project_dir = project,
+    repository_root = project, host_library = native), "You can now run library")
+  expect_true(installed)
+  expect_identical(result, normalizePath(project))
+  expect_identical(.libPaths()[1L], normalizePath(native))
 })

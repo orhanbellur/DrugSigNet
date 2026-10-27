@@ -6,6 +6,11 @@
 
 - Select the calling R major/minor series automatically, including R 4.4.0,
   and verify DrugSigNet loads directly in the same R/RStudio session.
+- Detect C++ ABI incompatibilities in a host-R child process before activation.
+  Automatically install native host packages on macOS and incompatible Linux
+  hosts, avoiding Conda libR crashes and missing CXXABI symbols.
+- Keep host-native libraries isolated by R installation and ensure startup
+  profiles cannot mix macOS framework packages with Pixi R libraries.
 - Recreate the managed Pixi runtime when changing R series to remove packages
   compiled for the previous R. Reject an unexpected R series before activation.
 - Match Apple Silicon Bioconductor setup to the selected R and keep R 4.4

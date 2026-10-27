@@ -68,8 +68,11 @@ Native macOS Pixi installs require Xcode Command Line Tools (`xcode-select --ins
 The installer selects the calling R **major/minor series** automatically: R
 4.4.0 selects Pixi R 4.4.x; R 4.5 selects Pixi R 4.5.x. Pixi can select a newer
 patch release within that series. It does not replace the R executable running
-inside RStudio. The installer validates the runtime, activates the matching
-package library in the current session, and verifies that DrugSigNet loads.
+inside RStudio. The installer validates the runtime and checks native-library compatibility
+before activating packages in the current session. On macOS, and on Linux
+hosts with an older C++ runtime, it automatically installs a native package
+library for the existing R rather than loading incompatible Conda DLLs.
+It then verifies that DrugSigNet loads in the original R process.
 After the installation call above, run directly in the **same R console**:
 
 ```r
@@ -77,8 +80,8 @@ library(DrugSigNet)
 ```
 
 No second RStudio session or Terminal command is needed for normal use. User
-and project startup profiles preserve the library selection for the matching R
-series. The installer recreates its managed runtime when changing R series so
+and project startup profiles preserve the selection for the matching R
+installation, keeping native host libraries out of Pixi R and vice versa. The installer recreates its managed runtime when changing R series so
 packages compiled for the previous R are not retained. Keep user data outside
 `.pixi/envs/default`, which is an installer-managed directory.
 
@@ -101,11 +104,15 @@ Conda channels. An unavailable combination produces an installation error;
 the installer does not substitute a different R series. Package support for
 R >= 4.4.0 and availability of external Pixi packages are separate requirements.
 
-For hosts whose native libraries require a separate source build, the optional
-`install_host = TRUE` mode installs a second copy into
-`~/R/DrugSigNet/<major.minor>/library` (override with `host_library`). This mode
-requires the host's native development dependencies and Pandoc for vignette
-builds. The default version-matched route does not require this flag.
+Native host packages are stored under
+`~/R/DrugSigNet/<major.minor>/<R-installation-key>/library` (override with
+`host_library`). Official macOS R uses native CRAN/Bioconductor binaries where
+available; source-only dependencies use the host R toolchain. A compatible
+compiler and native development libraries are needed when binaries are absent,
+and Pandoc is needed for vignette builds. `install_host = TRUE` can force this
+route, but ABI incompatibilities select it automatically. No manual flag or
+additional interactive R session is required. The source archive used by Pixi
+is retained in the project so the host copy uses the same DrugSigNet revision.
 
 ### Standard R installation
 

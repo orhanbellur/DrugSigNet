@@ -24,8 +24,10 @@ jobs:
           - {os: ubuntu-24.04, r: '4.4.0'}
           - {os: ubuntu-24.04, r: '4.5.3'}
           - {os: ubuntu-24.04, r: '4.6.1'}
-    name: ${{ matrix.config.os }} / host R ${{ matrix.config.r }}
+          - {os: ubuntu-24.04, r: '4.4.0', container: 'rocker/rstudio:4.4.0'}
+    name: ${{ matrix.config.container || matrix.config.os }} / host R ${{ matrix.config.r }}
     runs-on: ${{ matrix.config.os }}
+    container: ${{ matrix.config.container }}
     timeout-minutes: 180
     env:
       DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
@@ -34,6 +36,11 @@ jobs:
       DRUGSIGNET_CI_REF: ${{ github.head_ref || github.ref_name }}
       RETICULATE_USE_MANAGED_VENV: 'no'
     steps:
+      - name: Provide container bootstrap tools
+        if: ${{ matrix.config.container != null }}
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates git
       - uses: actions/checkout@v4
       - name: Verify native runner architecture
         run: |
@@ -43,6 +50,7 @@ jobs:
             test "$(uname -m)" = x86_64
           fi
       - uses: r-lib/actions/setup-r@v2
+        if: ${{ matrix.config.container == null }}
         with:
           r-version: ${{ matrix.config.r }}
       - name: Install complete Pixi runtime and build vignettes
@@ -72,8 +80,12 @@ jobs:
           version <- readLines(file.path(prefix, ".drugsignet-r-version"))
           stopifnot(identical(.drugsignet_r_minor(version), .drugsignet_r_minor(getRversion())))
           library(DrugSigNet)
-          stopifnot(identical(normalizePath(dirname(find.package("DrugSigNet"))),
-                              normalizePath(file.path(prefix, "lib", "R", "library"))))
+          selected <- normalizePath(dirname(getNamespaceInfo(asNamespace("DrugSigNet"), "path")))
+          shared <- normalizePath(file.path(prefix, "lib", "R", "library"))
+          native <- normalizePath(.drugsignet_default_host_library(), mustWork = FALSE)
+          stopifnot(selected %in% c(shared, native))
+          if (identical(selected, native)) stopifnot(!shared %in% normalizePath(.libPaths()))
+          message("Host R home: ", R.home(), "; selected library: ", selected)
           stopifnot(requireNamespace("signatureSearch", quietly = TRUE))
           molecule <- rcdk::parse.smiles("CCO")[[1L]]
           fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")

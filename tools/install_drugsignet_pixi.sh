@@ -173,7 +173,8 @@ cat > "${project_dir}/.Rprofile" <<EOF
 local({
   pixi_library <- "${project_dir}/.pixi/envs/default/lib/R/library"
   version_file <- "${project_dir}/.pixi/envs/default/.drugsignet-r-version"
-  if (dir.exists(pixi_library) && file.exists(version_file)) {
+  pixi_home <- "${project_dir}/.pixi/envs/default/lib/R"
+  if (identical(normalizePath(R.home(), mustWork = FALSE), normalizePath(pixi_home, mustWork = FALSE)) && dir.exists(pixi_library) && file.exists(version_file)) {
     runtime_version <- readLines(version_file, warn = FALSE, n = 1L)
     host_minor <- strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2]
     runtime_minor <- if (length(runtime_version)) strsplit(runtime_version, ".", fixed = TRUE)[[1L]][1:2] else character()
@@ -254,6 +255,10 @@ pixi_clean_run() {
 
 echo "[DrugSigNet] Downloading ${package_ref} with Git (pak metadata resolution is skipped)."
 pixi_clean_run git "${clone_args[@]}"
+# Retain exactly the source revision used for this runtime for host-native R.
+pixi_clean_run git -C "${source_dir}" archive --format=tar.gz --prefix=DrugSigNet/ \
+  --output="${project_dir}/.drugsignet-source.tar.gz" HEAD
+
 
 # R 4.4/Bioconductor 3.20 need a coherent plotting generation, including
 # serialized ggproto defaults. Rebuild extensions against the selected ggplot2.
@@ -344,6 +349,7 @@ if [[ "${DRUGSIGNET_BUILD_VIGNETTES:-false}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]
   )
   install_source="$(find "${install_work}" -maxdepth 1 -name 'DrugSigNet_*.tar.gz' -print -quit)"
   [[ -n "${install_source}" ]] || { echo "ERROR: R CMD build did not create a package archive." >&2; exit 1; }
+  cp "${install_source}" "${project_dir}/.drugsignet-source.tar.gz"
 else
   echo "[DrugSigNet] Installing DrugSigNet directly (vignette rebuild disabled)."
 fi

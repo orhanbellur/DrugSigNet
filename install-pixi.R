@@ -12,6 +12,55 @@
   result
 }
 
+# Keep libraries for different R installations separate, even within one series.
+.drugsignet_default_host_library <- function() {
+  identity <- tempfile("drugsignet-r-engine-")
+  on.exit(unlink(identity), add = TRUE)
+  writeLines(c(normalizePath(R.home()), R.version$platform, .drugsignet_r_minor(getRversion())), identity)
+  key <- substr(unname(tools::md5sum(identity)), 1L, 12L)
+  file.path(path.expand("~"), "R", "DrugSigNet", .drugsignet_r_minor(getRversion()), key, "library")
+}
+
+.drugsignet_remove_pixi_library <- function(library) {
+  target <- normalizePath(library, mustWork = FALSE)
+  .libPaths(.libPaths()[normalizePath(.libPaths(), mustWork = FALSE) != target])
+  invisible(NULL)
+}
+
+# Probe foreign native libraries in a child of the HOST R, never in the live
+# RStudio process: an incompatible macOS libR can terminate R with SIGSEGV.
+.drugsignet_can_share_runtime <- function(library, prefix,
+                                          system = Sys.info()[["sysname"]],
+                                          r_home = R.home()) {
+  if (identical(normalizePath(r_home, mustWork = FALSE),
+                normalizePath(file.path(prefix, "lib", "R"), mustWork = FALSE))) return(TRUE)
+  if (identical(system, "Darwin")) return(FALSE)
+  script <- tempfile("drugsignet-host-probe-", fileext = ".R")
+  log <- tempfile("drugsignet-host-probe-", fileext = ".log")
+  on.exit(unlink(c(script, log)), add = TRUE)
+  writeLines(c(
+    'args <- commandArgs(trailingOnly = TRUE)',
+    'library <- args[[1L]]',
+    'cpp <- c("/usr/lib/x86_64-linux-gnu/libstdc++.so.6", "/usr/lib/aarch64-linux-gnu/libstdc++.so.6")',
+    'cpp <- cpp[file.exists(cpp)]',
+    'if (length(cpp)) dyn.load(cpp[[1L]], local = FALSE)',
+    '.libPaths(unique(c(library, args[-1L])))',
+    'stopifnot(requireNamespace("DrugSigNet", quietly = FALSE))',
+    'stopifnot(identical(normalizePath(dirname(getNamespaceInfo(asNamespace("DrugSigNet"), "path"))), normalizePath(library)))',
+    'stopifnot(requireNamespace("signatureSearch", quietly = FALSE))'
+  ), script)
+  status <- system2(file.path(r_home, "bin", "Rscript"),
+                    c("--vanilla", shQuote(script), shQuote(unique(c(library, .libPaths())))),
+                    stdout = log, stderr = log,
+                    env = c("DRUGSIGNET_AUTO_INSTALL_PYTHON=false", "DRUGSIGNET_SKIP_RUNTIME_SETUP=true"))
+  if (!identical(status, 0L)) {
+    message("Pixi R packages are incompatible with this host R; installing native host packages.")
+    if (file.exists(log)) message(paste(readLines(log, warn = FALSE), collapse = "\n"))
+    return(FALSE)
+  }
+  TRUE
+}
+
 # Packages compiled for another R minor version must stay in their own runtime.
 .drugsignet_configure_pixi_library <- function(pixi_library, runtime_version,
                                               host_version = getRversion()) {
@@ -28,7 +77,9 @@
 # Build a separate copy for the R interpreter that launched this installer.
 # Never reuse packages compiled in the Pixi R library for a different R minor.
 .drugsignet_install_host_package <- function(package_ref, host_library,
-                                              build_vignettes, repository_root = NULL) {
+                                              build_vignettes, repository_root = NULL,
+                                              runtime_prefix = NULL, source_archive = NULL,
+                                              full_runtime = FALSE) {
   if (getRversion() < "4.4.0") stop("Host installation requires R >= 4.4.0.", call. = FALSE)
   if ("DrugSigNet" %in% loadedNamespaces()) {
     stop("Restart R before installing DrugSigNet into the host library.", call. = FALSE)
@@ -38,7 +89,8 @@
     stop("Host R library is not writable: ", host_library, call. = FALSE)
   }
   old_options <- options()
-  old_environment <- Sys.getenv(c("CONDA_PREFIX", "R_LIBS", "R_LIBS_USER", "R_LIBS_SITE"), unset = NA_character_)
+  old_environment <- Sys.getenv(c("CONDA_PREFIX", "R_LIBS", "R_LIBS_USER", "R_LIBS_SITE",
+                                  "JAVA_HOME", "R_JAVA_LD_LIBRARY_PATH", "R_MAKEVARS_USER"), unset = NA_character_)
   on.exit({
     options(old_options)
     for (name in names(old_environment)) {
@@ -46,12 +98,16 @@
       else do.call(Sys.setenv, setNames(list(old_environment[[name]]), name))
     }
   }, add = TRUE)
-  Sys.unsetenv(names(old_environment))
+  Sys.unsetenv(c("CONDA_PREFIX", "R_LIBS", "R_LIBS_USER", "R_LIBS_SITE"))
   cran <- if (.drugsignet_r_minor(getRversion()) == "4.4") {
     "https://packagemanager.posit.co/cran/2025-04-30"
   } else "https://cloud.r-project.org"
   options(repos = c(CRAN = cran), timeout = max(1200, getOption("timeout", 60)))
   .libPaths(unique(c(host_library, .libPaths())))
+  if (isTRUE(full_runtime) && Sys.info()[["sysname"]] == "Darwin" && grepl("R.framework", R.home(), fixed = TRUE)) {
+    options(pkgType = "both", install.packages.compile.from.source = "always",
+            install.packages.check.source = "no")
+  }
   bootstrap <- c("BiocManager", "remotes", if (isTRUE(build_vignettes)) c("knitr", "rmarkdown"))
   for (package in bootstrap) {
     if (!requireNamespace(package, quietly = TRUE)) {
@@ -63,15 +119,59 @@
   } else BiocManager::repositories()
   repositories["CRAN"] <- cran
   options(repos = repositories)
+  if (isTRUE(full_runtime)) {
+    if (is.null(runtime_prefix) || is.null(source_archive) || !file.exists(source_archive)) {
+      stop("The matching package source archive is missing; rerun the Pixi installer.", call. = FALSE)
+    }
+    descriptor <- file.path(runtime_prefix, "lib", "R", "library", "DrugSigNet", "DESCRIPTION")
+    imports <- read.dcf(descriptor, fields = "Imports")[[1L]]
+    core <- trimws(sub("\\s*\\(.*$", "", strsplit(imports, ",", fixed = TRUE)[[1L]]))
+    required <- unique(c(core, "knitr", "rmarkdown", "rcdk", "fingerprint",
+                         "BoutrosLab.plotting.general", "ggforce", "ggalluvial", "wordcloud"))
+    required <- setdiff(required, rownames(utils::installed.packages(priority = "base")))
+    java <- file.path(runtime_prefix, "lib", "jvm")
+    Sys.setenv(JAVA_HOME = java, R_JAVA_LD_LIBRARY_PATH = file.path(java, "lib", "server"))
+    # Bake the project JVM path into a library compiled by the HOST R.
+    includes <- paste0("-I", shQuote(file.path(java, c("include", paste0("include/", if (Sys.info()[["sysname"]] == "Darwin") "darwin" else "linux")))))
+    java_libs <- paste0("-L", shQuote(file.path(java, "lib", "server")),
+                        " -Wl,-rpath,", shQuote(file.path(java, "lib", "server")), " -ljvm")
+    configure <- paste0("JAVA_HOME=", shQuote(java), " JAVA_CPPFLAGS=", shQuote(paste(includes, collapse = " ")),
+                         " JAVA_LIBS=", shQuote(java_libs))
+    utils::install.packages("rJava", lib = host_library, repos = cran,
+                            type = "source", configure.vars = configure)
+    installed <- rownames(utils::installed.packages(lib.loc = .libPaths()))
+    missing <- setdiff(required, installed)
+    if (length(missing)) utils::install.packages(missing, lib = host_library, repos = repositories, dependencies = NA)
+    if (.drugsignet_r_minor(getRversion()) == "4.4") {
+      makevars <- tempfile("drugsignet-native-Makevars-")
+      on.exit(unlink(makevars), add = TRUE)
+      user_makevars <- old_environment[["R_MAKEVARS_USER"]]
+      if (is.na(user_makevars) || !nzchar(user_makevars)) user_makevars <- path.expand("~/.R/Makevars")
+      settings <- if (file.exists(user_makevars)) readLines(user_makevars, warn = FALSE) else character()
+      writeLines(c(settings, "CXX11STD = -std=gnu++14"), makevars)
+      Sys.setenv(R_MAKEVARS_USER = makevars)
+      utils::install.packages("BH", lib = host_library, repos = "https://cloud.r-project.org", type = "source")
+    }
+    bioc_version <- if (.drugsignet_r_minor(getRversion()) == "4.4") "3.20" else as.character(BiocManager::version())
+    BiocManager::install(c("signatureSearch", "signatureSearchData"), lib = host_library,
+                         version = bioc_version, ask = FALSE, update = FALSE)
+  }
   message("Installing a separate DrugSigNet copy for host R ", getRversion(),
           " into ", host_library, ". Native system dependencies must already be available.")
   arguments <- list(lib = host_library, dependencies = NA, upgrade = "never",
                     build_vignettes = build_vignettes, force = TRUE)
   tryCatch({
-    if (is.null(repository_root)) {
+    if (!is.null(source_archive)) {
+      do.call(remotes::install_local, c(list(path = source_archive), arguments))
+    } else if (is.null(repository_root)) {
       do.call(remotes::install_github, c(list(repo = package_ref), arguments))
     } else {
       do.call(remotes::install_local, c(list(path = repository_root), arguments))
+    }
+    if (isTRUE(full_runtime)) {
+      stopifnot(requireNamespace("signatureSearch", quietly = FALSE))
+      molecule <- rcdk::parse.smiles("CCO")[[1L]]
+      stopifnot(inherits(rcdk::get.fingerprint(molecule, type = "extended"), "fingerprint"))
     }
     if (!requireNamespace("DrugSigNet", quietly = TRUE) ||
         !identical(normalizePath(dirname(find.package("DrugSigNet"))), normalizePath(host_library))) {
@@ -117,15 +217,27 @@
     if (identical(profile[[index]], end)) inside <- FALSE
   }
   profile <- profile[keep]
+  managed_library <- file.path(project_dir, ".pixi", "envs", "default", "lib", "R", "library")
+  managed_home <- file.path(project_dir, ".pixi", "envs", "default", "lib", "R")
+  quote_r <- function(value) encodeString(normalizePath(value, mustWork = FALSE), quote = '"')
   block <- c(
     begin,
     "local({",
-    paste0("  pixi_library <- ", encodeString(pixi_library, quote = '"')),
+    paste0("  selected_library <- ", quote_r(pixi_library)),
+    paste0("  pixi_library <- ", quote_r(managed_library)),
+    paste0("  pixi_home <- ", quote_r(managed_home)),
+    paste0("  installed_home <- ", quote_r(R.home())),
     paste0("  runtime_minor <- ", encodeString(.drugsignet_r_minor(runtime_version), quote = '"')),
     '  host_minor <- paste(strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2], collapse = ".")',
-    "  if (identical(host_minor, runtime_minor) && dir.exists(pixi_library)) {",
-    "    .libPaths(unique(c(pixi_library, .libPaths())))",
-    "  }",
+    '  current_home <- normalizePath(R.home(), mustWork = FALSE)',
+    '  if (identical(current_home, pixi_home)) {',
+    '    if (!identical(selected_library, pixi_library)) .libPaths(.libPaths()[normalizePath(.libPaths(), mustWork = FALSE) != selected_library])',
+    '  } else {',
+    '    .libPaths(.libPaths()[!normalizePath(.libPaths(), mustWork = FALSE) %in% c(pixi_library, selected_library)])',
+    '    if (identical(current_home, installed_home) && identical(host_minor, runtime_minor) && dir.exists(selected_library)) {',
+    '      .libPaths(unique(c(selected_library, .libPaths())))',
+    '    }',
+    '  }',
     "})",
     end
   )
@@ -140,13 +252,17 @@ install_drugsignet_pixi <- function(
     build_vignettes = FALSE,
     repository_root = if (file.exists("tools/install_drugsignet_pixi.sh")) "." else NULL,
     install_host = FALSE,
-    host_library = file.path(path.expand("~"), "R", "DrugSigNet",
-                             .drugsignet_r_minor(getRversion()), "library")) {
+    host_library = .drugsignet_default_host_library()) {
   if (!is.logical(install_host) || length(install_host) != 1L || is.na(install_host)) {
     stop("install_host must be TRUE or FALSE.", call. = FALSE)
   }
   if (getRversion() < "4.4.0") {
     stop("DrugSigNet requires R >= 4.4.0.", call. = FALSE)
+  }
+  planned_prefix <- file.path(path.expand(project_dir), ".pixi", "envs", "default")
+  if (!identical(normalizePath(R.home(), mustWork = FALSE),
+                 normalizePath(file.path(planned_prefix, "lib", "R"), mustWork = FALSE))) {
+    .drugsignet_remove_pixi_library(file.path(planned_prefix, "lib", "R", "library"))
   }
   repository <- sub("@.*$", "", package_ref)
   ref <- if (grepl("@", package_ref, fixed = TRUE)) sub("^[^@]+@", "", package_ref) else "main"
@@ -256,28 +372,27 @@ install_drugsignet_pixi <- function(
          ". The installer must provide the same R major/minor series; no foreign R library was activated.",
          call. = FALSE)
   }
-  compatible <- if (isTRUE(install_host)) {
-    # Host builds must not reuse the Pixi packages they are intended to replace.
-    target <- normalizePath(pixi_library, mustWork = FALSE)
-    .libPaths(.libPaths()[normalizePath(.libPaths(), mustWork = FALSE) != target])
-    FALSE
-  } else {
-    .drugsignet_configure_pixi_library(pixi_library, runtime_version)
-  }
-  if (compatible && !requireNamespace("DrugSigNet", quietly = FALSE)) {
-    stop("DrugSigNet could not load in the current R session. Native-library details are printed above. ",
-         "Use install_host = TRUE to build a separate copy for this host R.", call. = FALSE)
-  }
+  prefix <- file.path(project_dir, ".pixi", "envs", "default")
+  native_host <- isTRUE(install_host) || !.drugsignet_can_share_runtime(pixi_library, prefix)
   host_installed <- FALSE
-  if (isTRUE(install_host) && !compatible) {
+  if (native_host) {
+    .drugsignet_remove_pixi_library(pixi_library)
     host_library <- normalizePath(path.expand(host_library), mustWork = FALSE)
-    prefix <- paste0(normalizePath(file.path(project_dir, ".pixi"), mustWork = FALSE), "/")
-    if (startsWith(paste0(host_library, "/"), prefix)) {
+    managed <- paste0(normalizePath(file.path(project_dir, ".pixi"), mustWork = FALSE), "/")
+    if (startsWith(paste0(host_library, "/"), managed)) {
       stop("host_library must be outside the Pixi environment.", call. = FALSE)
     }
-    .drugsignet_install_host_package(package_ref, path.expand(host_library),
-                                     build_vignettes, repository_root)
+    .drugsignet_install_host_package(
+      package_ref, host_library, build_vignettes, repository_root,
+      runtime_prefix = prefix, source_archive = file.path(project_dir, ".drugsignet-source.tar.gz"),
+      full_runtime = TRUE
+    )
     host_installed <- TRUE
+  } else {
+    .drugsignet_configure_pixi_library(pixi_library, runtime_version)
+    if (!requireNamespace("DrugSigNet", quietly = FALSE)) {
+      stop("DrugSigNet could not load in the current R after the native-library check.", call. = FALSE)
+    }
   }
   .drugsignet_persist_pixi_host_config(
     project_dir, pixi_python,
@@ -285,11 +400,12 @@ install_drugsignet_pixi <- function(
     validation_marker,
     runtime_version = if (host_installed) getRversion() else runtime_version
   )
+  .drugsignet_persist_pixi_host_config(
+    project_dir, pixi_python, if (host_installed) host_library else pixi_library,
+    validation_marker, runtime_version = if (host_installed) getRversion() else runtime_version,
+    config_dir = project_dir
+  )
   if (host_installed) {
-    .drugsignet_persist_pixi_host_config(
-      project_dir, pixi_python, host_library, validation_marker,
-      runtime_version = getRversion(), config_dir = project_dir
-    )
     message("DrugSigNet is installed separately for host R ", getRversion(),
             " and Pixi R ", runtime_version,
             ". You can now run library(DrugSigNet) in this R session.")
