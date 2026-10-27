@@ -58,8 +58,10 @@ jobs:
         env:
           JAVA_HOME: ${{ runner.temp }}/host-java-must-not-leak
           R_JAVA_LD_LIBRARY_PATH: ${{ runner.temp }}/host-java-must-not-leak/lib/server
-        shell: Rscript {0}
+        shell: bash
         run: |
+          set -o pipefail
+          Rscript - <<'RSCRIPT' 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
           source("install-pixi.R")
           host_r_home <- R.home()
           # RStudio already has its host C++ runtime loaded before R packages.
@@ -94,6 +96,14 @@ jobs:
           if (.drugsignet_r_minor(getRversion()) == "4.4") {
             source(".github/scripts/check-r44-plotting.R")
           }
+          RSCRIPT
+      - name: Preserve installer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixi-install-${{ runner.os }}-r${{ matrix.config.r }}-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/drugsignet-pixi-install.log
+          retention-days: 7
       - name: Record installed R and Bioconductor versions
         run: |
           env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
