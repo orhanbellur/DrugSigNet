@@ -9,6 +9,7 @@ on:
       - tools/runtime-dependencies.tsv
       - tools/test_installation.R
       - .github/workflows/pixi-apple-silicon.yml
+      - .github/scripts/check-r44-plotting.R
   workflow_dispatch:
 permissions:
   contents: read
@@ -52,6 +53,11 @@ jobs:
         run: |
           source("install-pixi.R")
           host_r_home <- R.home()
+          # RStudio already has its host C++ runtime loaded before R packages.
+          system_cpp <- "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+          if (Sys.info()[["sysname"]] == "Linux" && file.exists(system_cpp)) {
+            dyn.load(system_cpp, local = FALSE)
+          }
           project <- file.path(Sys.getenv("RUNNER_TEMP"), "DrugSigNet-test")
           install_drugsignet_pixi(
             package_ref = paste0(Sys.getenv("GITHUB_REPOSITORY"), "@", Sys.getenv("DRUGSIGNET_CI_REF")),
@@ -68,6 +74,9 @@ jobs:
           stopifnot(identical(normalizePath(dirname(find.package("DrugSigNet"))),
                               normalizePath(file.path(prefix, "lib", "R", "library"))))
           stopifnot(requireNamespace("signatureSearch", quietly = TRUE))
+          molecule <- rcdk::parse.smiles("CCO")[[1L]]
+          fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
+          stopifnot(inherits(fingerprint, "fingerprint"))
           DrugSigNet::check_drugsignet_installation(check_python = FALSE, stop_on_error = TRUE)
           if (.drugsignet_r_minor(getRversion()) == "4.4") {
             source(".github/scripts/check-r44-plotting.R")
