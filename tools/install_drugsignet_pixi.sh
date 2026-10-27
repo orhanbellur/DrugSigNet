@@ -82,6 +82,13 @@ case "${pixi_platform}" in
     ;;
 esac
 
+# Recent Boost.Math headers require C++14, including packages that still
+# request CXX11. Keep this compatibility setting inside the managed project.
+if [[ "${r_series}" == "4.4" ]]; then
+  mkdir -p "${project_dir}/.R"
+  printf '%s\n' 'CXX11STD = -std=gnu++14' > "${project_dir}/.R/Makevars-r44"
+fi
+
 pixi_toml="${project_dir}/pixi.toml"
 {
   printf '%s\n' \
@@ -115,6 +122,9 @@ pixi_toml="${project_dir}/pixi.toml"
   # rJava configure prefers JAVA_HOME from the process environment over
   # R's javareconf settings. Always bind it to the project OpenJDK.
   printf '\n[activation.env]\nJAVA_HOME = "%s/.pixi/envs/default/lib/jvm"\n' "${project_dir}"
+  if [[ "${r_series}" == "4.4" ]]; then
+    printf 'R_MAKEVARS_USER = "%s/.R/Makevars-r44"\n' "${project_dir}"
+  fi
   if [[ -n "${macos_sdk}" ]]; then
     printf 'SDKROOT = "%s"\nCONDA_BUILD_SYSROOT = "%s"\n' "${macos_sdk}" "${macos_sdk}"
   fi
@@ -289,6 +299,14 @@ molecule <- rcdk::parse.smiles("CCO")[[1L]]
 fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
 if (!inherits(fingerprint, "fingerprint")) {
   stop("Apple Silicon CDK fingerprint validation failed.")
+}
+# BH 1.87 from the R 4.4 snapshot has an invalid interprocess template
+# expression rejected by Clang 21. BH 1.90 contains the upstream correction.
+if (r_series == "4.4" && (!requireNamespace("BH", quietly = TRUE) || packageVersion("BH") < "1.90.0")) {
+  install.packages("BH", repos = "https://cloud.r-project.org", type = "source")
+}
+if (r_series == "4.4" && (!requireNamespace("BH", quietly = TRUE) || packageVersion("BH") < "1.90.0")) {
+  stop("Apple Silicon R 4.4 requires BH >= 1.90 for the selected Clang compiler.")
 }
 required <- c("signatureSearch", "signatureSearchData")
 BiocManager::install(version = bioc_version, ask = FALSE, update = FALSE)

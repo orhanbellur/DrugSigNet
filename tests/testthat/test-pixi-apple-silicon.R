@@ -82,6 +82,10 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     expect_identical(file.exists(file.path(runtime, "arch")), startsWith(platform, "osx-"))
     expect_identical(any(grepl('"r-boutroslabplottinggeneral"', manifest, fixed = TRUE)), r_series != "4.4")
     expect_identical(file.exists(file.path(project, "plotting.R")), r_series == "4.4")
+    expect_identical(any(grepl("R_MAKEVARS_USER =", manifest, fixed = TRUE)), r_series == "4.4")
+    if (r_series == "4.4") {
+      expect_identical(readLines(file.path(project, ".R", "Makevars-r44")), "CXX11STD = -std=gnu++14")
+    }
     if (r_series == "4.4") {
       expect_true(any(grepl('"r-ggplot2" = "<4"', manifest, fixed = TRUE)))
       plotting <- paste(readLines(file.path(project, "plotting.R")), collapse = "\n")
@@ -115,6 +119,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       code <- paste(readLines(script), collapse = "\n")
       expect_match(code, 'version = bioc_version', fixed = TRUE)
       expect_match(code, 'if (r_series == "4.4") "3.20"', fixed = TRUE)
+      expect_match(code, 'install.packages("BH", repos = "https://cloud.r-project.org"', fixed = TRUE)
       expect_match(code, '"signatureSearchData"', fixed = TRUE)
       expect_match(code, 'stop("Apple Silicon Bioconductor installation failed:', fixed = TRUE)
       expect_match(code, 'install.packages(cran_missing)', fixed = TRUE)

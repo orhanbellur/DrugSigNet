@@ -85,9 +85,12 @@ test_that("opt-in host installation uses a separate library and persists both en
   entry$system2 <- function(...) 0L
   entry$requireNamespace <- function(...) stop("Foreign namespace must not load")
   host <- file.path(project, "host library")
+  pixi_library <- file.path(prefix, "lib", "R", "library")
+  .libPaths(c(pixi_library, .libPaths()))
   calls <- list()
   entry$.drugsignet_install_host_package <- function(package_ref, host_library,
                                                      build_vignettes, repository_root) {
+    expect_false(normalizePath(pixi_library) %in% .libPaths())
     calls$install <<- list(package_ref, host_library, build_vignettes, repository_root)
   }
   entry$.drugsignet_persist_pixi_host_config <- function(..., runtime_version, config_dir = "host") {

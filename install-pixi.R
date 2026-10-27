@@ -256,7 +256,12 @@ install_drugsignet_pixi <- function(
          ". The installer must provide the same R major/minor series; no foreign R library was activated.",
          call. = FALSE)
   }
-  compatible <- if (isTRUE(install_host)) FALSE else {
+  compatible <- if (isTRUE(install_host)) {
+    # Host builds must not reuse the Pixi packages they are intended to replace.
+    target <- normalizePath(pixi_library, mustWork = FALSE)
+    .libPaths(.libPaths()[normalizePath(.libPaths(), mustWork = FALSE) != target])
+    FALSE
+  } else {
     .drugsignet_configure_pixi_library(pixi_library, runtime_version)
   }
   if (compatible && !requireNamespace("DrugSigNet", quietly = FALSE)) {

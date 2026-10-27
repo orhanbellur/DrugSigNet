@@ -89,7 +89,9 @@ R 4.5 uses Bioconductor 3.22. The installer configures project OpenJDK, installs
 `rcdk`/`fingerprint` from CRAN, and validates a CDK fingerprint calculation.
 R 4.4 obtains `BoutrosLab.plotting.general` from CRAN because its available
 Conda build requires R 4.5. Its plotting extensions are rebuilt against the same dated CRAN snapshot to
-avoid incompatible serialized ggplot2 defaults. These source installations are
+avoid incompatible serialized ggplot2 defaults. For R 4.4 source builds on Apple Silicon, BH >= 1.90 supplies the upstream
+Boost header fix required by Clang 21; a project-local Makevars file provides
+C++14 for older packages requesting C++11. These source installations are
 outside `pixi.lock`; keep the printed package versions for reproducibility.
 
 A compatible R series and dependencies must be available in the configured
