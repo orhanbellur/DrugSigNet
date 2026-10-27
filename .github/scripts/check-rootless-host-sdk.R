@@ -6,7 +6,7 @@ before <- tools::md5sum("/var/lib/dpkg/status")
 host_home <- R.home()
 cpp <- "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
 if (file.exists(cpp)) dyn.load(cpp, local = FALSE)
-prefix <- file.path(Sys.getenv("RUNNER_TEMP"), "sdk-tools", ".pixi", "envs", "default")
+prefix <- file.path(Sys.getenv("DRUGSIGNET_CI_PROJECT_ROOT"), "sdk-tools", ".pixi", "envs", "default")
 library <- .drugsignet_default_host_library()
 dir.create(library, recursive = TRUE, showWarnings = FALSE)
 settings <- .drugsignet_prepare_host_sdk(prefix, library)
