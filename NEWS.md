@@ -17,8 +17,9 @@
   plotting dependencies consistent with its dated CRAN snapshot.
 - Configure JNI headers, JVM library directories, and linker paths together
   for the project JDK; host rJava builds retain JNI without optional JRI.
-- Reuse project Pandoc for host vignette builds and report missing native
-  development headers before the full source dependency build.
+- Reuse project Pandoc for host vignette builds. On Debian/Ubuntu, download
+  OS-matched native development files into user storage without installing
+  system packages or replacing libc, C++, or compiler runtimes.
 - Exercise native Pixi installation and same-session loading on Linux and
   Apple Silicon with both R 4.4 and R 4.5.
 
