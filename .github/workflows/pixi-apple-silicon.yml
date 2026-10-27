@@ -111,7 +111,7 @@ jobs:
       DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
       DRUGSIGNET_CI_REF: ${{ github.head_ref || github.ref_name }}
       RETICULATE_USE_MANAGED_VENV: 'no'
-      DRUGSIGNET_CI_PROJECT_ROOT: ${{ matrix.config.container != null && '/home/rstudio/drugsignet-ci' || runner.temp }}
+      DRUGSIGNET_CI_PROJECT_ROOT: ${{ matrix.config.container != null && '/home/rstudio/drugsignet-ci' || '' }}
     steps:
       - name: Provide container bootstrap tools
         if: ${{ matrix.config.container != null }}
@@ -139,6 +139,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          export DRUGSIGNET_CI_PROJECT_ROOT="${DRUGSIGNET_CI_PROJECT_ROOT:-$RUNNER_TEMP}"
           script="$GITHUB_WORKSPACE/.drugsignet-pixi-host.R"
           cat > "$script" <<'RSCRIPT'
           source("install-pixi.R")
@@ -202,6 +203,7 @@ jobs:
       - name: Record installed R and Bioconductor versions
         shell: bash
         run: |
+          export DRUGSIGNET_CI_PROJECT_ROOT="${DRUGSIGNET_CI_PROJECT_ROOT:-$RUNNER_TEMP}"
           if [ "${{ matrix.config.container != null }}" = true ]; then
             runner=(runuser -u rstudio --)
             pixi=/home/rstudio/.pixi/bin/pixi
