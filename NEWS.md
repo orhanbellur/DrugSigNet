@@ -2,6 +2,36 @@
 
 ## DrugSigNet 1.0.0
 
+### Match Pixi to the calling R session
+
+- Select the calling R major/minor series automatically, including R 4.4.0,
+  and verify DrugSigNet loads directly in the same R/RStudio session.
+- Detect C++ ABI incompatibilities in a host-R child process before activation.
+  Automatically install native host packages on macOS and incompatible Linux
+  hosts, avoiding Conda libR crashes and missing CXXABI symbols.
+- Keep host-native libraries isolated by R installation and ensure startup
+  profiles cannot mix macOS framework packages with Pixi R libraries.
+- Recreate the managed Pixi runtime when changing R series to remove packages
+  compiled for the previous R. Reject an unexpected R series before activation.
+- Match Apple Silicon Bioconductor setup to the selected R and keep R 4.4
+  plotting dependencies consistent with its dated CRAN snapshot.
+- Configure JNI headers, JVM library directories, and linker paths together
+  for the project JDK; host rJava builds retain JNI without optional JRI.
+- Reuse project Pandoc for host vignette builds. On Debian/Ubuntu, download
+  OS-matched native development files into user storage without installing
+  system packages or replacing libc, C++, or compiler runtimes.
+- Exercise native Pixi installation and same-session loading on Linux and
+  Apple Silicon with both R 4.4 and R 4.5.
+
+### Host R and Pixi installation
+
+- Retain install_host as a force-native option alongside automatic ABI
+  detection, while preserving the validated Pixi environment.
+- Use Bioconductor 3.20 with the 2025-04-30 CRAN snapshot for host R 4.4 and
+  persist a version-guarded host library in user and project startup profiles.
+- Explain where to run the Pixi launch command when host installation is omitted.
+- Add an exact R 4.4.0 CI job exercising host installation and full package checks.
+
 ### Apple Silicon Pixi installation
 
 - Provide macOS libintl development files and the arch utility for source

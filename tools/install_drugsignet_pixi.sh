@@ -56,6 +56,23 @@ case "${pixi_platform}" in
 esac
 echo "[DrugSigNet] Pixi target platform: ${pixi_platform}."
 
+# R entry points select the caller's ABI series. Standalone shell/container
+# installations retain the manifest default when no host R is specified.
+r_series="${DRUGSIGNET_PIXI_R_VERSION:-$(awk -F '\t' '$1 == "conda" && $2 ~ /^r-base=/ {sub(/^r-base=/, "", $2); print $2; exit}' "${manifest}")}"
+if [[ ! "${r_series}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: DRUGSIGNET_PIXI_R_VERSION must be an R major.minor series." >&2
+  exit 2
+fi
+echo "[DrugSigNet] Pixi R series: ${r_series} (matching the calling R when supplied)."
+# Bioconda's maintained build is R 4.5; R 4.4 also has legacy x86 builds.
+# Other series and ARM platforms obtain R/Bioconductor dependencies from source.
+source_r_deps=false
+if [[ "${pixi_platform}" == "osx-arm64" || "${pixi_platform}" == "linux-aarch64" || ( "${r_series}" != "4.4" && "${r_series}" != "4.5" ) ]]; then
+  source_r_deps=true
+fi
+
+
+
 # Conda's macOS compilers need the host SDK headers (not supplied by Pixi).
 # Persist the SDK in Pixi activation so --clean-env does not discard it.
 macos_sdk=""
@@ -72,6 +89,13 @@ case "${pixi_platform}" in
     ;;
 esac
 
+# Recent Boost.Math headers require C++14, including packages that still
+# request CXX11. Keep this compatibility setting inside the managed project.
+if [[ "${r_series}" == "4.4" ]]; then
+  mkdir -p "${project_dir}/.R"
+  printf '%s\n' 'CXX11STD = -std=gnu++14' > "${project_dir}/.R/Makevars-r44"
+fi
+
 pixi_toml="${project_dir}/pixi.toml"
 {
   printf '%s\n' \
@@ -81,14 +105,19 @@ pixi_toml="${project_dir}/pixi.toml"
     "platforms = [\"${pixi_platform}\"]" \
     '' \
     '[dependencies]'
-  awk -F '\t' -v platform="${pixi_platform}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
+  awk -F '\t' -v platform="${pixi_platform}" -v r_series="${r_series}" -v source_r_deps="${source_r_deps}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
-    if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
+    if (source_r_deps == "true" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
+    # New R releases can precede CRAN-feedstock migrations (e.g. wordcloud).
+    if (r_series != "4.4" && r_series != "4.5" && $2 ~ /^r-/ && $2 !~ /^r-base=/) next
+    if (r_series != "4.5" && $2 == "r-boutroslabplottinggeneral") next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
     }
+    if (name == "r-base") version = r_series ".*"
+    if (r_series == "4.4" && name == "r-ggplot2") version = "<4"
     printf "\"%s\" = \"%s\"\n", name, version
   }' "${manifest}"
   printf '%s\n' '' '[pypi-dependencies]'
@@ -102,6 +131,9 @@ pixi_toml="${project_dir}/pixi.toml"
   # rJava configure prefers JAVA_HOME from the process environment over
   # R's javareconf settings. Always bind it to the project OpenJDK.
   printf '\n[activation.env]\nJAVA_HOME = "%s/.pixi/envs/default/lib/jvm"\n' "${project_dir}"
+  if [[ "${r_series}" == "4.4" ]]; then
+    printf 'R_MAKEVARS_USER = "%s/.R/Makevars-r44"\n' "${project_dir}"
+  fi
   if [[ -n "${macos_sdk}" ]]; then
     printf 'SDKROOT = "%s"\nCONDA_BUILD_SYSROOT = "%s"\n' "${macos_sdk}" "${macos_sdk}"
   fi
@@ -143,7 +175,8 @@ cat > "${project_dir}/.Rprofile" <<EOF
 local({
   pixi_library <- "${project_dir}/.pixi/envs/default/lib/R/library"
   version_file <- "${project_dir}/.pixi/envs/default/.drugsignet-r-version"
-  if (dir.exists(pixi_library) && file.exists(version_file)) {
+  pixi_home <- "${project_dir}/.pixi/envs/default/lib/R"
+  if (identical(normalizePath(R.home(), mustWork = FALSE), normalizePath(pixi_home, mustWork = FALSE)) && dir.exists(pixi_library) && file.exists(version_file)) {
     runtime_version <- readLines(version_file, warn = FALSE, n = 1L)
     host_minor <- strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2]
     runtime_minor <- if (length(runtime_version)) strsplit(runtime_version, ".", fixed = TRUE)[[1L]][1:2] else character()
@@ -157,8 +190,12 @@ EOF
 echo "[DrugSigNet] Resolving and installing the Pixi runtime."
 post_link_marker="${project_dir}/.pixi/.drugsignet-post-link-enabled"
 runtime_prefix="${project_dir}/.pixi/envs/default"
-if [[ -d "${runtime_prefix}" && ! -f "${post_link_marker}" ]]; then
-  echo "[DrugSigNet] Recreating the existing Pixi runtime once to enable required Bioconductor post-link scripts."
+previous_r=""
+if [[ -f "${runtime_prefix}/.drugsignet-r-version" ]]; then
+  previous_r="$(awk -F . 'NR == 1 { print $1 "." $2 }' "${runtime_prefix}/.drugsignet-r-version")"
+fi
+if [[ -d "${runtime_prefix}" && ( ! -f "${post_link_marker}" || "${previous_r}" != "${r_series}" ) ]]; then
+  echo "[DrugSigNet] Recreating the project runtime for the requested R series and required post-link scripts."
   rm -rf "${runtime_prefix}"
 fi
 (
@@ -220,51 +257,117 @@ pixi_clean_run() {
 
 echo "[DrugSigNet] Downloading ${package_ref} with Git (pak metadata resolution is skipped)."
 pixi_clean_run git "${clone_args[@]}"
+# Retain exactly the source revision used for this runtime for host-native R.
+pixi_clean_run git -C "${source_dir}" archive --format=tar.gz --prefix=DrugSigNet/ \
+  --output="${project_dir}/DrugSigNet-source.tar.gz" HEAD
 
-# Use the Bioconductor release matching the maintained Pixi R 4.5 runtime.
+
+# R 4.4/Bioconductor 3.20 need a coherent plotting generation, including
+# serialized ggproto defaults. Rebuild extensions against the selected ggplot2.
+if [[ "${r_series}" == "4.4" ]]; then
+  pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
+options(repos = c(CRAN = "https://packagemanager.posit.co/cran/2025-04-30"))
+install.packages(c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph",
+                   "BoutrosLab.plotting.general"), type = "source")
+required <- c("ggplot2", "ggforce", "ggrepel", "ggalluvial", "ggraph", "BoutrosLab.plotting.general")
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing) || packageVersion("ggplot2") >= "4.0.0") {
+  stop("The R 4.4 plotting stack could not be configured consistently.")
+}
+RSCRIPT
+  pixi_clean_run Rscript --vanilla "${source_dir}/.github/scripts/check-r44-plotting.R"
+elif [[ "${r_series}" != "4.5" ]]; then
+  pixi_clean_run Rscript --vanilla - "${source_dir}/DESCRIPTION" <<'RSCRIPT'
+options(repos = c(CRAN = "https://cloud.r-project.org"), timeout = 1200)
+# r-base alone omits recommended packages; install codetools before compiling
+# packages that use its code checks during lazy loading.
+install.packages("codetools", type = "source")
+stopifnot(requireNamespace("codetools", quietly = TRUE))
+imports <- read.dcf(commandArgs(trailingOnly = TRUE)[[1L]], fields = "Imports")[[1L]]
+core <- trimws(sub("\\s*\\(.*$", "", strsplit(imports, ",", fixed = TRUE)[[1L]]))
+required <- unique(c(core, "BiocManager", "pak", "knitr", "rmarkdown", "BoutrosLab.plotting.general",
+                     "ggforce", "ggalluvial", "wordcloud"))
+required <- setdiff(required, rownames(installed.packages(priority = "base")))
+install.packages(required, type = "source")
+missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) stop("CRAN dependencies missing for the selected R series: ", paste(missing, collapse = ", "))
+RSCRIPT
+fi
+
+# Use the Bioconductor release associated with the selected Pixi R series.
 # Run before building vignettes: they load signatureSearch as well.
-if [[ "${pixi_platform}" == "osx-arm64" ]]; then
-  echo "[DrugSigNet] Configuring Pixi Java and installing Apple Silicon R dependencies."
+if [[ "${source_r_deps}" == true ]]; then
+  echo "[DrugSigNet] Configuring Pixi Java and source R dependencies for ${pixi_platform}, R ${r_series}."
   [[ -x "${runtime_prefix}/lib/jvm/bin/java" ]] || {
     echo "ERROR: Pixi OpenJDK is missing from ${runtime_prefix}/lib/jvm." >&2
     exit 1
   }
   # Embed the JVM search path; macOS system shells can strip DYLD_* vars.
-  pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm" \
-    JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm"
+  # javareconf evals assignment arguments, so pass multiword flags via env.
+  jni_platform=linux
+  [[ "${pixi_platform}" == osx-* ]] && jni_platform=darwin
+  pixi_clean_run env JAVA_HOME="${runtime_prefix}/lib/jvm" \
+    JAVA_CPPFLAGS="-I${runtime_prefix}/lib/jvm/include -I${runtime_prefix}/lib/jvm/include/${jni_platform}" \
+    JAVA_LD_LIBRARY_PATH="${runtime_prefix}/lib/jvm/lib/server" \
+    JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm" \
+    R CMD javareconf
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
-options(repos = c(CRAN = "https://cloud.r-project.org"))
+r_series <- paste(strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2], collapse = ".")
+cran <- if (r_series == "4.4") "https://packagemanager.posit.co/cran/2025-04-30" else "https://cloud.r-project.org"
+options(repos = c(CRAN = cran))
 expected_java <- normalizePath(file.path(R.home(), "..", "jvm"), mustWork = TRUE)
 actual_java <- normalizePath(Sys.getenv("JAVA_HOME"), mustWork = TRUE)
 if (!identical(actual_java, expected_java)) {
   stop("Pixi Java isolation failed: JAVA_HOME must point to ", expected_java)
 }
 message("Using project OpenJDK: ", actual_java)
-if (getRversion() < "4.5" || getRversion() >= "4.6") {
-  stop("The Apple Silicon Pixi bootstrap expects R 4.5 and Bioconductor 3.22.")
+bioc_version <- if (r_series == "4.4") "3.20" else as.character(BiocManager::version())
+message("Using Pixi R ", getRversion(), " with Bioconductor ", bioc_version)
+# Conda activation can rewrite javaconf for every R invocation. Configure rJava
+# directly so its JNI executable and installed DLL retain the project JVM rpath.
+if (!requireNamespace("rJava", quietly = TRUE)) {
+  platform <- if (Sys.info()[["sysname"]] == "Darwin") "darwin" else "linux"
+  variables <- c(JAVA_HOME = actual_java,
+    JAVA = file.path(actual_java, "bin", "java"),
+    JAVAC = file.path(actual_java, "bin", "javac"),
+    JAR = file.path(actual_java, "bin", "jar"),
+    JAVA_CPPFLAGS = paste0("-I", file.path(actual_java, c("include", paste0("include/", platform))), collapse = " "),
+    JAVA_LIBS = paste0("-L", actual_java, "/lib/server -Wl,-rpath,", actual_java, "/lib/server -ljvm"))
+  configure <- paste(paste0(names(variables), "=", vapply(variables, shQuote, character(1))), collapse = " ")
+  install.packages("rJava", type = "source", configure.vars = configure,
+                   configure.args = "--disable-jri")
 }
+if (!requireNamespace("rJava", quietly = TRUE)) stop("Project JNI installation failed; inspect rJava configure diagnostics.")
 cran_required <- c("fingerprint", "rcdk", "gdtools")
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(cran_missing)) install.packages(cran_missing)
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(cran_missing)) {
-  stop("Apple Silicon CRAN installation failed: ", paste(cran_missing, collapse = ", "))
+  stop("Pixi CRAN installation failed: ", paste(cran_missing, collapse = ", "))
 }
 # Exercise rJava/CDK as well as namespace loading before claiming success.
 molecule <- rcdk::parse.smiles("CCO")[[1L]]
 fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
 if (!inherits(fingerprint, "fingerprint")) {
-  stop("Apple Silicon CDK fingerprint validation failed.")
+  stop("Pixi CDK fingerprint validation failed.")
+}
+# BH 1.87 from the R 4.4 snapshot has an invalid interprocess template
+# expression rejected by Clang 21. BH 1.90 contains the upstream correction.
+if (r_series == "4.4" && (!requireNamespace("BH", quietly = TRUE) || packageVersion("BH") < "1.90.0")) {
+  install.packages("BH", repos = "https://cloud.r-project.org", type = "source")
+}
+if (r_series == "4.4" && (!requireNamespace("BH", quietly = TRUE) || packageVersion("BH") < "1.90.0")) {
+  stop("Pixi R 4.4 requires BH >= 1.90 for the selected Clang compiler.")
 }
 required <- c("signatureSearch", "signatureSearchData")
-BiocManager::install(version = "3.22", ask = FALSE, update = FALSE)
+BiocManager::install(version = bioc_version, ask = FALSE, update = FALSE)
 missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing)) {
-  BiocManager::install(missing, version = "3.22", ask = FALSE, update = FALSE)
+  BiocManager::install(missing, version = bioc_version, ask = FALSE, update = FALSE)
 }
 missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing)) {
-  stop("Apple Silicon Bioconductor installation failed: ", paste(missing, collapse = ", "))
+  stop("Pixi Bioconductor installation failed: ", paste(missing, collapse = ", "))
 }
 RSCRIPT
 fi
@@ -278,6 +381,7 @@ if [[ "${DRUGSIGNET_BUILD_VIGNETTES:-false}" =~ ^(1|true|TRUE|yes|YES|on|ON)$ ]]
   )
   install_source="$(find "${install_work}" -maxdepth 1 -name 'DrugSigNet_*.tar.gz' -print -quit)"
   [[ -n "${install_source}" ]] || { echo "ERROR: R CMD build did not create a package archive." >&2; exit 1; }
+  cp "${install_source}" "${project_dir}/DrugSigNet-source.tar.gz"
 else
   echo "[DrugSigNet] Installing DrugSigNet directly (vignette rebuild disabled)."
 fi

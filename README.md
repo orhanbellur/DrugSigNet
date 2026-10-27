@@ -37,7 +37,7 @@ For a first test run, set `run_drug_annotation = FALSE` and `run_visualization =
 
 ## Installation
 
-DrugSigNet requires **R 4.4.0 or newer**. Choose an installation method based on your environment. Use Bioconductor 3.20 with R 4.4, or Bioconductor 3.22 with R 4.5. The default Pixi/container runtime remains on R 4.5. The maintained dependency manifest is [`tools/runtime-dependencies.tsv`](tools/runtime-dependencies.tsv).
+DrugSigNet requires **R 4.4.0 or newer**. Choose an installation method based on your environment. Use Bioconductor 3.20 with R 4.4, or Bioconductor 3.22 with R 4.5. The R Pixi installer matches the calling R major/minor series; standalone shell/container installations default to R 4.5. The maintained dependency manifest is [`tools/runtime-dependencies.tsv`](tools/runtime-dependencies.tsv).
 
 | Environment | Recommended method | Notes |
 |---|---|---|
@@ -50,7 +50,7 @@ DrugSigNet requires **R 4.4.0 or newer**. Choose an installation method based on
 The Pixi installer creates a reproducible project with its own R, Python, native libraries, and lock file, without requiring sudo. Run in R (including RStudio):
 
 ```r
-branch <- "codex/support-r-44"
+branch <- "codex/pixi-host-r44-install"
 source(paste0(
   "https://raw.githubusercontent.com/orhanbellur/DrugSigNet/",
   branch, "/install-pixi.R"
@@ -65,9 +65,64 @@ The installer provisions the environment, installs DrugSigNet, and validates it.
 
 Native macOS Pixi installs require Xcode Command Line Tools (`xcode-select --install`). The installer detects the macOS SDK and preserves its header path in Pixi activation for source package compilation.
 
-On Apple Silicon Macs, the installer obtains `signatureSearch` and `signatureSearchData` through Bioconductor 3.22 using the project's R 4.5, because Bioconda does not provide these packages for `osx-arm64`. The installer also obtains `rcdk` and its `fingerprint` dependency through CRAN, configures the project's OpenJDK for R, and validates a CDK fingerprint calculation. These steps require internet access and may compile R dependencies. These R installations are outside `pixi.lock`; retain the printed installation logs and package versions when reproducing an analysis. The R version used to launch the installer does not change the project's R version.
+The installer selects the calling R **major/minor series** automatically: R
+4.4.0 selects Pixi R 4.4.x; R 4.5 selects Pixi R 4.5.x. Pixi can select a newer
+patch release within that series. It does not replace the R executable running
+inside RStudio. The installer validates the runtime and checks native-library compatibility
+before activating packages in the current session. On macOS, and on Linux
+hosts with an older C++ runtime, it automatically installs a native package
+library for the existing R rather than loading incompatible Conda DLLs.
+It then verifies that DrugSigNet loads in the original R process.
+After the installation call above, run directly in the **same R console**:
 
-The installer configures library access only when the caller and Pixi use the same R major/minor version. If you launch it from R 4.4 while Pixi uses R 4.5, installation still completes in Pixi; start the Pixi R command printed by the installer to run the analysis. Opening the generated RStudio project alone does not change the R executable. Restart R if a different Python interpreter was already initialized, and retain the generated `.pixi/` directory and lock file for reproducibility.
+```r
+library(DrugSigNet)
+```
+
+No second RStudio session or Terminal command is needed for normal use. User
+and project startup profiles preserve the selection for the matching R
+installation, keeping native host libraries out of Pixi R and vice versa. The installer recreates its managed runtime when changing R series so
+packages compiled for the previous R are not retained. Keep user data outside
+`.pixi/envs/default`, which is an installer-managed directory.
+
+On Apple Silicon Macs, `signatureSearch`/`signatureSearchData` are installed from
+Bioconductor inside the selected Pixi R because Bioconda does not provide them
+for `osx-arm64`. R 4.4 uses Bioconductor 3.20 and the 2025-04-30 CRAN snapshot;
+R 4.5 uses Bioconductor 3.22; newer R series select their matching release
+through BiocManager. The installer configures project OpenJDK, installs
+`rcdk`/`fingerprint` from CRAN, and validates a CDK fingerprint calculation.
+R series other than 4.5 obtain `BoutrosLab.plotting.general` from CRAN because
+its available Conda build requires R 4.5. Newer R series also obtain Bioconductor
+packages from source instead of selecting binaries for an older R. Its plotting extensions are rebuilt against the same dated CRAN snapshot to
+avoid incompatible serialized ggplot2 defaults. For R 4.4 source builds on Apple Silicon, BH >= 1.90 supplies the upstream
+Boost header fix required by Clang 21; a project-local Makevars file provides
+C++14 for older packages requesting C++11. These source installations are
+outside `pixi.lock`; keep the printed package versions for reproducibility.
+
+A compatible R series and dependencies must be available in the configured
+Conda channels. An unavailable combination produces an installation error;
+the installer does not substitute a different R series. Package support for
+R >= 4.4.0 and availability of external Pixi packages are separate requirements.
+
+Native host packages are stored under
+`~/R/DrugSigNet/<major.minor>/<R-installation-key>/library` (override with
+`host_library`). Official macOS R uses native CRAN/Bioconductor binaries where
+available; source-only dependencies use the host R toolchain. A compatible
+compiler and native development libraries are needed when binaries are absent,
+and host vignette builds reuse the project's Pandoc. Native `rJava` includes the JNI support
+used by CDK; its optional Java-to-R embedding component (JRI) is not built.
+On Debian/Ubuntu, missing native development files are downloaded from the
+host OS repositories and unpacked into a user-owned `native-sdk` beside the
+host R library. This uses `apt-get download` and `dpkg-deb --extract`; no
+system packages are installed and no administrator access is needed. The SDK
+excludes libc, the C++ runtime, and compiler runtimes, preserving the libraries
+already loaded by RStudio. Keep this directory with the native R library.
+A host compiler and the standard apt/dpkg tools must already be available.
+
+`install_host = TRUE` can force this
+route, but ABI incompatibilities select it automatically. No manual flag or
+additional interactive R session is required. The source archive used by Pixi
+is retained in the project so the host copy uses the same DrugSigNet revision.
 
 ### Standard R installation
 

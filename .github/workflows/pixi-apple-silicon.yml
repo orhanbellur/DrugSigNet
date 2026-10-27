@@ -1,4 +1,4 @@
-name: Pixi Apple Silicon installation
+name: Pixi host R compatibility
 on:
   push:
     branches: [codex/fix-pixi-apple-silicon]
@@ -9,12 +9,101 @@ on:
       - tools/runtime-dependencies.tsv
       - tools/test_installation.R
       - .github/workflows/pixi-apple-silicon.yml
+      - .github/scripts/check-r44-plotting.R
+      - .github/scripts/check-rootless-host-sdk.R
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: pixi-host-r-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
+  cancel-obsolete-installations:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+      pull-requests: read
+    steps:
+      # Also clear runs created before this workflow had a concurrency group.
+      - uses: actions/github-script@v8
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: pr } = await github.rest.pulls.get({owner, repo, pull_number: context.issue.number});
+            if (pr.head.sha !== context.payload.pull_request.head.sha) return;
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner, repo, branch: pr.head.ref, per_page: 100
+            });
+            for (const run of runs) {
+              if (['Pixi host R compatibility', 'DrugSigNet cross-platform check'].includes(run.name) &&
+                  run.id !== context.runId && run.head_sha !== pr.head.sha && run.status !== 'completed') {
+                core.info(`Cancel obsolete installer run ${run.id} (${run.head_sha})`);
+                try {
+                  await github.rest.actions.cancelWorkflowRun({owner, repo, run_id: run.id});
+                } catch (error) {
+                  if (error.status !== 409) throw error;
+                  core.info(`Run ${run.id} already finished before cancellation.`);
+                }
+              }
+            }
+  rootless-native-sdk:
+    needs: cancel-obsolete-installations
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    container: rocker/rstudio:4.4.0
+    env:
+      DRUGSIGNET_CI_PROJECT_ROOT: /home/rstudio/drugsignet-ci
+    steps:
+      - name: Provide download tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates git
+      - uses: actions/checkout@v4
+      - name: Build and load the native SDK as an unprivileged R 4.4.0 user
+        shell: bash
+        run: |
+          set -o pipefail
+          runuser -u rstudio -- bash -s <<'SCRIPT' 2>&1 | tee "$RUNNER_TEMP/rootless-sdk.log"
+          set -euo pipefail
+          curl -fsSL --retry 3 https://pixi.sh/install.sh | bash
+          project="$DRUGSIGNET_CI_PROJECT_ROOT/sdk-tools"
+          mkdir -p "$project"
+          cat > "$project/pixi.toml" <<'MANIFEST'
+          [workspace]
+          name = "drugsignet-sdk-tools"
+          channels = ["conda-forge"]
+          platforms = ["linux-64"]
+          [dependencies]
+          pkg-config = "*"
+          MANIFEST
+          "$HOME/.pixi/bin/pixi" install --manifest-path "$project/pixi.toml"
+          Rscript .github/scripts/check-rootless-host-sdk.R
+          SCRIPT
+      - name: Preserve native SDK diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootless-native-sdk
+          path: ${{ runner.temp }}/rootless-sdk.log
+          retention-days: 7
   install:
-    runs-on: macos-14
+    needs: cancel-obsolete-installations
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: macos-14, r: '4.4.3'}
+          - {os: macos-14, r: '4.5.3'}
+          - {os: ubuntu-24.04, r: '4.4.0'}
+          - {os: ubuntu-24.04, r: '4.5.3'}
+          - {os: ubuntu-24.04, r: '4.6.1'}
+          - {os: ubuntu-24.04, r: '4.4.0', container: 'rocker/rstudio:4.4.0'}
+    name: ${{ matrix.config.container || matrix.config.os }} / host R ${{ matrix.config.r }}
+    runs-on: ${{ matrix.config.os }}
+    container: ${{ matrix.config.container }}
     timeout-minutes: 180
     env:
       DRUGSIGNET_AUTO_INSTALL_PYTHON: 'false'
@@ -22,29 +111,106 @@ jobs:
       DRUGSIGNET_SKIP_RUNTIME_SETUP: 'true'
       DRUGSIGNET_CI_REF: ${{ github.head_ref || github.ref_name }}
       RETICULATE_USE_MANAGED_VENV: 'no'
+      DRUGSIGNET_CI_PROJECT_ROOT: ${{ matrix.config.container != null && '/home/rstudio/drugsignet-ci' || '' }}
     steps:
+      - name: Provide container bootstrap tools
+        if: ${{ matrix.config.container != null }}
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates git
       - uses: actions/checkout@v4
-      - name: Verify Apple Silicon runner
-        run: test "$(uname -m)" = arm64
+      - name: Verify native runner architecture
+        run: |
+          if [ "$(uname -s)" = Darwin ]; then
+            test "$(uname -m)" = arm64
+          else
+            test "$(uname -m)" = x86_64
+          fi
       - uses: r-lib/actions/setup-r@v2
+        if: ${{ matrix.config.container == null }}
         with:
-          r-version: '4.4.3'
+          r-version: ${{ matrix.config.r }}
       - name: Install complete Pixi runtime and build vignettes
         # Exercise isolation from a host RStudio/Java setup as well.
         env:
           JAVA_HOME: ${{ runner.temp }}/host-java-must-not-leak
           R_JAVA_LD_LIBRARY_PATH: ${{ runner.temp }}/host-java-must-not-leak/lib/server
-        shell: Rscript {0}
+          DRUGSIGNET_EXPECT_NATIVE_HOST: ${{ matrix.config.container != null && 'true' || 'false' }}
+        shell: bash
         run: |
+          set -o pipefail
+          export DRUGSIGNET_CI_PROJECT_ROOT="${DRUGSIGNET_CI_PROJECT_ROOT:-$RUNNER_TEMP}"
+          script="$GITHUB_WORKSPACE/.drugsignet-pixi-host.R"
+          cat > "$script" <<'RSCRIPT'
           source("install-pixi.R")
+          host_r_home <- R.home()
+          rootless <- identical(Sys.getenv("DRUGSIGNET_EXPECT_NATIVE_HOST"), "true")
+          if (rootless) {
+            stopifnot(Sys.info()[["effective_user"]] != "root")
+            stopifnot(!file.exists("/usr/include/png.h"), !file.exists("/usr/include/zlib.h"))
+            system_packages <- tools::md5sum("/var/lib/dpkg/status")
+          }
+          # RStudio already has its host C++ runtime loaded before R packages.
+          system_cpp <- "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+          if (Sys.info()[["sysname"]] == "Linux" && file.exists(system_cpp)) {
+            dyn.load(system_cpp, local = FALSE)
+          }
+          project <- file.path(Sys.getenv("DRUGSIGNET_CI_PROJECT_ROOT"), "DrugSigNet-test")
           install_drugsignet_pixi(
             package_ref = paste0(Sys.getenv("GITHUB_REPOSITORY"), "@", Sys.getenv("DRUGSIGNET_CI_REF")),
-            project_dir = file.path(Sys.getenv("RUNNER_TEMP"), "DrugSigNet-test"),
+            project_dir = project,
             build_vignettes = TRUE,
             repository_root = "."
           )
+          # This is the same host R process that launched the installer.
+          stopifnot(identical(R.home(), host_r_home))
+          prefix <- file.path(project, ".pixi", "envs", "default")
+          version <- readLines(file.path(prefix, ".drugsignet-r-version"))
+          stopifnot(identical(.drugsignet_r_minor(version), .drugsignet_r_minor(getRversion())))
+          library(DrugSigNet)
+          selected <- normalizePath(dirname(getNamespaceInfo(asNamespace("DrugSigNet"), "path")))
+          shared <- normalizePath(file.path(prefix, "lib", "R", "library"))
+          native <- normalizePath(.drugsignet_default_host_library(), mustWork = FALSE)
+          stopifnot(selected %in% c(shared, native))
+          if (identical(selected, native)) stopifnot(!shared %in% normalizePath(.libPaths()))
+          if (identical(Sys.getenv("DRUGSIGNET_EXPECT_NATIVE_HOST"), "true")) {
+            stopifnot(identical(selected, native))
+            stopifnot(identical(tools::md5sum("/var/lib/dpkg/status"), system_packages))
+            stopifnot(!file.exists("/usr/include/png.h"), !file.exists("/usr/include/zlib.h"))
+          }
+          message("Host R home: ", R.home(), "; selected library: ", selected)
+          stopifnot(requireNamespace("signatureSearch", quietly = TRUE))
+          molecule <- rcdk::parse.smiles("CCO")[[1L]]
+          fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
+          stopifnot(inherits(fingerprint, "fingerprint"))
+          DrugSigNet::check_drugsignet_installation(check_python = FALSE, stop_on_error = TRUE)
+          if (.drugsignet_r_minor(getRversion()) == "4.4") {
+            source(".github/scripts/check-r44-plotting.R")
+          }
+          RSCRIPT
+          if [ "$DRUGSIGNET_EXPECT_NATIVE_HOST" = true ]; then
+              runuser -u rstudio -- Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
+          else
+            Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
+          fi
+      - name: Preserve installer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixi-install-${{ runner.os }}-r${{ matrix.config.r }}-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/drugsignet-pixi-install.log
+          retention-days: 7
       - name: Record installed R and Bioconductor versions
+        shell: bash
         run: |
-          env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
+          export DRUGSIGNET_CI_PROJECT_ROOT="${DRUGSIGNET_CI_PROJECT_ROOT:-$RUNNER_TEMP}"
+          if [ "${{ matrix.config.container != null }}" = true ]; then
+            runner=(runuser -u rstudio --)
+            pixi=/home/rstudio/.pixi/bin/pixi
+          else
+            runner=()
+            pixi="$HOME/.pixi/bin/pixi"
+          fi
+          "${runner[@]}" env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
             -u JAVA_HOME -u R_JAVA_LD_LIBRARY_PATH \
-            "$HOME/.pixi/bin/pixi" run --clean-env --manifest-path "$RUNNER_TEMP/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'
+            "$pixi" run --clean-env --manifest-path "$DRUGSIGNET_CI_PROJECT_ROOT/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'
