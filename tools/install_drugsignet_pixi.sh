@@ -279,6 +279,10 @@ RSCRIPT
 elif [[ "${r_series}" != "4.5" ]]; then
   pixi_clean_run Rscript --vanilla - "${source_dir}/DESCRIPTION" <<'RSCRIPT'
 options(repos = c(CRAN = "https://cloud.r-project.org"), timeout = 1200)
+# r-base alone omits recommended packages; install codetools before compiling
+# packages that use its code checks during lazy loading.
+install.packages("codetools", type = "source")
+stopifnot(requireNamespace("codetools", quietly = TRUE))
 imports <- read.dcf(commandArgs(trailingOnly = TRUE)[[1L]], fields = "Imports")[[1L]]
 core <- trimws(sub("\\s*\\(.*$", "", strsplit(imports, ",", fixed = TRUE)[[1L]]))
 required <- unique(c(core, "BiocManager", "pak", "knitr", "rmarkdown", "BoutrosLab.plotting.general",
@@ -299,8 +303,10 @@ if [[ "${source_r_deps}" == true ]]; then
     exit 1
   }
   # Embed the JVM search path; macOS system shells can strip DYLD_* vars.
-  pixi_clean_run R CMD javareconf JAVA_HOME="${runtime_prefix}/lib/jvm" \
-    JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm"
+  # javareconf evals assignment arguments, so pass multiword flags via env.
+  pixi_clean_run env JAVA_HOME="${runtime_prefix}/lib/jvm" \
+    JAVA_LIBS="-L${runtime_prefix}/lib/jvm/lib/server -Wl,-rpath,${runtime_prefix}/lib/jvm/lib/server -ljvm" \
+    R CMD javareconf
   pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
 r_series <- paste(strsplit(as.character(getRversion()), ".", fixed = TRUE)[[1L]][1:2], collapse = ".")
 cran <- if (r_series == "4.4") "https://packagemanager.posit.co/cran/2025-04-30" else "https://cloud.r-project.org"

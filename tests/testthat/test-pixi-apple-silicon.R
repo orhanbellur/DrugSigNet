@@ -35,6 +35,7 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
     writeLines(c(
       "#!/bin/bash", "set -eu",
       'printf "%s\\n" "$*" >> "$DRUGSIGNET_PIXI_PROJECT/calls"',
+      'if [[ "$*" == *"R CMD javareconf"* ]]; then printf "%s\\n" "$@" > "$DRUGSIGNET_PIXI_PROJECT/java-arguments"; fi',
       'if [[ "$1" == install ]]; then',
       '  bin="$DRUGSIGNET_PIXI_PROJECT/.pixi/envs/default/bin"',
       '  if [[ ! -d "$bin" ]]; then',
@@ -92,6 +93,8 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       extra <- paste(readLines(file.path(project, "boutros.R")), collapse = "\n")
       expect_match(extra, '"wordcloud"', fixed = TRUE)
       expect_match(extra, 'fields = "Imports"', fixed = TRUE)
+      expect_lt(as.integer(regexpr('install.packages("codetools"', extra, fixed = TRUE)),
+                as.integer(regexpr("install.packages(required", extra, fixed = TRUE)))
     }
     expect_identical(any(grepl("R_MAKEVARS_USER =", manifest, fixed = TRUE)), r_series == "4.4")
     if (r_series == "4.4") {
@@ -142,6 +145,12 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       expect_match(code, 'Pixi Java isolation failed:', fixed = TRUE)
       expect_match(code, 'stop("Pixi CRAN installation failed:', fixed = TRUE)
       calls <- readLines(file.path(project, "calls"))
+      java_args <- readLines(file.path(project, "java-arguments"))
+      expect_lt(which(java_args == "env"), which(java_args == "R"))
+      expect_identical(utils::tail(java_args, 3L), c("R", "CMD", "javareconf"))
+      flags <- grep("^JAVA_LIBS=", java_args, value = TRUE)
+      expect_length(flags, 1L)
+      expect_match(flags, " -Wl,-rpath,", fixed = TRUE)
       expect_lt(grep("R CMD javareconf", calls), utils::tail(grep("Rscript --vanilla -$", calls), 1L))
       expect_lt(utils::tail(grep("Rscript --vanilla -$", calls), 1L), grep("R CMD build", calls))
     }
