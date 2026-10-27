@@ -141,6 +141,8 @@ test_that("Pixi installs Apple Silicon Bioconductor packages before vignette bui
       expect_match(code, '"signatureSearchData"', fixed = TRUE)
       expect_match(code, 'stop("Pixi Bioconductor installation failed:', fixed = TRUE)
       expect_match(code, 'install.packages(cran_missing)', fixed = TRUE)
+      expect_match(code, 'install.packages("rJava", type = "source", configure.vars = configure', fixed = TRUE)
+      expect_match(code, 'JAVA_LIBS = paste0("-L", actual_java, "/lib/server -Wl,-rpath,"', fixed = TRUE)
       expect_match(code, 'rcdk::get.fingerprint', fixed = TRUE)
       expect_match(code, 'Pixi Java isolation failed:', fixed = TRUE)
       expect_match(code, 'stop("Pixi CRAN installation failed:', fixed = TRUE)

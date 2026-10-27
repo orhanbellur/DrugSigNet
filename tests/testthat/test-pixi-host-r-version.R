@@ -330,7 +330,7 @@ test_that("native Java configure variables use real compiler paths rather than l
   skip_if_not_installed("remotes")
   entry <- new.env(parent = globalenv())
   sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
-  entry$.drugsignet_check_host_build_dependencies <- function(...) invisible(TRUE)
+  entry$.drugsignet_prepare_host_sdk <- function(...) character()
   project <- tempfile("native-java-")
   dir.create(file.path(project, "bin"), recursive = TRUE)
   file.create(file.path(project, "bin", "pandoc"))
@@ -370,25 +370,99 @@ test_that("native Java configure variables use real compiler paths rather than l
 })
 
 
-test_that("native source prerequisites fail early without borrowing Conda headers", {
+test_that("missing native headers are detected without installing OS packages", {
   entry <- new.env(parent = globalenv())
   sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
   entry$Sys.which <- function(...) ""
-  expect_error(entry$.drugsignet_check_host_build_dependencies(character(), "Linux"),
-               "pkg-config libfontconfig1-dev")
-  expect_silent(entry$.drugsignet_check_host_build_dependencies(
-    c("systemfonts", "png", "XML", "XVector", "Rhdf5lib"), "Linux"))
-  expect_silent(entry$.drugsignet_check_host_build_dependencies(character(), "Darwin"))
+  expect_identical(entry$.drugsignet_missing_host_headers(character(), "Linux"),
+                   c("fontconfig", "freetype2", "libpng", "libxml-2.0", "zlib"))
+  expect_identical(entry$.drugsignet_missing_host_headers(
+    c("systemfonts", "png", "XML", "XVector", "Rhdf5lib"), "Linux"), character())
+  expect_identical(entry$.drugsignet_missing_host_headers(character(), "Darwin"), character())
   entry$Sys.which <- function(...) "/native/pkg-config"
-  modules <- character()
   entry$system2 <- function(command, args, ...) {
     expect_identical(command, "/native/pkg-config")
-    modules <<- c(modules, args[[2L]])
     if (grepl("libpng", args[[2L]], fixed = TRUE)) 1L else 0L
   }
-  expect_error(entry$.drugsignet_check_host_build_dependencies(character(), "Linux"),
-               "development headers: libpng\\.")
-  expect_length(modules, 5L)
-  entry$system2 <- function(...) 0L
-  expect_silent(entry$.drugsignet_check_host_build_dependencies(character(), "Linux"))
+  expect_identical(entry$.drugsignet_missing_host_headers(character(), "Linux"), "libpng")
+})
+
+test_that("native SDK dependency traversal excludes libc and compiler runtimes", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  graph <- list("libpng-dev" = c("libpng16-16", "zlib1g-dev", "libc6-dev", "<libc-dev>"),
+                "libpng16-16" = c("zlib1g", "libc6"),
+                "zlib1g-dev" = c("zlib1g", "libc6-dev"),
+                "zlib1g" = c("libgcc-s1", "libstdc++6", "libgfortran5", "libgomp1", "libc6"))
+  packages <- entry$.drugsignet_native_sdk_packages("libpng-dev", function(package) graph[[package]])
+  expect_setequal(packages, c("libpng-dev", "libpng16-16", "zlib1g-dev", "zlib1g"))
+  expect_identical(length(packages), length(unique(packages)))
+})
+
+test_that("the private native SDK downloads and extracts without OS installation", {
+  entry <- new.env(parent = globalenv())
+  sys.source(drugsignet_repository_file("install-pixi.R"), envir = entry)
+  project <- tempfile("rootless-sdk-")
+  prefix <- file.path(project, "pixi")
+  host <- file.path(project, "host", "library")
+  dir.create(file.path(prefix, "bin"), recursive = TRUE)
+  file.create(file.path(prefix, "bin", "pkg-config"))
+  dir.create(host, recursive = TRUE)
+  on.exit(unlink(project, recursive = TRUE), add = TRUE)
+  withr::local_envvar(c(PATH = Sys.getenv("PATH"), CPATH = NA, LIBRARY_PATH = NA,
+    CPPFLAGS = NA, LDFLAGS = NA, PKG_CONFIG_PATH = NA, PKG_CONFIG_LIBDIR = NA,
+    PKG_CONFIG_SYSROOT_DIR = NA))
+  original_directory <- getwd()
+  unpacked <- FALSE
+  calls <- list()
+  entry$.drugsignet_missing_host_headers <- function(...) {
+    if (unpacked && nzchar(Sys.getenv("PKG_CONFIG_SYSROOT_DIR"))) character() else "libpng"
+  }
+  entry$Sys.which <- function(commands) setNames(paste0("/native/", commands), commands)
+  entry$file.exists <- function(path) ifelse(path %in% c("/etc/os-release", "/etc/apt/sources.list"), TRUE, base::file.exists(path))
+  entry$readLines <- function(con, ...) {
+    if (identical(con, "/etc/os-release")) return(c("ID=ubuntu", 'VERSION_ID="22.04"'))
+    base::readLines(con, ...)
+  }
+  entry$file.copy <- function(from, to, ...) {
+    writeLines("deb https://archive.ubuntu.com/ubuntu jammy main", to)
+    TRUE
+  }
+  entry$file.symlink <- function(from, to) { writeLines(from, to); TRUE }
+  entry$system2 <- function(command, args, stdout = NULL, ...) {
+    if (endsWith(command, "/dpkg")) return("amd64")
+    calls[[length(calls) + 1L]] <<- list(command = command, args = args)
+    if (endsWith(command, "/apt-cache")) {
+      writeLines(if ("policy" %in% args) "  Candidate: 1.0" else "  Depends: libc6", stdout)
+    } else if (endsWith(command, "/apt-get")) {
+      if ("download" %in% args) file.create("native-files_1.0_amd64.deb")
+      writeLines("Downloaded", stdout)
+    } else if (endsWith(command, "/dpkg-deb")) {
+      expect_identical(args[[1L]], "--extract")
+      root <- Sys.getenv("PKG_CONFIG_SYSROOT_DIR")
+      dir.create(file.path(root, "usr", "bin"), recursive = TRUE)
+      writeLines(c("#!/bin/sh", "prefix=/usr", 'echo /usr/include/libpng16'),
+                 file.path(root, "usr", "bin", "libpng-config"))
+      unpacked <<- TRUE
+      writeLines("Extracted", stdout)
+    }
+    0L
+  }
+  settings <- entry$.drugsignet_prepare_host_sdk(prefix, host)
+  expect_identical(getwd(), original_directory)
+  expect_true(any(grepl("-Wl,-rpath,", settings, fixed = TRUE)))
+  expect_true(all(vapply(calls, function(call) !any(call$args %in% c("install", "sudo")), logical(1))))
+  apt <- Filter(function(call) endsWith(call$command, "/apt-get"), calls)
+  expect_identical(length(apt), 2L)
+  expect_true(any(apt[[1L]]$args == "update"))
+  expect_true(any(apt[[2L]]$args == "download"))
+  expect_true(any(grepl("Dir::State=", apt[[1L]]$args, fixed = TRUE)))
+  expect_true(any(grepl("Dir::Cache=", apt[[1L]]$args, fixed = TRUE)))
+  root <- Sys.getenv("PKG_CONFIG_SYSROOT_DIR")
+  tools <- file.path(root, "tools")
+  expect_setequal(list.files(tools), c("pkg-config", "libpng-config"))
+  expect_identical(readLines(file.path(tools, "libpng-config"))[[1L]], "#!/bin/sh")
+  expect_match(readLines(file.path(tools, "libpng-config"))[[3L]],
+               file.path(root, "usr", "include"), fixed = TRUE)
+  expect_true(file.exists(file.path(root, ".ready")))
 })

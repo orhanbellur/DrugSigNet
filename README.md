@@ -111,16 +111,14 @@ available; source-only dependencies use the host R toolchain. A compatible
 compiler and native development libraries are needed when binaries are absent,
 and host vignette builds reuse the project's Pandoc. Native `rJava` includes the JNI support
 used by CDK; its optional Java-to-R embedding component (JRI) is not built.
-On Debian/Ubuntu hosts that need source builds, an administrator can provide the
-headers once before retrying the same R session:
+On Debian/Ubuntu, missing native development files are downloaded from the
+host OS repositories and unpacked into a user-owned `native-sdk` beside the
+host R library. This uses `apt-get download` and `dpkg-deb --extract`; no
+system packages are installed and no administrator access is needed. The SDK
+excludes libc, the C++ runtime, and compiler runtimes, preserving the libraries
+already loaded by RStudio. Keep this directory with the native R library.
+A host compiler and the standard apt/dpkg tools must already be available.
 
-```sh
-sudo apt-get update
-sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype6-dev libpng-dev libxml2-dev zlib1g-dev
-```
-
-The installer reports missing host headers before the full dependency build;
-it does not install OS packages or replace the active C++ runtime.
 `install_host = TRUE` can force this
 route, but ABI incompatibilities select it automatically. No manual flag or
 additional interactive R session is required. The source archive used by Pixi

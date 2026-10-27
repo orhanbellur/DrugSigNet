@@ -323,6 +323,21 @@ if (!identical(actual_java, expected_java)) {
 message("Using project OpenJDK: ", actual_java)
 bioc_version <- if (r_series == "4.4") "3.20" else as.character(BiocManager::version())
 message("Using Pixi R ", getRversion(), " with Bioconductor ", bioc_version)
+# Conda activation can rewrite javaconf for every R invocation. Configure rJava
+# directly so its JNI executable and installed DLL retain the project JVM rpath.
+if (!requireNamespace("rJava", quietly = TRUE)) {
+  platform <- if (Sys.info()[["sysname"]] == "Darwin") "darwin" else "linux"
+  variables <- c(JAVA_HOME = actual_java,
+    JAVA = file.path(actual_java, "bin", "java"),
+    JAVAC = file.path(actual_java, "bin", "javac"),
+    JAR = file.path(actual_java, "bin", "jar"),
+    JAVA_CPPFLAGS = paste0("-I", file.path(actual_java, c("include", paste0("include/", platform))), collapse = " "),
+    JAVA_LIBS = paste0("-L", actual_java, "/lib/server -Wl,-rpath,", actual_java, "/lib/server -ljvm"))
+  configure <- paste(paste0(names(variables), "=", vapply(variables, shQuote, character(1))), collapse = " ")
+  install.packages("rJava", type = "source", configure.vars = configure,
+                   configure.args = "--disable-jri")
+}
+if (!requireNamespace("rJava", quietly = TRUE)) stop("Project JNI installation failed; inspect rJava configure diagnostics.")
 cran_required <- c("fingerprint", "rcdk", "gdtools")
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(cran_missing)) install.packages(cran_missing)

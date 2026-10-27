@@ -27,29 +27,167 @@
   invisible(NULL)
 }
 
-# Source builds for the host R need host headers, not Conda's native libraries.
-.drugsignet_check_host_build_dependencies <- function(
+# Resolve only native library dependencies. Never introduce a different C/C++
+# runtime or compiler into the already running host R process.
+.drugsignet_native_sdk_packages <- function(roots, dependencies) {
+  queue <- roots
+  result <- character()
+  while (length(queue)) {
+    package <- queue[[1L]]
+    queue <- queue[-1L]
+    if (package %in% result) next
+    result <- c(result, package)
+    candidates <- dependencies(package)
+    valid <- grepl("^[a-z0-9][a-z0-9+.-]*(:[a-z0-9]+)?$", candidates)
+    libraries <- startsWith(candidates, "lib") | startsWith(candidates, "zlib") | grepl("-dev$", candidates)
+    core <- grepl("^(libc6|libc-bin|libc-dev-bin|linux-libc-dev|libgcc|libstdc\\+\\+|libgfortran|libgomp|libatomic|libquadmath|libasan|liblsan|libtsan|libubsan|libitm)", candidates)
+    queue <- unique(c(queue, candidates[valid & libraries & !core & !candidates %in% result]))
+  }
+  result
+}
+
+.drugsignet_missing_host_headers <- function(
     installed = rownames(utils::installed.packages(lib.loc = .libPaths())),
     system = Sys.info()[["sysname"]]) {
-  if (!identical(system, "Linux")) return(invisible(TRUE))
+  if (!identical(system, "Linux")) return(character())
   dependencies <- list(fontconfig = "systemfonts", freetype2 = "systemfonts",
                        libpng = "png", `libxml-2.0` = "XML",
                        zlib = c("XVector", "Rhdf5lib"))
   required <- names(dependencies)[!vapply(dependencies, function(packages) all(packages %in% installed), logical(1))]
-  if (!length(required)) return(invisible(TRUE))
   config <- Sys.which("pkg-config")
-  missing <- if (!nzchar(config)) required else required[vapply(required, function(module) {
+  if (!length(required) || !nzchar(config)) return(required)
+  required[vapply(required, function(module) {
     !identical(system2(config, c("--exists", shQuote(module)), stdout = FALSE, stderr = FALSE), 0L)
   }, logical(1))]
-  if (length(missing)) {
-    stop("Native host R source builds require development headers: ", paste(missing, collapse = ", "),
-         ". These must match the host OS; Pixi headers cannot safely replace them.",
-         "\nOn Debian/Ubuntu, ask the administrator to run:\n",
-         "sudo apt-get update && sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype6-dev libpng-dev libxml2-dev zlib1g-dev",
-         "\nThen rerun install_drugsignet_pixi() in the same R version. The Pixi runtime remains available.",
-         call. = FALSE)
+}
+
+# Download and unpack OS-matched development files in user storage. apt-get
+# download and dpkg-deb --extract do not install packages or run maintainer scripts.
+.drugsignet_prepare_host_sdk <- function(runtime_prefix, host_library) {
+  needed <- .drugsignet_missing_host_headers()
+  if (!length(needed)) return(character())
+  programs <- Sys.which(c("apt-get", "apt-cache", "dpkg", "dpkg-deb"))
+  if (any(!nzchar(programs)) || !file.exists("/etc/os-release")) {
+    stop("Automatic user-local native headers require Debian/Ubuntu apt and dpkg tools.", call. = FALSE)
   }
-  invisible(TRUE)
+  release <- readLines("/etc/os-release", warn = FALSE)
+  field <- function(name) {
+    value <- sub(paste0("^", name, "="), "", grep(paste0("^", name, "="), release, value = TRUE))
+    gsub('^"|"$', "", value)
+  }
+  id <- field("ID")
+  version <- field("VERSION_ID")
+  if (length(id) != 1L || !id %in% c("ubuntu", "debian") || length(version) != 1L || !grepl("^[0-9.]+$", version)) {
+    stop("Automatic user-local native headers currently support Debian and Ubuntu.", call. = FALSE)
+  }
+  arch <- system2(programs[["dpkg"]], "--print-architecture", stdout = TRUE)
+  if (length(arch) != 1L || !grepl("^[a-z0-9-]+$", arch)) stop("Cannot determine native Debian architecture.", call. = FALSE)
+  root <- file.path(dirname(host_library), "native-sdk", paste(id, version, arch, sep = "-"))
+  dir.create(root, recursive = TRUE, showWarnings = FALSE)
+  root <- normalizePath(root)
+  multiarch <- paste0(if (arch == "amd64") "x86_64" else if (arch == "arm64") "aarch64" else arch, "-linux-gnu")
+  libs <- c(file.path(root, "usr", "lib", multiarch), file.path(root, "usr", "lib"),
+            file.path(root, "lib", multiarch), file.path(root, "lib"))
+  bridge <- file.path(root, "tools")
+  dir.create(bridge, showWarnings = FALSE)
+  pkg_config <- file.path(runtime_prefix, "bin", "pkg-config")
+  if (!file.exists(pkg_config)) stop("The Pixi development runtime is missing pkg-config.", call. = FALSE)
+  link <- file.path(bridge, "pkg-config")
+  unlink(link)
+  if (!file.symlink(pkg_config, link)) stop("Cannot create the private pkg-config bridge.", call. = FALSE)
+  configure <- function() {
+    # Only private native-library tools precede PATH, never the Pixi R/compiler.
+    Sys.setenv(PATH = paste(bridge, Sys.getenv("PATH"), sep = .Platform$path.sep),
+      PKG_CONFIG_LIBDIR = paste(c(file.path(libs, "pkgconfig"), file.path(root, "usr", "share", "pkgconfig")), collapse = .Platform$path.sep),
+      PKG_CONFIG_PATH = "", PKG_CONFIG_SYSROOT_DIR = root)
+    include <- c(file.path(root, "usr", "include"), file.path(root, "usr", "include", basename(libs[[1L]])))
+    old_include <- Sys.getenv("CPATH")
+    old_library <- Sys.getenv("LIBRARY_PATH")
+    Sys.setenv(CPATH = paste(c(include, old_include[nzchar(old_include)]), collapse = .Platform$path.sep),
+      LIBRARY_PATH = paste(c(libs, old_library[nzchar(old_library)]), collapse = .Platform$path.sep))
+  }
+  configure()
+  ready <- file.path(root, ".ready")
+  if (!file.exists(ready) || length(.drugsignet_missing_host_headers())) {
+    apt <- file.path(root, "apt")
+    downloads <- file.path(apt, "downloads")
+    sources <- file.path(apt, "sources")
+    for (directory in c(downloads, sources, file.path(apt, "state", "lists", "partial"), file.path(apt, "cache", "archives", "partial"))) {
+      dir.create(directory, recursive = TRUE, showWarnings = FALSE)
+    }
+    available <- c("/etc/apt/sources.list", "/etc/apt/sources.list.d/ubuntu.sources", "/etc/apt/sources.list.d/debian.sources")
+    available <- available[file.exists(available)]
+    if (!length(available)) stop("No native Debian/Ubuntu repository definitions were found.", call. = FALSE)
+    for (source in available) {
+      target <- if (basename(source) == "sources.list") "host.list" else basename(source)
+      if (!file.copy(source, file.path(sources, target), overwrite = TRUE)) stop("Cannot copy native repository definitions.", call. = FALSE)
+    }
+    empty <- file.path(apt, "empty.list")
+    writeLines(character(), empty)
+    options <- c("-o", shQuote(paste0("Dir::State=", file.path(apt, "state"))),
+      "-o", "Dir::State::status=/var/lib/dpkg/status",
+      "-o", shQuote(paste0("Dir::Cache=", file.path(apt, "cache"))),
+      "-o", shQuote(paste0("Dir::Etc::sourcelist=", empty)),
+      "-o", shQuote(paste0("Dir::Etc::sourceparts=", sources)),
+      "-o", "Debug::NoLocking=1", "-o", "Acquire::Languages=none",
+      "-o", shQuote(paste0("APT::Sandbox::User=", Sys.info()[["effective_user"]])))
+    log <- file.path(apt, "download.log")
+    run <- function(command, args) {
+      status <- system2(command, args, stdout = log, stderr = log, env = "LC_ALL=C")
+      output <- readLines(log, warn = FALSE)
+      if (!identical(status, 0L)) stop("User-local native SDK preparation failed:\n", paste(utils::tail(output, 30L), collapse = "\n"), call. = FALSE)
+      output
+    }
+    message("Preparing OS-matched development files in ", root, "; no system package installation is performed.")
+    run(programs[["apt-get"]], c(options, "update"))
+    choose <- function(candidates) {
+      for (package in candidates) {
+        policy <- run(programs[["apt-cache"]], c(options, "policy", shQuote(package)))
+        if (any(grepl("^ *Candidate: ", policy) & !grepl("(none)", policy, fixed = TRUE))) return(package)
+      }
+      stop("No OS-matched development package is available: ", paste(candidates, collapse = ", "), call. = FALSE)
+    }
+    roots <- c(if ("fontconfig" %in% needed) choose(c("libfontconfig-dev", "libfontconfig1-dev")),
+      if ("freetype2" %in% needed) choose(c("libfreetype-dev", "libfreetype6-dev")),
+      if ("libpng" %in% needed) "libpng-dev", if ("libxml-2.0" %in% needed) "libxml2-dev",
+      if ("zlib" %in% needed) "zlib1g-dev")
+    packages <- .drugsignet_native_sdk_packages(roots,
+      function(package) {
+        output <- run(programs[["apt-cache"]], c(options, "depends", "--important", shQuote(package)))
+        output <- grep("^ *\\|?(Pre)?Depends:", output, value = TRUE)
+        trimws(sub("^ *\\|?(Pre)?Depends: *", "", output))
+      })
+    old_directory <- setwd(downloads)
+    on.exit(setwd(old_directory), add = TRUE)
+    unlink(list.files(downloads, pattern = "\\.deb$", full.names = TRUE))
+    run(programs[["apt-get"]], c(options, "download", vapply(packages, shQuote, character(1))))
+    archives <- list.files(downloads, pattern = "\\.deb$", full.names = TRUE)
+    if (!length(archives)) stop("No native development archives were downloaded.", call. = FALSE)
+    for (archive in archives) run(programs[["dpkg-deb"]], c("--extract", shQuote(archive), shQuote(root)))
+    # Relocate native *-config shell scripts (png/XML); .pc files instead use
+    # PKG_CONFIG_SYSROOT_DIR. No R or compiler executable is placed on PATH.
+    scripts <- list.files(file.path(root, "usr", "bin"), pattern = "-config$", full.names = TRUE)
+    for (script in scripts) {
+      lines <- readLines(script, warn = FALSE)
+      if (length(lines) && startsWith(lines[[1L]], "#!")) {
+        lines <- gsub("/usr/include", file.path(root, "usr", "include"), lines, fixed = TRUE)
+        lines <- gsub("/usr/lib", file.path(root, "usr", "lib"), lines, fixed = TRUE)
+        lines[grepl("^prefix=", lines)] <- paste0("prefix=", shQuote(file.path(root, "usr")))
+        replace_exec <- grepl("^exec_prefix=", lines) & grepl("/usr", lines, fixed = TRUE)
+        lines[replace_exec] <- paste0("exec_prefix=", shQuote(file.path(root, "usr")))
+        target <- file.path(bridge, basename(script))
+        writeLines(lines, target)
+        Sys.chmod(target, "0755")
+      }
+    }
+    missing <- .drugsignet_missing_host_headers()
+    if (length(missing)) stop("The user-local native SDK is incomplete (", paste(missing, collapse = ", "), "); see ", log, call. = FALSE)
+    writeLines(packages, ready)
+  }
+  flags <- paste(paste0("-L", libs), paste0("-Wl,-rpath,", libs), collapse = " ")
+  Sys.setenv(CPPFLAGS = paste(paste0("-I", file.path(root, "usr", "include")), Sys.getenv("CPPFLAGS")),
+             LDFLAGS = paste(flags, Sys.getenv("LDFLAGS")))
+  c(paste0("CPPFLAGS += -I", file.path(root, "usr", "include")), paste0("LDFLAGS += ", flags))
 }
 
 # Probe foreign native libraries in a child of the HOST R, never in the live
@@ -115,7 +253,9 @@
   }
   old_options <- options()
   old_environment <- Sys.getenv(c("CONDA_PREFIX", "R_LIBS", "R_LIBS_USER", "R_LIBS_SITE",
-                                  "JAVA_HOME", "R_JAVA_LD_LIBRARY_PATH", "R_MAKEVARS_USER", "RSTUDIO_PANDOC"), unset = NA_character_)
+                                  "JAVA_HOME", "R_JAVA_LD_LIBRARY_PATH", "R_MAKEVARS_USER", "RSTUDIO_PANDOC",
+                                  "PATH", "PKG_CONFIG_PATH", "PKG_CONFIG_LIBDIR", "PKG_CONFIG_SYSROOT_DIR",
+                                  "CPATH", "LIBRARY_PATH", "CPPFLAGS", "LDFLAGS"), unset = NA_character_)
   on.exit({
     options(old_options)
     for (name in names(old_environment)) {
@@ -161,7 +301,14 @@
     required <- unique(c(core, "knitr", "rmarkdown", "rcdk", "fingerprint",
                          "BoutrosLab.plotting.general", "ggforce", "ggalluvial", "wordcloud"))
     required <- setdiff(required, rownames(utils::installed.packages(priority = "base")))
-    .drugsignet_check_host_build_dependencies()
+    sdk_settings <- .drugsignet_prepare_host_sdk(runtime_prefix, host_library)
+    makevars <- tempfile("drugsignet-native-Makevars-")
+    on.exit(unlink(makevars), add = TRUE)
+    user_makevars <- old_environment[["R_MAKEVARS_USER"]]
+    if (is.na(user_makevars) || !nzchar(user_makevars)) user_makevars <- path.expand("~/.R/Makevars")
+    settings <- if (file.exists(user_makevars)) readLines(user_makevars, warn = FALSE) else character()
+    writeLines(c(settings, sdk_settings, if (.drugsignet_r_minor(getRversion()) == "4.4") "CXX11STD = -std=gnu++14"), makevars)
+    Sys.setenv(R_MAKEVARS_USER = makevars)
     java <- file.path(runtime_prefix, "lib", "jvm")
     Sys.setenv(JAVA_HOME = java, R_JAVA_LD_LIBRARY_PATH = file.path(java, "lib", "server"))
     # Bake the project JVM path into a library compiled by the HOST R.
@@ -186,13 +333,6 @@
     missing <- setdiff(required, installed)
     if (length(missing)) utils::install.packages(missing, lib = host_library, repos = repositories, dependencies = NA)
     if (.drugsignet_r_minor(getRversion()) == "4.4") {
-      makevars <- tempfile("drugsignet-native-Makevars-")
-      on.exit(unlink(makevars), add = TRUE)
-      user_makevars <- old_environment[["R_MAKEVARS_USER"]]
-      if (is.na(user_makevars) || !nzchar(user_makevars)) user_makevars <- path.expand("~/.R/Makevars")
-      settings <- if (file.exists(user_makevars)) readLines(user_makevars, warn = FALSE) else character()
-      writeLines(c(settings, "CXX11STD = -std=gnu++14"), makevars)
-      Sys.setenv(R_MAKEVARS_USER = makevars)
       utils::install.packages("BH", lib = host_library, repos = "https://cloud.r-project.org", type = "source")
     }
     bioc_version <- if (.drugsignet_r_minor(getRversion()) == "4.4") "3.20" else as.character(BiocManager::version())
@@ -200,7 +340,7 @@
                          version = bioc_version, ask = FALSE, update = FALSE)
   }
   message("Installing a separate DrugSigNet copy for host R ", getRversion(),
-          " into ", host_library, ". Native system dependencies must already be available.")
+          " into ", host_library, ".")
   arguments <- list(lib = host_library, dependencies = NA, upgrade = "never",
                     build_vignettes = build_vignettes, force = TRUE)
   tryCatch({
@@ -222,7 +362,7 @@
     }
   }, error = function(error) {
     stop("Host R installation failed: ", conditionMessage(error),
-         "\nThe validated Pixi installation is still available. Install missing host system dependencies and retry.",
+         "\nThe validated Pixi installation is still available. Inspect the native build diagnostics above and retry.",
          call. = FALSE)
   })
   invisible(normalizePath(host_library))

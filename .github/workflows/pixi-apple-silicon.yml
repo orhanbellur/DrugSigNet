@@ -10,6 +10,7 @@ on:
       - tools/test_installation.R
       - .github/workflows/pixi-apple-silicon.yml
       - .github/scripts/check-r44-plotting.R
+      - .github/scripts/check-rootless-host-sdk.R
   workflow_dispatch:
 permissions:
   contents: read
@@ -47,6 +48,45 @@ jobs:
                 }
               }
             }
+  rootless-native-sdk:
+    needs: cancel-obsolete-installations
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    container: rocker/rstudio:4.4.0
+    steps:
+      - name: Provide download tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates git
+      - uses: actions/checkout@v4
+      - name: Build and load the native SDK as an unprivileged R 4.4.0 user
+        shell: bash
+        run: |
+          set -o pipefail
+          chown -R rstudio:rstudio "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+          runuser -u rstudio -- bash -s <<'SCRIPT' 2>&1 | tee "$RUNNER_TEMP/rootless-sdk.log"
+          set -euo pipefail
+          curl -fsSL --retry 3 https://pixi.sh/install.sh | bash
+          project="$RUNNER_TEMP/sdk-tools"
+          mkdir -p "$project"
+          cat > "$project/pixi.toml" <<'MANIFEST'
+          [workspace]
+          name = "drugsignet-sdk-tools"
+          channels = ["conda-forge"]
+          platforms = ["linux-64"]
+          [dependencies]
+          pkg-config = "*"
+          MANIFEST
+          "$HOME/.pixi/bin/pixi" install --manifest-path "$project/pixi.toml"
+          Rscript .github/scripts/check-rootless-host-sdk.R
+          SCRIPT
+      - name: Preserve native SDK diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootless-native-sdk
+          path: ${{ runner.temp }}/rootless-sdk.log
+          retention-days: 7
   install:
     needs: cancel-obsolete-installations
     if: ${{ !cancelled() }}
@@ -75,8 +115,7 @@ jobs:
         if: ${{ matrix.config.container != null }}
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends curl ca-certificates git \
-            pkg-config libfontconfig1-dev libfreetype6-dev libpng-dev libxml2-dev zlib1g-dev
+          apt-get install -y --no-install-recommends curl ca-certificates git
       - uses: actions/checkout@v4
       - name: Verify native runner architecture
         run: |
@@ -98,9 +137,16 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          Rscript - <<'RSCRIPT' 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
+          script="$RUNNER_TEMP/drugsignet-pixi-host.R"
+          cat > "$script" <<'RSCRIPT'
           source("install-pixi.R")
           host_r_home <- R.home()
+          rootless <- identical(Sys.getenv("DRUGSIGNET_EXPECT_NATIVE_HOST"), "true")
+          if (rootless) {
+            stopifnot(Sys.info()[["effective_user"]] != "root")
+            stopifnot(!file.exists("/usr/include/png.h"), !file.exists("/usr/include/zlib.h"))
+            system_packages <- tools::md5sum("/var/lib/dpkg/status")
+          }
           # RStudio already has its host C++ runtime loaded before R packages.
           system_cpp <- "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
           if (Sys.info()[["sysname"]] == "Linux" && file.exists(system_cpp)) {
@@ -126,6 +172,8 @@ jobs:
           if (identical(selected, native)) stopifnot(!shared %in% normalizePath(.libPaths()))
           if (identical(Sys.getenv("DRUGSIGNET_EXPECT_NATIVE_HOST"), "true")) {
             stopifnot(identical(selected, native))
+            stopifnot(identical(tools::md5sum("/var/lib/dpkg/status"), system_packages))
+            stopifnot(!file.exists("/usr/include/png.h"), !file.exists("/usr/include/zlib.h"))
           }
           message("Host R home: ", R.home(), "; selected library: ", selected)
           stopifnot(requireNamespace("signatureSearch", quietly = TRUE))
@@ -137,6 +185,12 @@ jobs:
             source(".github/scripts/check-r44-plotting.R")
           }
           RSCRIPT
+          if [ "$DRUGSIGNET_EXPECT_NATIVE_HOST" = true ]; then
+            chown -R rstudio:rstudio "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+            runuser -u rstudio -- Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
+          else
+            Rscript "$script" 2>&1 | tee "$RUNNER_TEMP/drugsignet-pixi-install.log"
+          fi
       - name: Preserve installer diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -145,7 +199,15 @@ jobs:
           path: ${{ runner.temp }}/drugsignet-pixi-install.log
           retention-days: 7
       - name: Record installed R and Bioconductor versions
+        shell: bash
         run: |
-          env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
+          if [ "${{ matrix.config.container != null }}" = true ]; then
+            runner=(runuser -u rstudio --)
+            pixi=/home/rstudio/.pixi/bin/pixi
+          else
+            runner=()
+            pixi="$HOME/.pixi/bin/pixi"
+          fi
+          "${runner[@]}" env -u R_HOME -u R_LIBS -u R_LIBS_USER -u R_LIBS_SITE \
             -u JAVA_HOME -u R_JAVA_LD_LIBRARY_PATH \
-            "$HOME/.pixi/bin/pixi" run --clean-env --manifest-path "$RUNNER_TEMP/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'
+            "$pixi" run --clean-env --manifest-path "$RUNNER_TEMP/DrugSigNet-test/pixi.toml" Rscript --vanilla -e 'print(R.version.string); print(BiocManager::version()); print(installed.packages()[, c("Package", "Version")])'
