@@ -100,7 +100,7 @@
   writeLines(c("#!/bin/sh", paste0("export CONDA_PREFIX=", shQuote(runtime_prefix)),
     paste0("export PATH=", shQuote(file.path(runtime_prefix, "bin")), ':"$PATH"'),
     paste0("export LD_LIBRARY_PATH=", shQuote(file.path(runtime_prefix, "lib")), '${LD_LIBRARY_PATH:+:"$LD_LIBRARY_PATH"}'),
-    paste0("exec ", shQuote(pkg_config), ' "$@"')), link)
+    paste0("exec ", shQuote(pkg_config), ' --dont-define-prefix "$@"')), link)
   Sys.chmod(link, "0755")
   tool_log <- file.path(root, "pkg-config.log")
   if (!identical(system2(link, "--version", stdout = tool_log, stderr = tool_log), 0L)) {
