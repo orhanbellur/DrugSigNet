@@ -141,8 +141,11 @@
                          " JAR=", shQuote(file.path(java, "bin", "jar")),
                          " JAVA_CPPFLAGS=", shQuote(paste(includes, collapse = " ")),
                          " JAVA_LIBS=", shQuote(java_libs))
+    # DrugSigNet uses JNI (R -> Java), not JRI (Java -> embedded R).
+    # Avoid linking a second R engine and its optional embedding libraries.
     utils::install.packages("rJava", lib = host_library, repos = cran,
-                            type = "source", configure.vars = configure)
+                            type = "source", configure.vars = configure,
+                            configure.args = "--disable-jri")
     if (!file.exists(file.path(host_library, "rJava", "DESCRIPTION"))) {
       stop("Native rJava installation failed; inspect the compiler output above.", call. = FALSE)
     }

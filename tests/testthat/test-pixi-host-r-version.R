@@ -343,8 +343,9 @@ test_that("native Java configure variables use real compiler paths rather than l
     repositories = function(...) c(CRAN = "https://example.invalid"), .package = "BiocManager"
   )
   testthat::local_mocked_bindings(
-    install.packages = function(pkgs, ..., configure.vars = NULL) {
+    install.packages = function(pkgs, ..., configure.vars = NULL, configure.args = NULL) {
       if (!identical(pkgs, "rJava")) return(invisible(NULL))
+      expect_identical(configure.args, "--disable-jri")
       # R passes this string through a shell. Embedded quotes in CPPFLAGS
       # remain literal compiler-path characters after variable expansion.
       command <- paste(configure.vars,
