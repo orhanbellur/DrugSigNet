@@ -85,10 +85,12 @@ packages compiled for the previous R are not retained. Keep user data outside
 On Apple Silicon Macs, `signatureSearch`/`signatureSearchData` are installed from
 Bioconductor inside the selected Pixi R because Bioconda does not provide them
 for `osx-arm64`. R 4.4 uses Bioconductor 3.20 and the 2025-04-30 CRAN snapshot;
-R 4.5 uses Bioconductor 3.22. The installer configures project OpenJDK, installs
+R 4.5 uses Bioconductor 3.22; newer R series select their matching release
+through BiocManager. The installer configures project OpenJDK, installs
 `rcdk`/`fingerprint` from CRAN, and validates a CDK fingerprint calculation.
-R 4.4 obtains `BoutrosLab.plotting.general` from CRAN because its available
-Conda build requires R 4.5. Its plotting extensions are rebuilt against the same dated CRAN snapshot to
+R series other than 4.5 obtain `BoutrosLab.plotting.general` from CRAN because
+its available Conda build requires R 4.5. Newer R series also obtain Bioconductor
+packages from source instead of selecting binaries for an older R. Its plotting extensions are rebuilt against the same dated CRAN snapshot to
 avoid incompatible serialized ggplot2 defaults. For R 4.4 source builds on Apple Silicon, BH >= 1.90 supplies the upstream
 Boost header fix required by Clang 21; a project-local Makevars file provides
 C++14 for older packages requesting C++11. These source installations are

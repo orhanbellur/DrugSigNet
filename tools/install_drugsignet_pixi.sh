@@ -64,6 +64,13 @@ if [[ ! "${r_series}" =~ ^[0-9]+\.[0-9]+$ ]]; then
   exit 2
 fi
 echo "[DrugSigNet] Pixi R series: ${r_series} (matching the calling R when supplied)."
+# Bioconda's maintained build is R 4.5; R 4.4 also has legacy x86 builds.
+# Other series and ARM platforms obtain R/Bioconductor dependencies from source.
+source_r_deps=false
+if [[ "${pixi_platform}" == "osx-arm64" || "${pixi_platform}" == "linux-aarch64" || ( "${r_series}" != "4.4" && "${r_series}" != "4.5" ) ]]; then
+  source_r_deps=true
+fi
+
 
 
 # Conda's macOS compilers need the host SDK headers (not supplied by Pixi).
@@ -98,11 +105,11 @@ pixi_toml="${project_dir}/pixi.toml"
     "platforms = [\"${pixi_platform}\"]" \
     '' \
     '[dependencies]'
-  awk -F '\t' -v platform="${pixi_platform}" -v r_series="${r_series}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
+  awk -F '\t' -v platform="${pixi_platform}" -v r_series="${r_series}" -v source_r_deps="${source_r_deps}" '$1 == "conda" || $1 == "pixi" || ($1 == "pixi-osx" && platform ~ /^osx-/) {
     # Bioconda does not provide these packages for Apple Silicon. Install
     # them with BiocManager inside Pixi R after the native runtime exists.
-    if (platform == "osx-arm64" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
-    if (r_series == "4.4" && $2 == "r-boutroslabplottinggeneral") next
+    if (source_r_deps == "true" && ($2 ~ /^bioconductor-/ || $2 == "r-rcdk")) next
+    if (r_series != "4.5" && $2 == "r-boutroslabplottinggeneral") next
     spec=$2; name=spec; version="*";
     if (index(spec, "=") > 0) {
       split(spec, parts, "="); name=parts[1]; version=parts[2] ".*"
@@ -262,12 +269,19 @@ if (length(missing) || packageVersion("ggplot2") >= "4.0.0") {
 }
 RSCRIPT
   pixi_clean_run Rscript --vanilla "${source_dir}/.github/scripts/check-r44-plotting.R"
+elif [[ "${r_series}" != "4.5" ]]; then
+  pixi_clean_run Rscript --vanilla - <<'RSCRIPT'
+install.packages("BoutrosLab.plotting.general", repos = "https://cloud.r-project.org", type = "source")
+if (!requireNamespace("BoutrosLab.plotting.general", quietly = TRUE)) {
+  stop("The Boutros plotting dependency could not be installed for the selected R series.")
+}
+RSCRIPT
 fi
 
 # Use the Bioconductor release associated with the selected Pixi R series.
 # Run before building vignettes: they load signatureSearch as well.
-if [[ "${pixi_platform}" == "osx-arm64" ]]; then
-  echo "[DrugSigNet] Configuring Pixi Java and installing Apple Silicon R dependencies."
+if [[ "${source_r_deps}" == true ]]; then
+  echo "[DrugSigNet] Configuring Pixi Java and source R dependencies for ${pixi_platform}, R ${r_series}."
   [[ -x "${runtime_prefix}/lib/jvm/bin/java" ]] || {
     echo "ERROR: Pixi OpenJDK is missing from ${runtime_prefix}/lib/jvm." >&2
     exit 1
@@ -292,13 +306,13 @@ cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1
 if (length(cran_missing)) install.packages(cran_missing)
 cran_missing <- cran_required[!vapply(cran_required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(cran_missing)) {
-  stop("Apple Silicon CRAN installation failed: ", paste(cran_missing, collapse = ", "))
+  stop("Pixi CRAN installation failed: ", paste(cran_missing, collapse = ", "))
 }
 # Exercise rJava/CDK as well as namespace loading before claiming success.
 molecule <- rcdk::parse.smiles("CCO")[[1L]]
 fingerprint <- rcdk::get.fingerprint(molecule, type = "extended")
 if (!inherits(fingerprint, "fingerprint")) {
-  stop("Apple Silicon CDK fingerprint validation failed.")
+  stop("Pixi CDK fingerprint validation failed.")
 }
 # BH 1.87 from the R 4.4 snapshot has an invalid interprocess template
 # expression rejected by Clang 21. BH 1.90 contains the upstream correction.
@@ -306,7 +320,7 @@ if (r_series == "4.4" && (!requireNamespace("BH", quietly = TRUE) || packageVers
   install.packages("BH", repos = "https://cloud.r-project.org", type = "source")
 }
 if (r_series == "4.4" && (!requireNamespace("BH", quietly = TRUE) || packageVersion("BH") < "1.90.0")) {
-  stop("Apple Silicon R 4.4 requires BH >= 1.90 for the selected Clang compiler.")
+  stop("Pixi R 4.4 requires BH >= 1.90 for the selected Clang compiler.")
 }
 required <- c("signatureSearch", "signatureSearchData")
 BiocManager::install(version = bioc_version, ask = FALSE, update = FALSE)
@@ -316,7 +330,7 @@ if (length(missing)) {
 }
 missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing)) {
-  stop("Apple Silicon Bioconductor installation failed: ", paste(missing, collapse = ", "))
+  stop("Pixi Bioconductor installation failed: ", paste(missing, collapse = ", "))
 }
 RSCRIPT
 fi

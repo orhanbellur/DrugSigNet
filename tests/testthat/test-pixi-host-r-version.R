@@ -190,10 +190,14 @@ test_that("the caller R series selects Pixi and activates it in the same session
   }
   entry$.drugsignet_install_host_package <- function(...) stop("No second installation should be needed")
   entry$.drugsignet_persist_pixi_host_config <- function(...) TRUE
-  expect_message(result <- entry$install_drugsignet_pixi(project_dir = project,
-    repository_root = project), "can be called directly")
-  expect_identical(result, normalizePath(project))
-  expect_true("DRUGSIGNET_PIXI_R_VERSION=4.4" %in% environment)
+  for (versions in list(c("4.4.0", "4.4.3"), c("4.5.3", "4.5.3"), c("4.6.0", "4.6.1"))) {
+    entry$getRversion <- function() numeric_version(versions[[1L]])
+    writeLines(versions[[2L]], file.path(prefix, ".drugsignet-r-version"))
+    expect_message(result <- entry$install_drugsignet_pixi(project_dir = project,
+      repository_root = project), "can be called directly")
+    expect_identical(result, normalizePath(project))
+    expect_true(paste0("DRUGSIGNET_PIXI_R_VERSION=", entry$.drugsignet_r_minor(versions[[1L]])) %in% environment)
+  }
   entry$getRversion <- function() numeric_version("4.3.3")
   entry$system2 <- function(...) stop("Installer must not launch")
   expect_error(entry$install_drugsignet_pixi(), "requires R >= 4.4.0")

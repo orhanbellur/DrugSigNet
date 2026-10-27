@@ -23,6 +23,7 @@ jobs:
           - {os: macos-14, r: '4.5.3'}
           - {os: ubuntu-24.04, r: '4.4.0'}
           - {os: ubuntu-24.04, r: '4.5.3'}
+          - {os: ubuntu-24.04, r: '4.6.1'}
     name: ${{ matrix.config.os }} / host R ${{ matrix.config.r }}
     runs-on: ${{ matrix.config.os }}
     timeout-minutes: 180
