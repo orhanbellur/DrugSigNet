@@ -37,7 +37,7 @@ jobs:
               owner, repo, branch: pr.head.ref, per_page: 100
             });
             for (const run of runs) {
-              if (run.name === 'Pixi host R compatibility' &&
+              if (['Pixi host R compatibility', 'DrugSigNet cross-platform check'].includes(run.name) &&
                   run.id !== context.runId && run.head_sha !== pr.head.sha && run.status !== 'completed') {
                 core.info(`Cancel obsolete installer run ${run.id} (${run.head_sha})`);
                 try {
