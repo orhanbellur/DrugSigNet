@@ -4,6 +4,11 @@
 
 ### Fixes
 
+- Extract automatic TinyTeX downloads with R's internal archive reader, avoiding
+  missing host `xz` executables in RStudio/Pixi installations. Reuse user TeX
+  installations outside PATH and activate newly installed engines for PDF
+  rendering without a restart or system PATH registration.
+
 - Initialize ExperimentHub metadata and signature-search target annotations before
   dispatching workers, with a cross-process initialization lock. Repair duplicate
   `experimenthub.sqlite3` registrations with metadata backups while preserving
