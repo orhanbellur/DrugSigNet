@@ -122,7 +122,10 @@
 #' `write_pipeline_results()`. PDF reports require a LaTeX engine such as
 #' `pdflatex`, `xelatex`, or `lualatex`. If the `tinytex` R package is
 #' installed but no LaTeX engine is available, `write_report()` attempts to
-#' install TinyTeX automatically before rendering the PDF.
+#' install TinyTeX automatically before rendering the PDF. Installation uses R's
+#' internal archive extractor, so a host `xz` executable is not required.
+#' User TinyTeX installations are discovered and made available during rendering
+#' without a session restart, administrative access, or system PATH changes.
 #'
 #' PDF reports use a concise scientific layout, prioritized annotations, compact
 #' input and parameter summaries, and a report-time software inventory. Stored

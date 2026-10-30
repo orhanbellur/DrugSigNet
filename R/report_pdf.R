@@ -289,12 +289,43 @@
   }, error = function(e) FALSE)
 }
 
+.report_install_tinytex <- function() {
+  # utils::untar() otherwise honors R's external TAR setting. GNU tar needs an
+  # xz executable for current TinyTeX bundles, which may be absent from the host
+  # RStudio PATH even when it is installed inside Pixi. R's internal extractor
+  # reads .tar.xz directly using its built-in compression support.
+  previous_tar <- Sys.getenv("TAR", unset = NA_character_)
+  on.exit(if (is.na(previous_tar)) Sys.unsetenv("TAR") else Sys.setenv(TAR = previous_tar), add = TRUE)
+  Sys.setenv(TAR = "internal")
+  # The report uses the returned user installation directly; do not register
+  # executables in the operating system's PATH or request administrative access.
+  tinytex::install_tinytex(add_path = FALSE)
+}
+
+.report_use_tinytex <- function(root) {
+  if (!is.character(root) || length(root) != 1L || is.na(root) || !nzchar(root)) return(invisible(FALSE))
+  bins <- list.dirs(file.path(path.expand(root), "bin"), recursive = FALSE, full.names = TRUE)
+  engine_files <- c("xelatex", "lualatex", "pdflatex")
+  if (.Platform$OS.type == "windows") engine_files <- paste0(engine_files, ".exe")
+  bins <- bins[vapply(bins, function(bin) any(file.exists(file.path(bin, engine_files))), logical(1))]
+  if (!length(bins)) return(invisible(FALSE))
+  Sys.setenv(PATH = paste(c(bins, Sys.getenv("PATH")), collapse = .Platform$path.sep))
+  invisible(TRUE)
+}
+
 .report_latex_engine <- function() {
   engines <- c("xelatex", "lualatex", "pdflatex")
   available <- engines[nzchar(Sys.which(engines))]
   if (!length(available) && requireNamespace("tinytex", quietly = TRUE)) {
-    message("No LaTeX engine found; installing TinyTeX before rendering the PDF report.")
-    tryCatch(tinytex::install_tinytex(), error = function(e) stop("PDF reports require a LaTeX engine. TinyTeX install error: ", conditionMessage(e), call. = FALSE))
+    # An existing user installation can be usable even when its bin directory
+    # is absent from the current RStudio session's PATH.
+    .report_use_tinytex(tinytex::tinytex_root(error = FALSE))
+    available <- engines[nzchar(Sys.which(engines))]
+    if (!length(available)) {
+      message("No LaTeX engine found; installing TinyTeX before rendering the PDF report.")
+      root <- tryCatch(.report_install_tinytex(), error = function(e) stop("PDF reports require a LaTeX engine. TinyTeX install error: ", conditionMessage(e), call. = FALSE))
+      .report_use_tinytex(root)
+    }
     available <- engines[nzchar(Sys.which(engines))]
   }
   if (!length(available)) stop("PDF reports require a LaTeX engine. Install TinyTeX or a system TeX distribution, then rerun write_report().", call. = FALSE)
@@ -497,6 +528,8 @@
 }
 
 .write_pdf_report <- function(objects, title, base_name, author, top_n, enrichment_n, supplementary, options = list()) {
+  previous_path <- Sys.getenv("PATH", unset = NA_character_)
+  on.exit(if (is.na(previous_path)) Sys.unsetenv("PATH") else Sys.setenv(PATH = previous_path), add = TRUE)
   options <- .report_pdf_options(options)
   engine <- .report_latex_engine()
   if (!requireNamespace("rmarkdown", quietly = TRUE) || !requireNamespace("knitr", quietly = TRUE)) stop("PDF reports require rmarkdown and knitr.", call. = FALSE)
