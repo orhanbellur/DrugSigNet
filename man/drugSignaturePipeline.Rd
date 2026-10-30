@@ -130,7 +130,12 @@ returned pipeline object.
 \section{Reference identity and completeness}{
 
 With multiple workers, default mode resolves frozen local reference files
-before dispatch. Frozen LINCS2 perturbation IDs are normalized to compound
+before dispatch. ExperimentHub metadata and target annotations are initialized
+under a cross-process lock before searches start, including frozen searches.
+Duplicate metadata registrations are repaired when a readable SQLite copy
+exists, with metadata backups retained in the cache. Downloaded reference
+resources are preserved; unrelated cache or network errors remain visible.
+Frozen LINCS2 perturbation IDs are normalized to compound
 names before filtering and scoring; unmapped IDs remain distinct. Cache
 contents can refresh when remote versions change, so retain versions/checksums.
 Some failed searches can be skipped and unavailable families omitted from

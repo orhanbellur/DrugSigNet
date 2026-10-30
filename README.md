@@ -364,6 +364,21 @@ For instructions on creating a token and configuring it securely in R, see the
 Synapse authentication is optional and is not required for the basic
 signature- or network-based workflows.
 
+## ExperimentHub cache initialization
+
+Signature searches use ExperimentHub for target annotations even when their
+expression reference is a frozen local HDF5 file. DrugSigNet initializes these
+shared resources before launching workers, so a first parallel analysis does
+not initialize the cache from multiple workers at once.
+
+The error `Corrupt Cache: sqlite file` can indicate duplicate registrations of
+`experimenthub.sqlite3`, rather than a damaged SQLite file. DrugSigNet repairs
+these duplicates when a readable metadata copy is available and retains a
+`drugsignet-metadata-backup-*` directory in the ExperimentHub cache. Downloaded
+reference databases are preserved; deleting the whole cache or reinstalling
+DrugSigNet is unnecessary for this case. Network failures, permission errors,
+and metadata with no readable copy are still reported for diagnosis.
+
 ## Citation
 
 If DrugSigNet contributes to your analysis or publication, please cite the package. Citation metadata is available in [`CITATION.cff`](CITATION.cff).

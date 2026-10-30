@@ -42,6 +42,10 @@ Imports:
     utils,
     wordcloud
 Suggests: 
+    BiocFileCache,
+    DBI,
+    filelock,
+    RSQLite,
     AnnotationDbi,
     BoutrosLab.plotting.general,
     ExperimentHub,
