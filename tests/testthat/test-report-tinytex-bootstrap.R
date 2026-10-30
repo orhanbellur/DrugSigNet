@@ -8,7 +8,7 @@ report_tex_fixture <- function() {
   list(root = root, bin = bin)
 }
 
-test_that("TinyTeX extracts xz bundles without host tar or xz executables", {
+test_that("TinyTeX extracts xz bundles with no xz and an unusable external TAR", {
   work <- tempfile("tinytex-extract-")
   dir.create(work)
   on.exit(unlink(work, recursive = TRUE), add = TRUE)
@@ -19,7 +19,9 @@ test_that("TinyTeX extracts xz bundles without host tar or xz executables", {
   dir.create("extracted")
   withr::local_envvar(c(PATH = file.path(work, "no-tools"), TAR = "/missing/tar"))
   expect_identical(unname(Sys.which("xz")), "")
-  expect_identical(unname(Sys.which("tar")), "")
+  # Windows searches System32 even with an empty PATH. Control the extractor
+  # explicitly instead of assuming the system's tar.exe cannot be discovered.
+  expect_false(file.exists(Sys.getenv("TAR")))
   testthat::local_mocked_bindings(install_tinytex = function(add_path) {
     expect_false(add_path)
     expect_identical(Sys.getenv("TAR"), "internal")
