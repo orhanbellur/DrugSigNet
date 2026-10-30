@@ -70,6 +70,7 @@ test_that("unmapped frozen perturbations retain distinct original identifiers", 
 test_that("pipeline normalization receives effective reference mode in both worker configurations", {
   lookup <- data.frame(pert_id = c("id_a1", "id_a2", "id_b"), pert_iname = c("drug_a", "drug_a", "drug_b"))
   modes <- character()
+  prepared_references <- list()
   normalize <- DrugSigNet:::.normalize_frozen_lincs2_result
   aggregation <- function(method) function(object = NULL, input_data, ...) {
     value <- data.frame(Drug = as.character(input_data[[1]]))
@@ -78,11 +79,18 @@ test_that("pipeline normalization receives effective reference mode in both work
   }
   testthat::local_mocked_bindings(
     .drugsignet_require_signature_search = function() invisible(TRUE),
+    .prepare_signature_hub = function(refdb) {
+      prepared_references[[length(prepared_references) + 1L]] <<- refdb
+      invisible(TRUE)
+    },
     load_drugsignet_network = function(...) data.frame(ID = character(), Drug = character(), Target = character(),
       Drug_confidence = character(), Target_confidence = character()),
     .drugsignet_ks_critical_value = function(...) 0.2,
     .resolve_signature_refdb = function(ref_db, ...) paste0("/frozen/", ref_db, ".h5"),
-    run_pipeline_tasks = function(tasks, FUN, ...) lapply(tasks, FUN),
+    run_pipeline_tasks = function(tasks, FUN, ...) {
+      expect_true(length(prepared_references) > 0L)
+      lapply(tasks, FUN)
+    },
     .run_signature_method_task = function(task) {
       raw <- signature_score_fixture()[1:3, ]
       raw$raw_score <- raw$scaled_score <- raw$WTCS <- raw$effect <- raw$cor_score <- c(-.9, -.85, -.8)
@@ -102,6 +110,7 @@ test_that("pipeline normalization receives effective reference mode in both work
   expect_true(all(modes == "default"))
   modes <- character()
   parallel <- run(2L)
+  expect_identical(prepared_references, list(c("cmap", "lincs2"), character()))
   expect_true(all(modes == "frozen"))
   for (method in names(sequential@DrugSearching$Processed)) {
     expect_equal(signature_scores_by_drug(parallel@DrugSearching$Processed[[method]]),

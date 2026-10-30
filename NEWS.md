@@ -2,6 +2,13 @@
 
 ## DrugSigNet 1.0.0
 
+### Fixes
+
+- Initialize ExperimentHub metadata and signature-search target annotations before
+  dispatching workers, with a cross-process initialization lock. Repair duplicate
+  `experimenthub.sqlite3` registrations with metadata backups while preserving
+  downloaded resources. Frozen references still require these annotations.
+
 ### Initial release
 
 - Added signature-based, network-based, and integrated drug-repurposing
