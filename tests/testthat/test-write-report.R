@@ -97,9 +97,11 @@ test_that("scientific PDF renders when LaTeX is available", {
     )), type = "signature"
   )
   target <- tempfile("drugsignet-report-")
+  original_path <- Sys.getenv("PATH")
   pdf <- write_report(result, file = target, device = "pdf", include_appendix = FALSE)
   expect_true(file.exists(pdf))
   expect_gt(file.info(pdf)$size, 0)
+  expect_identical(Sys.getenv("PATH"), original_path)
 })
 
 report_fixture <- function(type = "network") {
