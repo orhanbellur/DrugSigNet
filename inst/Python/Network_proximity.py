@@ -26,11 +26,6 @@ from joblib import Parallel, delayed
 import logging
 from tqdm import tqdm
 import time
-from copy import deepcopy
-import multiprocessing
-
-# Set multiprocessing start method for clean process isolation
-multiprocessing.set_start_method("spawn", force=True)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -76,7 +71,7 @@ def calculate_closest_distance(network, nodes_from, nodes_to, lengths=None):
 def get_degree_binning(g, bin_size, lengths=None):
     """Groups nodes by degree into bins."""
     degree_to_nodes = {}
-    for node, degree in g.degree():
+    for node, degree in sorted(g.degree(), key=lambda item: str(item[0])):
         if lengths is not None and node not in lengths:
             continue
         degree_to_nodes.setdefault(degree, []).append(node)
@@ -105,30 +100,29 @@ def get_degree_binning(g, bin_size, lengths=None):
 
 def pick_random_nodes_matching_selected(network, bins, nodes_selected, n_random, degree_aware=True, seed=452456):
     """Picks random nodes matching the degree distribution of selected nodes."""
-    if seed is not None:
-        seed = int(seed)
-        random.seed(seed)
+    rng = random.Random(None if seed is None else int(seed))
     values = []
+    node_to_equivalent_nodes = get_degree_equivalents(sorted(nodes_selected), bins, network) if degree_aware else None
     for _ in range(n_random):
         if degree_aware:
             nodes_random = set()
-            node_to_equivalent_nodes = get_degree_equivalents(nodes_selected, bins, network)
             for node, equivalent_nodes in node_to_equivalent_nodes.items():
-                chosen = random.choice(equivalent_nodes)
+                chosen = rng.choice(equivalent_nodes)
                 for _ in range(20):  # Try to find a distinct node (at most 20 times)
-                    if chosen in nodes_random:
-                        chosen = random.choice(equivalent_nodes)
+                    if chosen not in nodes_random:
+                        break
+                    chosen = rng.choice(equivalent_nodes)
                 nodes_random.add(chosen)
-            values.append(list(nodes_random))
+            values.append(sorted(nodes_random))
         else:
-            values.append(random.sample(network.nodes, len(nodes_selected)))
+            values.append(rng.sample(sorted(network.nodes()), len(nodes_selected)))
     return values
 
 
 def get_degree_equivalents(seeds, bins, g):
     """Finds nodes with equivalent degree distribution."""
     seed_to_nodes = {}
-    for seed in seeds:
+    for seed in sorted(seeds):
         d = g.degree(seed)
         for l, h, nodes in bins:
             if l <= d and h >= d:
@@ -149,14 +143,14 @@ def get_random_nodes(nodes, network, bins=None, n_random=1000, min_bin_size=100,
 def calculate_proximity(network, nodes_from, nodes_to, n_random=1000, min_bin_size=100, seed=452456):
     """Calculates proximity between two sets of nodes."""
     nodes_network = set(network.nodes())
-    nodes_from = set(nodes_from) & nodes_network
-    nodes_to = set(nodes_to) & nodes_network
+    nodes_from = sorted(set(nodes_from) & nodes_network)
+    nodes_to = sorted(set(nodes_to) & nodes_network)
     if len(nodes_from) == 0 or len(nodes_to) == 0:
         return None
     d = calculate_closest_distance(network, nodes_from, nodes_to)
     bins = get_degree_binning(network, min_bin_size)
     nodes_from_random = get_random_nodes(nodes_from, network, bins=bins, n_random=n_random, min_bin_size=min_bin_size, seed=seed)
-    nodes_to_random = get_random_nodes(nodes_to, network, bins=bins, n_random=n_random, min_bin_size=min_bin_size, seed=seed)
+    nodes_to_random = get_random_nodes(nodes_to, network, bins=bins, n_random=n_random, min_bin_size=min_bin_size, seed=None if seed is None else int(seed) + 1)
     random_values_list = zip(nodes_from_random, nodes_to_random)
     values = np.array([calculate_closest_distance(network, r_from, r_to) for r_from, r_to in random_values_list])
     m, s = np.mean(values), np.std(values)
@@ -167,12 +161,12 @@ def calculate_proximity(network, nodes_from, nodes_to, n_random=1000, min_bin_si
 def single_proximity(sample):
     """Calculates proximity for a single drug-disease pair."""
     try:
-        drug_key, disease_key, drug_targets, disease_genes, network, nsims = sample
+        drug_key, disease_key, drug_targets, disease_genes, network, nsims, seed = sample
         nodes_from = set(drug_targets[drug_key]) & set(network.nodes())
         nodes_to = set(disease_genes[disease_key]) & set(network.nodes())
         if len(nodes_from) == 0 or len(nodes_to) == 0:
             return
-        d, z, (mean, sd) = calculate_proximity(network, nodes_from, nodes_to, n_random=nsims)
+        d, z, (mean, sd) = calculate_proximity(network, nodes_from, nodes_to, n_random=nsims, seed=seed)
         return [drug_key, disease_key, d, z, mean, sd]
     except Exception as e:
         return {'Drug': drug_key, 'Disease': disease_key, 'Error': str(e)}
@@ -189,10 +183,8 @@ def read_network(gene_edges_df):
 
 # Main function
 def Network_Proximity(disease_genes, drug_edges_df, gene_edges_df, nsims, ncpus, start=0, end=None, random_seed=42):
-    # Set global seed for reproducibility
-    random_seed=int(random_seed)
-    random.seed(random_seed)
-    np.random.seed(random_seed)
+    # Seed each drug-disease calculation independently; avoid global RNG state.
+    random_seed = int(random_seed)
 
     # Read inputs
     disease_gene_set = seed_gordon(disease_genes)
@@ -208,9 +200,12 @@ def Network_Proximity(disease_genes, drug_edges_df, gene_edges_df, nsims, ncpus,
 
     # Prepare samples
     samples = [
-        [drug, disease, drug_targets, disease_genes, G1, nsims]
-        for drug in drug_targets.keys()
-        for disease in disease_genes.keys()
+        [drug, disease, drug_targets, disease_genes, G1, nsims, random_seed + index]
+        for index, (drug, disease) in enumerate(
+            (drug, disease)
+            for drug in sorted(drug_targets)
+            for disease in sorted(disease_genes)
+        )
     ]
 
     # Apply start and end slicing
@@ -218,22 +213,9 @@ def Network_Proximity(disease_genes, drug_edges_df, gene_edges_df, nsims, ncpus,
         end = len(samples)
     samples = samples[start:end]
 
-    # Parallel wrapper with worker-specific seeds
-    def wrapper(sample, worker_seed):
-        worker_seed = int(worker_seed)
-        random.seed(worker_seed)
-        np.random.seed(worker_seed)
-        sample[2] = deepcopy(sample[2])  # Ensure isolation of shared objects
-        sample[3] = deepcopy(sample[3])
-        sample[4] = deepcopy(sample[4])
-        return single_proximity(sample)
-
-    # Generate unique, deterministic seeds for each sample
-    worker_seeds = np.arange(start, start + len(samples)) + random_seed
-
-    # Run parallel jobs with assigned seeds
+    # Per-sample RNGs give the same results for serial and parallel execution.
     res = Parallel(n_jobs=ncpus)(
-        delayed(wrapper)(sample, worker_seeds[i]) for i, sample in enumerate(samples)
+        delayed(single_proximity)(sample) for sample in samples
     )
 
     # Compile results
