@@ -203,9 +203,13 @@ def _main():
             {
                 "converged": bool(converged),
                 "correlation": correlation,
-                "correlation_values": [float(x) for x in correlation_values],
+                "correlation_values": [
+                    float(value) if np.isfinite(value) else None
+                    for value in correlation_values
+                ],
             },
             stream,
+            allow_nan=False,
         )
 
 
